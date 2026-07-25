@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import PageMeta from "../components/PageMeta.jsx";
 import { GALLERY_EVENTS } from "../data/gallery.js";
 import { compressImage } from "../lib/compressImage.js";
+import { useNetlifyIdentity, getIdentityToken as getToken } from "../lib/useNetlifyIdentity.js";
 
 const BATCH_SIZE = 4;
 
@@ -15,51 +16,8 @@ function slugify(text) {
     .slice(0, 60);
 }
 
-async function getToken() {
-  const user = window.netlifyIdentity?.currentUser();
-  if (!user) throw new Error("You've been logged out — log in again.");
-  return user.jwt();
-}
-
 export default function GalleryAdmin() {
-  const [user, setUser] = useState(null);
-  const [authReady, setAuthReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    let poll;
-    const bind = (identity) => {
-      setUser(identity.currentUser());
-      setAuthReady(true);
-      const onLogin = (u) => {
-        setUser(u);
-        identity.close();
-      };
-      const onLogout = () => setUser(null);
-      identity.on("login", onLogin);
-      identity.on("logout", onLogout);
-      return () => {
-        identity.off("login", onLogin);
-        identity.off("logout", onLogout);
-      };
-    };
-    let cleanup = () => {};
-    if (window.netlifyIdentity) {
-      cleanup = bind(window.netlifyIdentity);
-    } else {
-      poll = setInterval(() => {
-        if (window.netlifyIdentity && !cancelled) {
-          clearInterval(poll);
-          cleanup = bind(window.netlifyIdentity);
-        }
-      }, 100);
-    }
-    return () => {
-      cancelled = true;
-      clearInterval(poll);
-      cleanup();
-    };
-  }, []);
+  const { user, ready } = useNetlifyIdentity();
 
   return (
     <>
@@ -77,7 +35,7 @@ export default function GalleryAdmin() {
 
       <section>
         <div className="wrap">
-          {!authReady ? (
+          {!ready ? (
             <p className="mono">Loading…</p>
           ) : !user ? (
             <div className="admin-gate">

@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import PageMeta from "../components/PageMeta.jsx";
-import { TESTIMONIALS, TRUST_STATS } from "../data/site.js";
+import { TRUST_STATS } from "../data/site.js";
+import { STORIES } from "../data/stories.js";
+import StoryCard from "../components/StoryCard.jsx";
 
 export default function Stories() {
   return (
@@ -35,25 +37,17 @@ export default function Stories() {
             ))}
           </div>
 
-          <div className="testimonials">
-            {TESTIMONIALS.map((t) => (
-              <div className="t-card" key={t.quote}>
-                <p className="quote">&quot;{t.quote}&quot;</p>
-                <div className="who">
-                  <span className="t-avatar" />
-                  <div>
-                    <strong>{t.name}</strong>
-                    <span>{t.role}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="placeholder-note">
-            These quotes are placeholders until real member names, photos, and stories are
-            recorded — swap them out in <code className="mono">src/data/site.js</code> as they
-            come in.
-          </p>
+          {STORIES.length === 0 ? (
+            <div className="gallery-empty">
+              <p>Stories coming soon — check back after our next round of results.</p>
+            </div>
+          ) : (
+            <div className="testimonials">
+              {STORIES.map((s) => (
+                <StoryCard story={s} key={s.slug} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

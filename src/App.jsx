@@ -7,6 +7,7 @@ import Leadership from "./pages/Leadership.jsx";
 import Gallery from "./pages/Gallery.jsx";
 import GalleryAdmin from "./pages/GalleryAdmin.jsx";
 import Stories from "./pages/Stories.jsx";
+import StoriesAdmin from "./pages/StoriesAdmin.jsx";
 import Join from "./pages/Join.jsx";
 import FAQ from "./pages/FAQ.jsx";
 import Disclaimer from "./pages/Disclaimer.jsx";
@@ -24,6 +25,7 @@ function App() {
         <Route path="/gallery" element={<Gallery />} />
         <Route path="/gallery-admin" element={<GalleryAdmin />} />
         <Route path="/stories" element={<Stories />} />
+        <Route path="/stories-admin" element={<StoriesAdmin />} />
         <Route path="/join" element={<Join />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/disclaimer" element={<Disclaimer />} />

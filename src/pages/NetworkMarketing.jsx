@@ -3,7 +3,7 @@ import PageMeta from "../components/PageMeta.jsx";
 import Steps from "../components/Steps.jsx";
 import FitGrid from "../components/FitGrid.jsx";
 import Accordion from "../components/Accordion.jsx";
-import { NETWORK_STEPS, NETWORK_FIT_YES, NETWORK_FIT_NO, RANK_PATH } from "../data/site.js";
+import { NETWORK_STEPS, NETWORK_FIT_YES, NETWORK_FIT_NO, NETWORK_BENEFITS } from "../data/site.js";
 
 const NETWORK_FAQS = [
   {
@@ -33,7 +33,7 @@ export default function NetworkMarketing() {
     <>
       <PageMeta
         title="Network Marketing Track"
-        description="Build a real Neolife network marketing business with a structured prospecting system, weekly training, and a clear rank path."
+        description="Build a real Neolife network marketing business with a structured prospecting system, weekly training, and income that grows with your team."
       />
 
       <section className="page-hero">
@@ -42,12 +42,16 @@ export default function NetworkMarketing() {
             <Link to="/">Home</Link> <span>/</span> <span>Network Marketing Track</span>
           </div>
           <div className="eyebrow">Network Marketing Track</div>
-          <h1>Build a team, build leveraged income — the structured way.</h1>
+          <h1>Stop trading hours for money. Build income that grows with your team.</h1>
           <p className="lede">
-            We run an active Neolife business built on a tested prospecting system, weekly
-            training, and a clear rank path — not pressure tactics and not guesswork. This is the
-            one track we offer on its own — but only if you already have another income source
-            financing it. Otherwise it runs alongside the freelancing track.
+            Most income stops the moment you stop working. Network marketing is different: you
+            partner with Neolife to sell a real, reorderable product — and as you bring people onto
+            your team and help them succeed, you earn from what they build too. Your income is no
+            longer capped by your own two hands. It takes real, consistent work to build, and
+            we give you the exact system to do it: proven prospecting scripts, weekly training, and
+            a mentor building alongside you. This is the one track we offer on its own — but only
+            if you already have another income source financing it. Otherwise it runs alongside the
+            freelancing track.
           </p>
           <div className="hero-ctas">
             <Link to="/join?track=network-marketing" className="btn btn-primary">
@@ -73,21 +77,28 @@ export default function NetworkMarketing() {
       <section>
         <div className="wrap">
           <div className="section-head">
-            <div className="eyebrow">Where this can take you</div>
-            <h2>The rank path, in plain terms</h2>
+            <div className="eyebrow">Why it's worth building</div>
+            <h2>Why leveraged income beats a paycheck</h2>
             <p>
-              Illustrative — your mentor will walk you through the exact, current Neolife
-              compensation plan and rank requirements once you're onboarded.
+              A job pays you for the hours you personally show up. Network marketing lets you build
+              something bigger than yourself — here's what that actually gets you.
             </p>
           </div>
-          <div className="rank-path">
-            {RANK_PATH.map((rank) => (
-              <div className="rank-step" key={rank.name}>
-                <div className="rank-dot" />
-                <div>
-                  <div className="rank-name">{rank.name}</div>
-                  <div className="rank-desc">{rank.desc}</div>
+          <div className="why-grid">
+            {NETWORK_BENEFITS.map((item) => (
+              <div className="why-card" key={item.title}>
+                <div className="icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"
+                      stroke="#9A6A15"
+                      strokeWidth="1.6"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </div>
+                <h4>{item.title}</h4>
+                <p>{item.body}</p>
               </div>
             ))}
           </div>

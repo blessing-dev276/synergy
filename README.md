@@ -18,6 +18,7 @@ npm run preview   # serve the production build locally
 | --------------------------------------------------------- | ------------------------------------- |
 | Any copy — stats, FAQ answers, testimonials, WhatsApp number, contact email | `src/data/site.js` |
 | Gallery photos/events                                    | Don't — use `/gallery-admin` (see below) |
+| Success stories / testimonials                            | Don't — use `/stories-admin` (see below) |
 | Page layout/structure                                    | `src/pages/*.jsx`                    |
 | Look and feel                                             | `src/index.css`                      |
 
@@ -72,6 +73,22 @@ directly to GitHub via its API — a big batch of photos still lands as one
 commit (or a couple, if there are a lot of photos) instead of one commit per
 file. Netlify rebuilds on every commit, so new photos go live within a
 minute or two.
+
+## Success stories (no code required)
+
+Managed the same way as the gallery, at **`/stories-admin`** — same Identity
+login, no new accounts needed. Log in, fill in the member's name, status
+(e.g. "Freelance track — landed first client"), their story, and optionally
+a profile picture and a result image (a screenshot of earnings, a payment, a
+rank certificate — whatever backs it up). Publish, and it shows up on the
+homepage and the `/stories` page after the next deploy. Existing stories can
+be deleted from the same page.
+
+Uses the same `GITHUB_TOKEN` setup as the gallery admin (see above) — nothing
+extra to configure if you've already done that step. Each story is a JSON
+file in `content/stories/`, images land in `public/uploads/stories/`, and the
+commit is made by `netlify/functions/stories-publish.js` /
+`stories-delete.js`.
 
 ## Deployment
 

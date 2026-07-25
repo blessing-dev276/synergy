@@ -2,7 +2,9 @@ import { Link } from "react-router-dom";
 import PageMeta from "../components/PageMeta.jsx";
 import teamLead from "../assets/images/team-lead.jpg";
 import { whatsappLink } from "../lib/whatsapp.js";
-import { SITE, TRUST_STATS, WHY_US, TESTIMONIALS } from "../data/site.js";
+import { SITE, ABOUT, TRUST_STATS, WHY_US } from "../data/site.js";
+import { STORIES } from "../data/stories.js";
+import StoryCard from "../components/StoryCard.jsx";
 
 export default function Home() {
   return (
@@ -19,7 +21,7 @@ export default function Home() {
             <div>
               <div className="eyebrow">Synergy Team · Freelancing + Network Marketing</div>
               <h1>
-                Two income tracks. <span className="accent">One team behind you.</span>
+                Build your future <span className="accent">with SynergyTeam.</span>
               </h1>
               <p className="lede">
                 We train people to earn from freelance tech skills and build a network marketing
@@ -53,6 +55,21 @@ export default function Home() {
                 <div className="num mono">{stat.num}</div>
                 <div className="label">{stat.label}</div>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ABOUT */}
+      <section>
+        <div className="wrap">
+          <div className="section-head center">
+            <div className="eyebrow">{ABOUT.eyebrow}</div>
+            <h2>{ABOUT.heading}</h2>
+          </div>
+          <div className="about-body">
+            {ABOUT.body.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
         </div>
@@ -102,7 +119,7 @@ export default function Home() {
               </p>
               <ul className="engine-list">
                 <li>Step-by-step prospecting system, not guesswork</li>
-                <li>Clear rank path from new distributor to Emerald Director</li>
+                <li>Leveraged income that grows as your team grows</li>
                 <li>In-person and virtual training sessions run weekly</li>
                 <li>A downline support structure that already works</li>
               </ul>
@@ -236,24 +253,23 @@ export default function Home() {
             <div className="eyebrow">From the team</div>
             <h2>What members are saying</h2>
           </div>
-          <div className="testimonials">
-            {TESTIMONIALS.map((t) => (
-              <div className="t-card" key={t.quote}>
-                <p className="quote">&quot;{t.quote}&quot;</p>
-                <div className="who">
-                  <span className="t-avatar" />
-                  <div>
-                    <strong>{t.name}</strong>
-                    <span>{t.role}</span>
-                  </div>
-                </div>
+          {STORIES.length === 0 ? (
+            <p className="placeholder-note">
+              Stories are on their way — check back soon, or{" "}
+              <Link to="/stories">see the stories page →</Link>
+            </p>
+          ) : (
+            <>
+              <div className="testimonials">
+                {STORIES.slice(0, 3).map((s) => (
+                  <StoryCard story={s} key={s.slug} />
+                ))}
               </div>
-            ))}
-          </div>
-          <p className="placeholder-note">
-            These are placeholder quotes until real member stories are recorded.{" "}
-            <Link to="/stories">See the full stories page →</Link>
-          </p>
+              <p className="see-all-link">
+                <Link to="/stories">See all stories →</Link>
+              </p>
+            </>
+          )}
         </div>
       </section>
 

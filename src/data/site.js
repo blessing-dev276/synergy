@@ -14,7 +14,7 @@
 
 export const SITE = {
   name: "Synergy Team",
-  shortTagline: "Two Income Tracks. One Team Behind You.",
+  shortTagline: "Build Your Future with SynergyTeam.",
   metaDescription:
     "Synergy Team trains members to earn from freelance tech skills and build a Neolife network marketing business — with real mentorship, systems, and a team that's already done it.",
   whatsappNumber: "2347047318901",
@@ -56,6 +56,15 @@ export const FOOTER_LINKS = {
   ],
 };
 
+export const ABOUT = {
+  eyebrow: "Who we are",
+  heading: "About SynergyTeam",
+  body: [
+    "SynergyTeam is a team-first community built around two income paths: freelance tech skills that pay in dollars, and a Neolife network marketing business built on structured prospecting — both taught hands-on by people already running them, not theorists reading from a script.",
+    "We call it synergy because the two tracks aren't run in isolation — freelance income funds the network marketing business while it's still growing, so members are earning while they build instead of waiting years for a payoff.",
+  ],
+};
+
 export const TRUST_STATS = [
   { num: "50+", label: "People on the team" },
   { num: "2", label: "Income tracks" },
@@ -80,12 +89,24 @@ export const WHY_US = [
 
 export const FREELANCE_SKILLS = [
   {
-    title: "Flutter & FlutterFlow",
-    body: "Build real, working mobile apps using Flutter and no-code/low-code tooling like FlutterFlow — the same stack the team ships client work in.",
+    title: "Mobile app development",
+    body: "Learn to build apps for iOS and Android using Flutter and FlutterFlow, no prior coding experience required.",
+  },
+  {
+    title: "Website development",
+    body: "Learn to build websites and web apps using React, Wix, and other tools, no prior coding experience required.",
   },
   {
     title: "AI-assisted development",
     body: "Use AI tools to move faster on real projects: scaffolding features, debugging, and shipping client work in less time.",
+  },
+  {
+    title: "Graphics Design",
+    body: "Learn to create graphics for apps, social media, and marketing materials using Canva and other tools, no Photoshop experience required.",
+  },
+  {
+    title: "Marketing",
+    body: "Learn to market your services and attract clients using social media, email, and other channels, no cold-calling required.",
   },
   {
     title: "Client-ready gig setup",
@@ -151,26 +172,34 @@ export const NETWORK_STEPS = [
   },
 ];
 
-export const RANK_PATH = [
+export const NETWORK_BENEFITS = [
   {
-    name: "New Distributor",
-    desc: "Onboarded, product-educated, and running your first customer conversations.",
+    title: "Income that compounds",
+    body: "Every person you bring on and support adds to what the whole team moves — so your income isn't capped at what you alone can sell in a day.",
   },
   {
-    name: "Team Builder",
-    desc: "Actively sponsoring and supporting your first few teammates.",
+    title: "A real, reorderable product",
+    body: "Neolife products get used up and repurchased every month. You're building repeat customers, not chasing one-time sales.",
   },
   {
-    name: "Senior Team Builder",
-    desc: "A small, consistent team in motion with repeat customers.",
+    title: "Low cost to start",
+    body: "No storefront, no inventory to warehouse, no staff to pay. You start a real business for the cost of a distributor sign-up.",
   },
   {
-    name: "Executive Director",
-    desc: "Leading multiple active builders and running your own training rhythm.",
+    title: "A team, not a solo grind",
+    body: "Weekly training and a mentor who's actually building alongside you, so you're never guessing what to do next.",
+  },
+  {
+    title: "Leverage beyond your hours",
+    body: "A job pays for the hours you personally work. A team you build and support can eventually earn more than you could alone.",
+  },
+  {
+    title: "Skills that outlast the business",
+    body: "Prospecting, leadership, and people skills you pick up here carry over into anything else you go on to build.",
   },
   {
     name: "Emerald Director",
-    desc: "Senior team leadership — the rank the current team lead is building toward with the team.",
+    desc: "Leading a team of directors and building a significant customer base.",
   },
 ];
 
@@ -250,27 +279,4 @@ export const STATUS_OPTIONS = [
   "Between jobs",
   "Running my own business",
   "Other",
-];
-
-// Clearly marked as placeholders per the approved homepage draft — swap in
-// real names, roles, and quotes once you have them on record.
-export const TESTIMONIALS = [
-  {
-    quote:
-      "Landed my first Fiverr client three weeks after joining the freelance track. The gig setup alone saved me months.",
-    name: "Team member name",
-    role: "Freelance track",
-  },
-  {
-    quote:
-      "I'd tried network marketing before and quit. The difference here is I actually have a script and a plan.",
-    name: "Team member name",
-    role: "Network marketing track",
-  },
-  {
-    quote:
-      "Running both tracks means the freelance money covers my product orders. It compounds.",
-    name: "Team member name",
-    role: "Both tracks",
-  },
 ];
