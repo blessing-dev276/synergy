@@ -552,11 +552,22 @@ img.wordmark{ height:26px; width:auto; }
   display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;
 }
 .gallery-thumb{
+  position:relative;
   border:none; padding:0; cursor:pointer; border-radius:10px; overflow:hidden;
   aspect-ratio:1; background:var(--line);
 }
 .gallery-thumb img{ width:100%; height:100%; object-fit:cover; transition:transform .2s ease; }
 .gallery-thumb:hover img{ transform:scale(1.05); }
+.gallery-more-overlay{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  background:rgba(11,31,58,0.62); color:#fff;
+  font-family:'Space Grotesk', sans-serif; font-size:20px; font-weight:600;
+}
+.gallery-showless{
+  margin-top:14px; background:none; border:none; cursor:pointer;
+  color:var(--blue-deep); font-weight:600; font-size:14px;
+}
+.gallery-showless:hover{ text-decoration:underline; }
 .gallery-empty{
   text-align:center; padding:60px 20px; color:var(--slate);
   border:1px dashed var(--line); border-radius:var(--radius);
@@ -606,6 +617,58 @@ img.wordmark{ height:26px; width:auto; }
 }
 .float-whatsapp:hover{ background:#1BA64C; }
 .float-whatsapp svg{ width:26px; height:26px; }
+
+/* ===== GALLERY ADMIN ===== */
+.admin-gate{
+  text-align:center; padding:60px 20px; display:flex; flex-direction:column; align-items:center; gap:18px;
+  border:1px dashed var(--line); border-radius:var(--radius);
+}
+.admin-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:32px; color:var(--slate); font-size:14px; }
+.admin-logout{ background:none; border:1px solid var(--line); border-radius:8px; padding:6px 14px; cursor:pointer; color:var(--navy); }
+.admin-logout:hover{ border-color:var(--navy); }
+.admin-section-title{ font-size:20px; margin-bottom:20px; }
+.admin-form{ margin-bottom:64px; padding-bottom:48px; border-bottom:1px solid var(--line); }
+.admin-field{ display:flex; flex-direction:column; gap:6px; margin-bottom:18px; max-width:420px; }
+.admin-field span{ font-size:13px; font-weight:600; color:var(--navy-soft); }
+.admin-field input{
+  border:1px solid var(--line); border-radius:10px; padding:11px 14px; font:inherit; color:var(--navy);
+  background:var(--surface);
+}
+.admin-field input:focus{ outline:2px solid var(--blue); outline-offset:1px; }
+.admin-dropzone{
+  border:2px dashed var(--line); border-radius:var(--radius); padding:36px 20px; text-align:center;
+  color:var(--slate); margin-bottom:20px; transition:border-color .15s ease, background .15s ease;
+}
+.admin-dropzone p{ margin-top:10px; font-size:13.5px; }
+.admin-dropzone.drag-over{ border-color:var(--blue); background:var(--gold-soft); }
+.admin-photo-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:10px; margin-bottom:20px; }
+.admin-photo-thumb{ position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden; background:var(--line); }
+.admin-photo-thumb img{ width:100%; height:100%; object-fit:cover; }
+.admin-photo-thumb button{
+  position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%; border:none;
+  background:rgba(11,31,58,0.75); color:#fff; cursor:pointer; line-height:1; font-size:15px;
+}
+.admin-photo-thumb button:hover{ background:var(--danger); }
+.admin-error{
+  background:var(--danger-soft); color:var(--danger); border-radius:10px; padding:12px 16px;
+  font-size:13.5px; margin-bottom:18px;
+}
+.admin-event-list{ display:flex; flex-direction:column; gap:12px; margin-bottom:24px; }
+.admin-event-card{
+  display:flex; align-items:center; gap:16px; border:1px solid var(--line); border-radius:var(--radius);
+  padding:12px 16px;
+}
+.admin-event-card img{ width:56px; height:56px; border-radius:8px; object-fit:cover; flex-shrink:0; }
+.admin-event-card-body{ flex:1; min-width:0; }
+.admin-event-card-body h4{ font-size:15px; margin-bottom:2px; }
+.admin-event-card-body .mono{ font-size:12px; color:var(--slate); }
+.admin-delete-btn{
+  background:none; border:1px solid var(--danger); color:var(--danger); border-radius:8px;
+  padding:7px 14px; cursor:pointer; font-size:13px; flex-shrink:0;
+}
+.admin-delete-btn:hover{ background:var(--danger-soft); }
+.admin-delete-btn:disabled{ opacity:0.6; cursor:not-allowed; }
+.admin-note{ font-size:13px; color:var(--slate); margin-top:8px; }
 
 /* ===== FOOTER ===== */
 footer.site-footer{ border-top:1px solid var(--line); padding:48px 0 32px; margin-top:24px; }

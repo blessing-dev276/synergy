@@ -17,7 +17,7 @@ npm run preview   # serve the production build locally
 | To change...                                            | Edit...                              |
 | --------------------------------------------------------- | ------------------------------------- |
 | Any copy — stats, FAQ answers, testimonials, WhatsApp number, contact email | `src/data/site.js` |
-| Gallery photos/events                                    | Don't — use `/admin` (see below)     |
+| Gallery photos/events                                    | Don't — use `/gallery-admin` (see below) |
 | Page layout/structure                                    | `src/pages/*.jsx`                    |
 | Look and feel                                             | `src/index.css`                      |
 
@@ -29,26 +29,49 @@ as WhatsApp.
 
 ## Team gallery (no code required)
 
-Photos are managed at **`/admin`** on the live site (e.g.
-`https://yoursite.netlify.app/admin`), powered by Decap CMS. Log in, click
-**New Gallery Event**, add a title/date/photos, click **Publish** — that's it.
-No file editing, no git.
+Photos are managed at **`/gallery-admin`** on the live site (e.g.
+`https://yoursite.netlify.app/gallery-admin`) — a small custom admin page
+built into the site itself (not Decap CMS). Log in, drag in as many photos as
+you like for an event, give it a title/date, click **Publish** — every photo
+uploads together in one go instead of one at a time. Existing events can be
+deleted from the same page.
 
-This only works once, on the deployed site, after two one-time toggles in the
-Netlify dashboard:
+There's still a `/admin` (Decap CMS) on the site too, left in place as a
+fallback for fine-grained edits — reordering photos within an event, fixing a
+typo in a title — but adding new events should always go through
+`/gallery-admin` now.
+
+### One-time setup (do this once, on the deployed site)
 
 1. **Site settings → Identity → Enable Identity.** Under registration, set it
-   to **Invite only** (so randoms can't sign up to your CMS).
-2. **Identity → Services → Git Gateway → Enable Git Gateway.**
-3. Back in **Identity**, click **Invite users** and send yourself (and
-   anyone else who should manage the gallery) an invite email. The invite
-   link drops them on the site, prompts them to set a password, then sends
-   them to `/admin`.
+   to **Invite only** (so randoms can't log in).
+2. Back in **Identity**, click **Invite users** and send yourself (and anyone
+   else who should manage the gallery) an invite email. The invite link drops
+   them on the site, prompts them to set a password — that's the login
+   `/gallery-admin` checks for.
+3. **Create a GitHub token** so the admin page can commit photos on your
+   behalf: on GitHub, go to **Settings → Developer settings → Personal
+   access tokens → Fine-grained tokens → Generate new token**. Scope it to
+   just this repository, and under **Repository permissions** set
+   **Contents: Read and write**. Copy the token.
+4. In Netlify, **Site settings → Environment variables → Add a variable** —
+   name `GITHUB_TOKEN`, value the token from step 3. Redeploy the site once
+   so the function picks it up.
 
-Under the hood: each event is a JSON file in `content/gallery/`, and photos
-land in `public/uploads/gallery/`. Decap CMS commits both automatically when
-someone publishes — Netlify rebuilds the site on every commit, so new photos
-go live within a minute or two.
+Git Gateway is *not* needed for `/gallery-admin` (only `/admin`/Decap still
+uses it) — Netlify has deprecated Git Gateway, so `/admin` will keep working
+for existing sites but isn't guaranteed to get fixes going forward.
+
+### Under the hood
+
+Each event is a JSON file in `content/gallery/`, photos land in
+`public/uploads/gallery/<event-slug>/`. `/gallery-admin` compresses photos in
+the browser, then calls two Netlify Functions
+(`netlify/functions/gallery-publish.js` and `gallery-delete.js`) that commit
+directly to GitHub via its API — a big batch of photos still lands as one
+commit (or a couple, if there are a lot of photos) instead of one commit per
+file. Netlify rebuilds on every commit, so new photos go live within a
+minute or two.
 
 ## Deployment
 
