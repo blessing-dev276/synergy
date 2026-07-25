@@ -11,16 +11,18 @@ const WEB3FORMS_ENDPOINT = "https://api.web3forms.com/submit";
  * always works regardless of this.
  */
 export async function submitToWeb3Forms(form, trackLabel) {
-  if (!SITE.web3formsAccessKey) return { sent: false, reason: "not-configured" };
+  if (!SITE.web3formsAccessKey)
+    return { sent: false, reason: "not-configured" };
 
   const payload = {
     access_key: SITE.web3formsAccessKey,
-    subject: `New Synergy Team application — ${trackLabel || "unspecified track"}`,
-    from_name: "Synergy Team website",
+    subject: `New SynergyTeam application — ${trackLabel || "unspecified track"}`,
+    from_name: "SynergyTeam website",
     name: form.name,
     phone: form.phone,
     track: trackLabel,
-    financing: form.track === "network-marketing" ? form.financeNote : undefined,
+    financing:
+      form.track === "network-marketing" ? form.financeNote : undefined,
     status: form.status || undefined,
     referral: form.referral || undefined,
     message: form.message || undefined,
@@ -34,12 +36,17 @@ export async function submitToWeb3Forms(form, trackLabel) {
   // rather than sending an empty string.
   if (form.email) payload.email = form.email;
 
-  Object.keys(payload).forEach((key) => payload[key] === undefined && delete payload[key]);
+  Object.keys(payload).forEach(
+    (key) => payload[key] === undefined && delete payload[key],
+  );
 
   try {
     const res = await fetch(WEB3FORMS_ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => null);

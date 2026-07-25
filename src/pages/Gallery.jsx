@@ -18,7 +18,7 @@ export default function Gallery() {
     <>
       <PageMeta
         title="Team Gallery"
-        description="Photos from Synergy Team events, trainings, and get-togethers."
+        description="Photos from SynergyTeam events, trainings, and get-togethers."
       />
 
       <section className="page-hero">
@@ -29,8 +29,8 @@ export default function Gallery() {
           <div className="eyebrow">Moments from the team</div>
           <h1>Team Gallery</h1>
           <p className="lede">
-            Photos from trainings, events, and get-togethers — a look at the team behind the two
-            tracks.
+            Photos from trainings, events, and get-togethers — a look at the
+            team behind the two tracks.
           </p>
         </div>
       </section>
@@ -47,17 +47,26 @@ export default function Gallery() {
               const extraCount = event.photos.length - PREVIEW_COUNT;
               const hasMore = extraCount > 0;
               const visiblePhotos =
-                isExpanded || !hasMore ? event.photos : event.photos.slice(0, PREVIEW_COUNT);
+                isExpanded || !hasMore
+                  ? event.photos
+                  : event.photos.slice(0, PREVIEW_COUNT);
 
               return (
                 <div className="gallery-event" key={event.slug}>
                   <div className="gallery-event-head">
                     <h3>{event.title}</h3>
-                    {event.date && <span className="mono">{formatEventDate(event.date)}</span>}
+                    {event.date && (
+                      <span className="mono">
+                        {formatEventDate(event.date)}
+                      </span>
+                    )}
                   </div>
                   <div className="gallery-grid">
                     {visiblePhotos.map((src, i) => {
-                      const isLastVisible = hasMore && !isExpanded && i === visiblePhotos.length - 1;
+                      const isLastVisible =
+                        hasMore &&
+                        !isExpanded &&
+                        i === visiblePhotos.length - 1;
                       return (
                         <button
                           key={src}
@@ -65,19 +74,32 @@ export default function Gallery() {
                           onClick={() =>
                             isLastVisible
                               ? setExpandedSlug(event.slug)
-                              : setActive({ slug: event.slug, title: event.title, index: i })
+                              : setActive({
+                                  slug: event.slug,
+                                  title: event.title,
+                                  index: i,
+                                })
                           }
                         >
-                          <img src={src} alt={`${event.title} — photo ${i + 1}`} loading="lazy" />
+                          <img
+                            src={src}
+                            alt={`${event.title} — photo ${i + 1}`}
+                            loading="lazy"
+                          />
                           {isLastVisible && (
-                            <span className="gallery-more-overlay">+{extraCount}</span>
+                            <span className="gallery-more-overlay">
+                              +{extraCount}
+                            </span>
                           )}
                         </button>
                       );
                     })}
                   </div>
                   {hasMore && isExpanded && (
-                    <button className="gallery-showless" onClick={() => setExpandedSlug(null)}>
+                    <button
+                      className="gallery-showless"
+                      onClick={() => setExpandedSlug(null)}
+                    >
                       Show less ▴
                     </button>
                   )}
@@ -92,10 +114,10 @@ export default function Gallery() {
         <div className="wrap">
           <div className="final-cta">
             <h2>Want to be at the next one?</h2>
-            <p>Apply to join Synergy Team and get in on the next team event.</p>
+            <p>Apply to join SynergyTeam and get in on the next team event.</p>
             <div className="hero-ctas">
               <Link to="/join" className="btn btn-primary">
-                Apply to join Synergy Team
+                Apply to join SynergyTeam
               </Link>
             </div>
           </div>
@@ -124,5 +146,9 @@ export default function Gallery() {
 function formatEventDate(isoDate) {
   const date = new Date(`${isoDate}T00:00:00`);
   if (Number.isNaN(date.getTime())) return isoDate;
-  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }

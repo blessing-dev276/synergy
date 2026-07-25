@@ -1,6 +1,6 @@
-# Synergy Team website
+# SynergyTeam website
 
-React (Vite) site for Synergy Team — freelancing + network marketing recruiting
+React (Vite) site for SynergyTeam — freelancing + network marketing recruiting
 and conversion.
 
 ## Local development
@@ -14,13 +14,13 @@ npm run preview   # serve the production build locally
 
 ## Where things live
 
-| To change...                                            | Edit...                              |
-| --------------------------------------------------------- | ------------------------------------- |
-| Any copy — stats, FAQ answers, testimonials, WhatsApp number, contact email | `src/data/site.js` |
-| Gallery photos/events                                    | Don't — use `/gallery-admin` (see below) |
-| Success stories / testimonials                            | Don't — use `/stories-admin` (see below) |
-| Page layout/structure                                    | `src/pages/*.jsx`                    |
-| Look and feel                                             | `src/index.css`                      |
+| To change...                                                                | Edit...                                  |
+| --------------------------------------------------------------------------- | ---------------------------------------- |
+| Any copy — stats, FAQ answers, testimonials, WhatsApp number, contact email | `src/data/site.js`                       |
+| Gallery photos/events                                                       | Don't — use `/gallery-admin` (see below) |
+| Success stories / testimonials                                              | Don't — use `/stories-admin` (see below) |
+| Page layout/structure                                                       | `src/pages/*.jsx`                        |
+| Look and feel                                                               | `src/index.css`                          |
 
 `src/data/site.js` is deliberately the one file non-developers should need to
 touch — it has inline comments on every field, including the two things you
@@ -59,7 +59,7 @@ typo in a title — but adding new events should always go through
    name `GITHUB_TOKEN`, value the token from step 3. Redeploy the site once
    so the function picks it up.
 
-Git Gateway is *not* needed for `/gallery-admin` (only `/admin`/Decap still
+Git Gateway is _not_ needed for `/gallery-admin` (only `/admin`/Decap still
 uses it) — Netlify has deprecated Git Gateway, so `/admin` will keep working
 for existing sites but isn't guaranteed to get fixes going forward.
 

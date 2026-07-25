@@ -18,7 +18,7 @@ const STORY_STEPS = [
     body: "Turned five years of trial and error into repeatable scripts, training decks, and onboarding steps other people could actually follow.",
   },
   {
-    title: "Started Synergy Team",
+    title: "Started SynergyTeam",
     body: "Opened both systems up to a team, so new members don't have to spend years figuring out what already works.",
   },
 ];
@@ -28,7 +28,7 @@ export default function Leadership() {
     <>
       <PageMeta
         title="Leadership"
-        description="Meet the team lead behind Synergy Team — a working freelance developer and Neolife network marketing team builder."
+        description="Meet the team lead behind SynergyTeam — a working freelance developer and Neolife network marketing team builder."
       />
 
       <section className="page-hero">
@@ -39,9 +39,9 @@ export default function Leadership() {
           <div className="eyebrow">The person behind the systems</div>
           <h1>Built by someone who's actually done both.</h1>
           <p className="lede">
-            Synergy Team isn't a franchise of generic advice. It's the systems one person built,
-            tested, and refined across five years of freelance client work and an active network
-            marketing business.
+            SynergyTeam isn't a franchise of generic advice. It's the systems
+            one person built, tested, and refined across five years of freelance
+            client work and an active network marketing business.
           </p>
         </div>
       </section>
@@ -50,26 +50,27 @@ export default function Leadership() {
         <div className="wrap">
           <div className="leader">
             <div className="leader-photo">
-              <img src={teamLead} alt="Synergy Team lead" />
+              <img src={teamLead} alt="SynergyTeam lead" />
             </div>
             <div className="leader-copy">
               <div className="name-row">
-                <h3>Team Lead, Synergy Team</h3>
+                <h3>Team Lead, SynergyTeam</h3>
                 <span className="leader-badge">Verified builder</span>
               </div>
               <p className="leader-role">
-                Mobile app developer · Neolife team leader · Synergy Team founder
+                Mobile app developer · Neolife team leader · SynergyTeam founder
               </p>
               <p className="bio">
-                Five years building mobile apps for clients across Fiverr and Upwork, alongside
-                running an active network marketing team on the Neolife platform. Synergy Team
-                exists because both paths were built and tested first-hand — not copied from a
-                course or a template.
+                Five years building mobile apps for clients across Fiverr and
+                Upwork, alongside running an active network marketing team on
+                the Neolife platform. SynergyTeam exists because both paths were
+                built and tested first-hand — not copied from a course or a
+                template.
               </p>
               <p className="bio">
-                The goal with the team is simple: don't make new members waste years figuring out
-                what already works. Hand them the training, the scripts, and the mentorship on
-                day one instead.
+                The goal with the team is simple: don't make new members waste
+                years figuring out what already works. Hand them the training,
+                the scripts, and the mentorship on day one instead.
               </p>
               <div className="leader-stats">
                 <div>
@@ -93,7 +94,7 @@ export default function Leadership() {
       <section>
         <div className="wrap">
           <div className="section-head">
-            <div className="eyebrow">How Synergy Team came to be</div>
+            <div className="eyebrow">How SynergyTeam came to be</div>
             <h2>From solo hustle to a team system</h2>
           </div>
           <Steps items={STORY_STEPS} />
@@ -111,7 +112,13 @@ export default function Leadership() {
               <div className="why-card" key={item.title}>
                 <div className="icon">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="8" r="3.4" stroke="#9A6A15" strokeWidth="1.6" />
+                    <circle
+                      cx="12"
+                      cy="8"
+                      r="3.4"
+                      stroke="#9A6A15"
+                      strokeWidth="1.6"
+                    />
                     <path
                       d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"
                       stroke="#9A6A15"
@@ -132,10 +139,13 @@ export default function Leadership() {
         <div className="wrap">
           <div className="final-cta">
             <h2>Want to train under this system directly?</h2>
-            <p>Apply to join Synergy Team and get mentorship from someone who's lived both tracks.</p>
+            <p>
+              Apply to join SynergyTeam and get mentorship from someone who's
+              lived both tracks.
+            </p>
             <div className="hero-ctas">
               <Link to="/join" className="btn btn-primary">
-                Apply to join Synergy Team
+                Apply to join SynergyTeam
               </Link>
             </div>
           </div>

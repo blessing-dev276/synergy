@@ -3,7 +3,10 @@ import { Link } from "react-router-dom";
 import PageMeta from "../components/PageMeta.jsx";
 import { STORIES } from "../data/stories.js";
 import { compressImage } from "../lib/compressImage.js";
-import { useNetlifyIdentity, getIdentityToken } from "../lib/useNetlifyIdentity.js";
+import {
+  useNetlifyIdentity,
+  getIdentityToken,
+} from "../lib/useNetlifyIdentity.js";
 
 function slugify(text) {
   return text
@@ -19,7 +22,10 @@ export default function StoriesAdmin() {
 
   return (
     <>
-      <PageMeta title="Stories Admin" description="Manage Synergy Team success stories." />
+      <PageMeta
+        title="Stories Admin"
+        description="Manage SynergyTeam success stories."
+      />
       <section className="page-hero">
         <div className="wrap">
           <div className="breadcrumb">
@@ -27,7 +33,10 @@ export default function StoriesAdmin() {
           </div>
           <div className="eyebrow">Team only</div>
           <h1>Stories Admin</h1>
-          <p className="lede">Add a member's story with their picture and results, or remove an old one.</p>
+          <p className="lede">
+            Add a member's story with their picture and results, or remove an
+            old one.
+          </p>
         </div>
       </section>
 
@@ -38,7 +47,10 @@ export default function StoriesAdmin() {
           ) : !user ? (
             <div className="admin-gate">
               <p>Log in with your invited team account to manage stories.</p>
-              <button className="btn btn-primary" onClick={() => window.netlifyIdentity.open("login")}>
+              <button
+                className="btn btn-primary"
+                onClick={() => window.netlifyIdentity.open("login")}
+              >
                 Log in
               </button>
             </div>
@@ -64,7 +76,10 @@ function AdminPanel({ user }) {
       const token = await getIdentityToken();
       const res = await fetch("/.netlify/functions/stories-delete", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ slug }),
       });
       const data = await res.json();
@@ -81,14 +96,19 @@ function AdminPanel({ user }) {
     <div className="admin-panel">
       <div className="admin-header">
         <span>Logged in as {user.email}</span>
-        <button className="admin-logout" onClick={() => window.netlifyIdentity.logout()}>
+        <button
+          className="admin-logout"
+          onClick={() => window.netlifyIdentity.logout()}
+        >
           Log out
         </button>
       </div>
 
       {error && <div className="admin-error">{error}</div>}
 
-      <NewStoryForm onPublished={(story) => setStories((prev) => [story, ...prev])} />
+      <NewStoryForm
+        onPublished={(story) => setStories((prev) => [story, ...prev])}
+      />
 
       <h2 className="admin-section-title">Existing stories</h2>
       {stories.length === 0 ? (
@@ -97,7 +117,11 @@ function AdminPanel({ user }) {
         <div className="admin-event-list">
           {stories.map((s) => (
             <div className="admin-event-card" key={s.slug}>
-              {s.picture ? <img src={s.picture} alt="" /> : <span className="admin-avatar-placeholder" />}
+              {s.picture ? (
+                <img src={s.picture} alt="" />
+              ) : (
+                <span className="admin-avatar-placeholder" />
+              )}
               <div className="admin-event-card-body">
                 <h4>{s.name}</h4>
                 <span className="mono">
@@ -118,8 +142,8 @@ function AdminPanel({ user }) {
         </div>
       )}
       <p className="admin-note">
-        Changes here trigger a new deploy — give it a minute or two, then refresh the live{" "}
-        <Link to="/stories">stories page</Link> to see it.
+        Changes here trigger a new deploy — give it a minute or two, then
+        refresh the live <Link to="/stories">stories page</Link> to see it.
       </p>
     </div>
   );
@@ -134,7 +158,11 @@ function ImagePicker({ label, hint, photo, onChange, onRemove, disabled }) {
       {photo ? (
         <div className="admin-photo-thumb single">
           <img src={photo.previewUrl} alt={label} />
-          <button type="button" onClick={onRemove} aria-label={`Remove ${label}`}>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${label}`}
+          >
             ×
           </button>
         </div>
@@ -163,7 +191,13 @@ function ImagePicker({ label, hint, photo, onChange, onRemove, disabled }) {
   );
 }
 
-function ResultsPicker({ results, onAdd, onRemove, onCaptionChange, disabled }) {
+function ResultsPicker({
+  results,
+  onAdd,
+  onRemove,
+  onCaptionChange,
+  disabled,
+}) {
   const inputRef = useRef(null);
 
   return (
@@ -188,8 +222,8 @@ function ResultsPicker({ results, onAdd, onRemove, onCaptionChange, disabled }) 
           Choose images
         </button>
         <p>
-          Add one photo per result — e.g. separate shots of an iPhone and a bike someone won —
-          each with its own caption below.
+          Add one photo per result — e.g. separate shots of an iPhone and a bike
+          someone won — each with its own caption below.
         </p>
       </div>
 
@@ -199,7 +233,11 @@ function ResultsPicker({ results, onAdd, onRemove, onCaptionChange, disabled }) 
             <div className="admin-result-item" key={r.id}>
               <div className="admin-photo-thumb single">
                 <img src={r.previewUrl} alt="" />
-                <button type="button" onClick={() => onRemove(r.id)} aria-label="Remove result image">
+                <button
+                  type="button"
+                  onClick={() => onRemove(r.id)}
+                  aria-label="Remove result image"
+                >
                   ×
                 </button>
               </div>
@@ -237,13 +275,20 @@ function NewStoryForm({ onPublished }) {
   }
 
   async function handleResultsAdd(fileList) {
-    const files = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+    const files = Array.from(fileList).filter((f) =>
+      f.type.startsWith("image/"),
+    );
     try {
       const added = await Promise.all(
         files.map(async (file) => {
           const { base64, previewUrl } = await compressImage(file);
-          return { id: `${Date.now()}-${Math.random()}`, base64, previewUrl, caption: "" };
-        })
+          return {
+            id: `${Date.now()}-${Math.random()}`,
+            base64,
+            previewUrl,
+            caption: "",
+          };
+        }),
       );
       setResults((prev) => [...prev, ...added]);
     } catch {
@@ -256,7 +301,9 @@ function NewStoryForm({ onPublished }) {
   }
 
   function setResultCaption(id, caption) {
-    setResults((prev) => prev.map((r) => (r.id === id ? { ...r, caption } : r)));
+    setResults((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, caption } : r)),
+    );
   }
 
   async function handlePublish(e) {
@@ -274,14 +321,20 @@ function NewStoryForm({ onPublished }) {
       const token = await getIdentityToken();
       const res = await fetch("/.netlify/functions/stories-publish", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           slug,
           name: name.trim(),
           status: status.trim(),
           story: story.trim(),
           picture: picture?.base64 || null,
-          results: results.map((r) => ({ image: r.base64, caption: r.caption.trim() })),
+          results: results.map((r) => ({
+            image: r.base64,
+            caption: r.caption.trim(),
+          })),
         }),
       });
       const data = await res.json();

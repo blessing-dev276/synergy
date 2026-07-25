@@ -13,13 +13,13 @@
 // ---------------------------------------------------------------------------
 
 export const SITE = {
-  name: "Synergy Team",
+  name: "SynergyTeam",
   shortTagline: "Build Your Future with SynergyTeam.",
   metaDescription:
-    "Synergy Team trains members to earn from freelance tech skills and build a Neolife network marketing business — with real mentorship, systems, and a team that's already done it.",
+    "SynergyTeam trains members to earn from freelance tech skills and build a Neolife network marketing business — with real mentorship, systems, and a team that's already done it.",
   whatsappNumber: "2347047318901",
   whatsappDefaultMessage:
-    "Hi Synergy Team! I'd like to know more about joining the team.",
+    "Hi SynergyTeam! I'd like to know more about joining the team.",
   email: "ceo@synergyteamm.com",
   location: "Lagos, Nigeria",
   // Web3Forms (https://web3forms.com) delivers Join-form submissions straight
@@ -222,7 +222,7 @@ export const FAQS = [
   },
   {
     q: "Is there a cost to join the team?",
-    a: "Joining Synergy Team itself is free. The freelancing track requires your time to train and practice. The network marketing track involves standard Neolife distributor sign-up and product costs, which your mentor will walk you through transparently before you commit to anything.",
+    a: "Joining SynergyTeam itself is free. The freelancing track requires your time to train and practice. The network marketing track involves standard Neolife distributor sign-up and product costs, which your mentor will walk you through transparently before you commit to anything.",
   },
   {
     q: "Do I need prior experience?",

@@ -9,7 +9,7 @@ export default function Stories() {
     <>
       <PageMeta
         title="Success Stories"
-        description="Read what Synergy Team members say about the freelancing and network marketing tracks."
+        description="Read what SynergyTeam members say about the freelancing and network marketing tracks."
       />
 
       <section className="page-hero">
@@ -20,15 +20,18 @@ export default function Stories() {
           <div className="eyebrow">From the team</div>
           <h1>Real people, two tracks, real progress.</h1>
           <p className="lede">
-            A few notes from members on the freelancing track, the network marketing track, and
-            those running both at once.
+            A few notes from members on the freelancing track, the network
+            marketing track, and those running both at once.
           </p>
         </div>
       </section>
 
       <section>
         <div className="wrap">
-          <div className="trust-strip" style={{ marginTop: 0, marginBottom: 56 }}>
+          <div
+            className="trust-strip"
+            style={{ marginTop: 0, marginBottom: 56 }}
+          >
             {TRUST_STATS.map((stat) => (
               <div className="trust-item" key={stat.label}>
                 <div className="num mono">{stat.num}</div>
@@ -39,7 +42,10 @@ export default function Stories() {
 
           {STORIES.length === 0 ? (
             <div className="gallery-empty">
-              <p>Stories coming soon — check back after our next round of results.</p>
+              <p>
+                Stories coming soon — check back after our next round of
+                results.
+              </p>
             </div>
           ) : (
             <div className="testimonials">
@@ -55,10 +61,13 @@ export default function Stories() {
         <div className="wrap">
           <div className="final-cta">
             <h2>Want your story here next?</h2>
-            <p>Apply to join Synergy Team and start building your own track record.</p>
+            <p>
+              Apply to join SynergyTeam and start building your own track
+              record.
+            </p>
             <div className="hero-ctas">
               <Link to="/join" className="btn btn-primary">
-                Apply to join Synergy Team
+                Apply to join SynergyTeam
               </Link>
             </div>
           </div>

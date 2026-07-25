@@ -3,7 +3,10 @@ import { Link } from "react-router-dom";
 import PageMeta from "../components/PageMeta.jsx";
 import { GALLERY_EVENTS } from "../data/gallery.js";
 import { compressImage } from "../lib/compressImage.js";
-import { useNetlifyIdentity, getIdentityToken as getToken } from "../lib/useNetlifyIdentity.js";
+import {
+  useNetlifyIdentity,
+  getIdentityToken as getToken,
+} from "../lib/useNetlifyIdentity.js";
 
 const BATCH_SIZE = 4;
 
@@ -21,7 +24,10 @@ export default function GalleryAdmin() {
 
   return (
     <>
-      <PageMeta title="Gallery Admin" description="Manage Synergy Team gallery photos." />
+      <PageMeta
+        title="Gallery Admin"
+        description="Manage SynergyTeam gallery photos."
+      />
       <section className="page-hero">
         <div className="wrap">
           <div className="breadcrumb">
@@ -29,7 +35,9 @@ export default function GalleryAdmin() {
           </div>
           <div className="eyebrow">Team only</div>
           <h1>Gallery Admin</h1>
-          <p className="lede">Add a new event with all its photos in one go, or remove an old one.</p>
+          <p className="lede">
+            Add a new event with all its photos in one go, or remove an old one.
+          </p>
         </div>
       </section>
 
@@ -39,8 +47,13 @@ export default function GalleryAdmin() {
             <p className="mono">Loading…</p>
           ) : !user ? (
             <div className="admin-gate">
-              <p>Log in with your invited team account to manage the gallery.</p>
-              <button className="btn btn-primary" onClick={() => window.netlifyIdentity.open("login")}>
+              <p>
+                Log in with your invited team account to manage the gallery.
+              </p>
+              <button
+                className="btn btn-primary"
+                onClick={() => window.netlifyIdentity.open("login")}
+              >
                 Log in
               </button>
             </div>
@@ -59,14 +72,22 @@ function AdminPanel({ user }) {
   const [error, setError] = useState("");
 
   async function handleDelete(slug) {
-    if (!window.confirm("Delete this event and all its photos? This can't be undone.")) return;
+    if (
+      !window.confirm(
+        "Delete this event and all its photos? This can't be undone.",
+      )
+    )
+      return;
     setDeletingSlug(slug);
     setError("");
     try {
       const token = await getToken();
       const res = await fetch("/.netlify/functions/gallery-delete", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ slug }),
       });
       const data = await res.json();
@@ -83,14 +104,19 @@ function AdminPanel({ user }) {
     <div className="admin-panel">
       <div className="admin-header">
         <span>Logged in as {user.email}</span>
-        <button className="admin-logout" onClick={() => window.netlifyIdentity.logout()}>
+        <button
+          className="admin-logout"
+          onClick={() => window.netlifyIdentity.logout()}
+        >
           Log out
         </button>
       </div>
 
       {error && <div className="admin-error">{error}</div>}
 
-      <NewEventForm onPublished={(event) => setEvents((prev) => [event, ...prev])} />
+      <NewEventForm
+        onPublished={(event) => setEvents((prev) => [event, ...prev])}
+      />
 
       <h2 className="admin-section-title">Existing events</h2>
       {events.length === 0 ? (
@@ -99,11 +125,14 @@ function AdminPanel({ user }) {
         <div className="admin-event-list">
           {events.map((event) => (
             <div className="admin-event-card" key={event.slug}>
-              {event.photos[0] && <img src={event.photos[0]} alt="" loading="lazy" />}
+              {event.photos[0] && (
+                <img src={event.photos[0]} alt="" loading="lazy" />
+              )}
               <div className="admin-event-card-body">
                 <h4>{event.title}</h4>
                 <span className="mono">
-                  {event.date} · {event.photos.length} photo{event.photos.length === 1 ? "" : "s"}
+                  {event.date} · {event.photos.length} photo
+                  {event.photos.length === 1 ? "" : "s"}
                 </span>
               </div>
               <button
@@ -118,8 +147,8 @@ function AdminPanel({ user }) {
         </div>
       )}
       <p className="admin-note">
-        Changes here trigger a new deploy — give it a minute or two, then refresh the live{" "}
-        <Link to="/gallery">gallery page</Link> to see it.
+        Changes here trigger a new deploy — give it a minute or two, then
+        refresh the live <Link to="/gallery">gallery page</Link> to see it.
       </p>
     </div>
   );
@@ -137,7 +166,9 @@ function NewEventForm({ onPublished }) {
   const fileInputRef = useRef(null);
 
   async function addFiles(fileList) {
-    const imageFiles = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+    const imageFiles = Array.from(fileList).filter((f) =>
+      f.type.startsWith("image/"),
+    );
     if (imageFiles.length === 0) return;
     setCompressing(true);
     setError("");
@@ -145,8 +176,13 @@ function NewEventForm({ onPublished }) {
       const compressed = await Promise.all(
         imageFiles.map(async (file) => {
           const { base64, previewUrl } = await compressImage(file);
-          return { id: `${Date.now()}-${Math.random()}`, name: file.name, base64, previewUrl };
-        })
+          return {
+            id: `${Date.now()}-${Math.random()}`,
+            name: file.name,
+            base64,
+            previewUrl,
+          };
+        }),
       );
       setPhotos((prev) => [...prev, ...compressed]);
     } catch {
@@ -172,7 +208,8 @@ function NewEventForm({ onPublished }) {
 
     const slug = `${date}-${slugify(title)}`;
     const publicPaths = photos.map(
-      (_, i) => `/uploads/gallery/${slug}/photo-${String(i).padStart(3, "0")}.jpg`
+      (_, i) =>
+        `/uploads/gallery/${slug}/photo-${String(i).padStart(3, "0")}.jpg`,
     );
 
     try {
@@ -182,7 +219,10 @@ function NewEventForm({ onPublished }) {
         const token = await getToken();
         const res = await fetch("/.netlify/functions/gallery-publish", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({
             slug,
             title: title.trim(),
@@ -195,14 +235,19 @@ function NewEventForm({ onPublished }) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Upload failed");
-        setProgress({ done: Math.min(i + batch.length, photos.length), total: photos.length });
+        setProgress({
+          done: Math.min(i + batch.length, photos.length),
+          total: photos.length,
+        });
       }
 
       onPublished({ slug, title: title.trim(), date, photos: publicPaths });
       setTitle("");
       setPhotos([]);
     } catch (err) {
-      setError(`${err.message} — photos already uploaded are safe, just try publishing again.`);
+      setError(
+        `${err.message} — photos already uploaded are safe, just try publishing again.`,
+      );
     } finally {
       setPublishing(false);
       setProgress(null);
@@ -226,7 +271,12 @@ function NewEventForm({ onPublished }) {
 
       <label className="admin-field">
         <span>Date</span>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} disabled={publishing} />
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          disabled={publishing}
+        />
       </label>
 
       <div
@@ -250,7 +300,11 @@ function NewEventForm({ onPublished }) {
           onChange={(e) => addFiles(e.target.files)}
           hidden
         />
-        <button type="button" className="btn btn-secondary" onClick={() => fileInputRef.current.click()}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => fileInputRef.current.click()}
+        >
           Choose photos
         </button>
         <p>or drag and drop — select as many as you like at once</p>
@@ -262,7 +316,11 @@ function NewEventForm({ onPublished }) {
           {photos.map((p) => (
             <div className="admin-photo-thumb" key={p.id}>
               <img src={p.previewUrl} alt={p.name} />
-              <button type="button" onClick={() => removePhoto(p.id)} aria-label={`Remove ${p.name}`}>
+              <button
+                type="button"
+                onClick={() => removePhoto(p.id)}
+                aria-label={`Remove ${p.name}`}
+              >
                 ×
               </button>
             </div>
@@ -272,7 +330,11 @@ function NewEventForm({ onPublished }) {
 
       {error && <div className="admin-error">{error}</div>}
 
-      <button className="btn btn-primary" type="submit" disabled={publishing || photos.length === 0}>
+      <button
+        className="btn btn-primary"
+        type="submit"
+        disabled={publishing || photos.length === 0}
+      >
         {publishing
           ? `Publishing ${progress?.done ?? 0}/${progress?.total ?? photos.length}…`
           : `Publish (${photos.length} photo${photos.length === 1 ? "" : "s"})`}

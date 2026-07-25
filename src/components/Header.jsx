@@ -27,7 +27,7 @@ export default function Header() {
     <header className="site-header">
       <nav className="wrap">
         <NavLink to="/" className="logo-mark" onClick={() => setOpen(false)}>
-          <img src={logoWordmark} alt="Synergy Team" className="wordmark" />
+          <img src={logoWordmark} alt="SynergyTeam" className="wordmark" />
         </NavLink>
 
         <div className="nav-links">
@@ -53,7 +53,12 @@ export default function Header() {
             onClick={() => setOpen(true)}
           >
             <svg viewBox="0 0 24 24" fill="none">
-              <path d="M4 7h16M4 12h16M4 17h16" stroke="#0B1F3A" strokeWidth="1.8" strokeLinecap="round" />
+              <path
+                d="M4 7h16M4 12h16M4 17h16"
+                stroke="#0B1F3A"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </div>
@@ -68,13 +73,28 @@ export default function Header() {
       */}
       {createPortal(
         <>
-          <div className={`mobile-nav-backdrop ${open ? "open" : ""}`} onClick={() => setOpen(false)} />
-          <aside className={`mobile-nav ${open ? "open" : ""}`} aria-hidden={!open}>
+          <div
+            className={`mobile-nav-backdrop ${open ? "open" : ""}`}
+            onClick={() => setOpen(false)}
+          />
+          <aside
+            className={`mobile-nav ${open ? "open" : ""}`}
+            aria-hidden={!open}
+          >
             <div className="mobile-nav-top">
-              <img src={logoWordmark} alt="Synergy Team" className="wordmark" />
-              <button className="mobile-nav-close" aria-label="Close menu" onClick={() => setOpen(false)}>
+              <img src={logoWordmark} alt="SynergyTeam" className="wordmark" />
+              <button
+                className="mobile-nav-close"
+                aria-label="Close menu"
+                onClick={() => setOpen(false)}
+              >
                 <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M6 6l12 12M18 6L6 18" stroke="#0B1F3A" strokeWidth="1.8" strokeLinecap="round" />
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    stroke="#0B1F3A"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
                 </svg>
               </button>
             </div>
@@ -84,21 +104,32 @@ export default function Header() {
                   key={link.to}
                   to={link.to}
                   onClick={() => setOpen(false)}
-                  className={({ isActive }) => (isActive ? "active" : undefined)}
+                  className={({ isActive }) =>
+                    isActive ? "active" : undefined
+                  }
                 >
                   {link.label}
                 </NavLink>
               ))}
             </div>
-            <NavLink to="/join" className="nav-cta" onClick={() => setOpen(false)}>
+            <NavLink
+              to="/join"
+              className="nav-cta"
+              onClick={() => setOpen(false)}
+            >
               Join The Team →
             </NavLink>
-            <a href={whatsappLink()} target="_blank" rel="noreferrer" className="mobile-nav-whatsapp">
+            <a
+              href={whatsappLink()}
+              target="_blank"
+              rel="noreferrer"
+              className="mobile-nav-whatsapp"
+            >
               Chat on WhatsApp
             </a>
           </aside>
         </>,
-        document.body
+        document.body,
       )}
     </header>
   );

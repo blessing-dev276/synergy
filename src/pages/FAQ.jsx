@@ -8,7 +8,7 @@ export default function FAQ() {
     <>
       <PageMeta
         title="FAQ"
-        description="Answers to common questions about joining Synergy Team's freelancing and network marketing tracks."
+        description="Answers to common questions about joining SynergyTeam's freelancing and network marketing tracks."
       />
 
       <section className="page-hero">
@@ -19,8 +19,8 @@ export default function FAQ() {
           <div className="eyebrow">Before you apply</div>
           <h1>Frequently asked questions</h1>
           <p className="lede">
-            Everything people usually ask before joining Synergy Team. Still have a question?
-            Reach out on WhatsApp — we reply fast.
+            Everything people usually ask before joining SynergyTeam. Still have
+            a question? Reach out on WhatsApp — we reply fast.
           </p>
         </div>
       </section>
@@ -35,10 +35,13 @@ export default function FAQ() {
         <div className="wrap">
           <div className="final-cta">
             <h2>Ready to apply?</h2>
-            <p>Tell us which track you want to start on. We'll onboard you within 48 hours.</p>
+            <p>
+              Tell us which track you want to start on. We'll onboard you within
+              48 hours.
+            </p>
             <div className="hero-ctas">
               <Link to="/join" className="btn btn-primary">
-                Apply to join Synergy Team
+                Apply to join SynergyTeam
               </Link>
             </div>
           </div>
