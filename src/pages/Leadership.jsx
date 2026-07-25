@@ -78,7 +78,7 @@ export default function Leadership() {
                   <span>Years freelancing</span>
                 </div>
                 <div>
-                  <strong className="mono">19</strong>
+                  <strong className="mono">50+</strong>
                   <span>Team members led</span>
                 </div>
                 <div>
