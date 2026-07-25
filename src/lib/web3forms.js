@@ -7,7 +7,7 @@ const WEB3FORMS_ENDPOINT = "https://api.web3forms.com/submit";
  * also land by email, in addition to the WhatsApp chat that always opens.
  *
  * Resolves { sent: false, reason: "not-configured" } without making a
- * network call when SITE.web3formsAccessKey is empty — the WhatsApp path
+ * network call when SITE.web3formsAccessKey is empty, the WhatsApp path
  * always works regardless of this.
  */
 export async function submitToWeb3Forms(form, trackLabel) {
@@ -16,7 +16,7 @@ export async function submitToWeb3Forms(form, trackLabel) {
 
   const payload = {
     access_key: SITE.web3formsAccessKey,
-    subject: `New SynergyTeam application — ${trackLabel || "unspecified track"}`,
+    subject: `New SynergyTeam application, ${trackLabel || "unspecified track"}`,
     from_name: "SynergyTeam website",
     name: form.name,
     phone: form.phone,

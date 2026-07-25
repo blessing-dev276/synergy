@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 // Netlify Identity's widget script loads async from a CDN, so it may not be
-// on `window` yet when an admin page mounts — poll briefly instead of
+// on `window` yet when an admin page mounts, poll briefly instead of
 // assuming it's already there.
 export function useNetlifyIdentity() {
   const [user, setUser] = useState(null);
@@ -51,6 +51,6 @@ export function useNetlifyIdentity() {
 
 export async function getIdentityToken() {
   const user = window.netlifyIdentity?.currentUser();
-  if (!user) throw new Error("You've been logged out — log in again.");
+  if (!user) throw new Error("You've been logged out, log in again.");
   return user.jwt();
 }

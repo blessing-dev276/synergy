@@ -36,7 +36,7 @@ export default function Privacy() {
             <h2>How it's used</h2>
             <p>
               Submitting the form opens a WhatsApp chat with your details, sent
-              directly to the team — that's the only place your application goes
+              directly to the team, that's the only place your application goes
               by default. We use it solely to respond to your application and
               onboard you if you join. We do not sell, rent, or share your
               information with third parties for marketing purposes.
@@ -52,7 +52,7 @@ export default function Privacy() {
             <h2>Your choices</h2>
             <p>
               You can ask us to delete any information you've shared at any time
-              — just message us on WhatsApp or email{" "}
+              , just message us on WhatsApp or email{" "}
               <a href={`mailto:${SITE.email}`}>{SITE.email}</a> and we'll action
               it.
             </p>

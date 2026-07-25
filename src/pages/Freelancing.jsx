@@ -3,12 +3,17 @@ import PageMeta from "../components/PageMeta.jsx";
 import Steps from "../components/Steps.jsx";
 import FitGrid from "../components/FitGrid.jsx";
 import Accordion from "../components/Accordion.jsx";
-import { FREELANCE_SKILLS, FREELANCE_STEPS, FREELANCE_FIT_YES, FREELANCE_FIT_NO } from "../data/site.js";
+import {
+  FREELANCE_SKILLS,
+  FREELANCE_STEPS,
+  FREELANCE_FIT_YES,
+  FREELANCE_FIT_NO,
+} from "../data/site.js";
 
 const FREELANCE_FAQS = [
   {
     q: "What if I've never coded before?",
-    a: "That's the normal starting point. Training starts from the fundamentals and builds up to shipping real client work — you don't need any prior experience.",
+    a: "That's the normal starting point. Training starts from the fundamentals and builds up to shipping real client work, you don't need any prior experience.",
   },
   {
     q: "Do I need my own laptop?",
@@ -16,7 +21,7 @@ const FREELANCE_FAQS = [
   },
   {
     q: "How much can I realistically earn?",
-    a: "It depends entirely on your effort, consistency, and how quickly you apply what you learn — we don't promise a number. What we do promise is a structured path to your first paying client and real project work once you're capable.",
+    a: "It depends entirely on your effort, consistency, and how quickly you apply what you learn, we don't promise a number. What we do promise is a structured path to your first paying client and real project work once you're capable.",
   },
   {
     q: "Is this only mobile app development?",
@@ -24,7 +29,7 @@ const FREELANCE_FAQS = [
   },
   {
     q: "Can I do the freelancing track on its own?",
-    a: "No — freelancing is only offered bundled with the network marketing track, never as a standalone path. If you'd rather run network marketing alone, that's possible if you already have another income source financing it; see the network marketing track for details.",
+    a: "No, freelancing is only offered bundled with the network marketing track, never as a standalone path. If you'd rather run network marketing alone, that's possible if you already have another income source financing it; see the network marketing track for details.",
   },
 ];
 
@@ -39,19 +44,21 @@ export default function Freelancing() {
       <section className="page-hero">
         <div className="wrap">
           <div className="breadcrumb">
-            <Link to="/">Home</Link> <span>/</span> <span>Freelancing Track</span>
+            <Link to="/">Home</Link> <span>/</span>{" "}
+            <span>Freelancing Track</span>
           </div>
           <div className="eyebrow">Freelancing Track</div>
-          <h1>Turn a new skill into your first client — in weeks, not years.</h1>
+          <h1>Turn a new skill into your first client, in weeks, not years.</h1>
           <p className="lede">
-            We teach the exact skills the team already earns from — mobile app development,
-            no-code builds, and AI-assisted workflows — then walk you through gig setup, pricing,
-            and outreach until you land paying work. This track always runs alongside network
-            marketing — it isn't offered on its own.
+            We teach the exact skills the team already earns from, mobile app
+            development, no-code builds, and AI-assisted workflows, then walk
+            you through gig setup, pricing, and outreach until you land paying
+            work. This track always runs alongside network marketing, it isn't
+            offered on its own.
           </p>
           <div className="hero-ctas">
             <Link to="/join?track=both" className="btn btn-primary">
-              Apply — freelancing + network marketing
+              Apply, freelancing + network marketing
             </Link>
             <Link to="/network-marketing" className="btn btn-secondary">
               See the network marketing track
@@ -71,7 +78,13 @@ export default function Freelancing() {
               <div className="why-card" key={item.title}>
                 <div className="icon">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M4 17l6-6-6-6M12 19h8" stroke="#9A6A15" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    <path
+                      d="M4 17l6-6-6-6M12 19h8"
+                      stroke="#9A6A15"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </div>
                 <h4>{item.title}</h4>
@@ -116,10 +129,13 @@ export default function Freelancing() {
         <div className="wrap">
           <div className="final-cta">
             <h2>Ready to start building a sellable skill?</h2>
-            <p>Apply and we'll place you on a training path this week, alongside your network marketing track.</p>
+            <p>
+              Apply and we'll place you on a training path this week, alongside
+              your network marketing track.
+            </p>
             <div className="hero-ctas">
               <Link to="/join?track=both" className="btn btn-primary">
-                Apply — freelancing + network marketing
+                Apply, freelancing + network marketing
               </Link>
               <Link to="/faq" className="btn btn-secondary">
                 Read the full FAQ

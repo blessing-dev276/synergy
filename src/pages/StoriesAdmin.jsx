@@ -142,8 +142,8 @@ function AdminPanel({ user }) {
         </div>
       )}
       <p className="admin-note">
-        Changes here trigger a new deploy — give it a minute or two, then
-        refresh the live <Link to="/stories">stories page</Link> to see it.
+        Changes here trigger a new deploy, give it a minute or two, then refresh
+        the live <Link to="/stories">stories page</Link> to see it.
       </p>
     </div>
   );
@@ -222,8 +222,8 @@ function ResultsPicker({
           Choose images
         </button>
         <p>
-          Add one photo per result — e.g. separate shots of an iPhone and a bike
-          someone won — each with its own caption below.
+          Add one photo per result, e.g. separate shots of an iPhone and a bike
+          someone won, each with its own caption below.
         </p>
       </div>
 
@@ -270,7 +270,7 @@ function NewStoryForm({ onPublished }) {
       const { base64, previewUrl } = await compressImage(file);
       setter({ base64, previewUrl });
     } catch {
-      setError("Couldn't read that image — try a different file.");
+      setError("Couldn't read that image, try a different file.");
     }
   }
 
@@ -292,7 +292,7 @@ function NewStoryForm({ onPublished }) {
       );
       setResults((prev) => [...prev, ...added]);
     } catch {
-      setError("Couldn't read one of those images — try different files.");
+      setError("Couldn't read one of those images, try different files.");
     }
   }
 
@@ -381,7 +381,7 @@ function NewStoryForm({ onPublished }) {
           type="text"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          placeholder="Freelance track — landed first client"
+          placeholder="Freelance track, landed first client"
           disabled={publishing}
         />
       </label>

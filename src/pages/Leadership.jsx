@@ -28,7 +28,7 @@ export default function Leadership() {
     <>
       <PageMeta
         title="Leadership"
-        description="Meet the team lead behind SynergyTeam — a working freelance developer and Neolife network marketing team builder."
+        description="Meet the team lead behind SynergyTeam, a working freelance developer and Neolife network marketing team builder."
       />
 
       <section className="page-hero">
@@ -64,7 +64,7 @@ export default function Leadership() {
                 Five years building mobile apps for clients across Fiverr and
                 Upwork, alongside running an active network marketing team on
                 the Neolife platform. SynergyTeam exists because both paths were
-                built and tested first-hand — not copied from a course or a
+                built and tested first-hand, not copied from a course or a
                 template.
               </p>
               <p className="bio">

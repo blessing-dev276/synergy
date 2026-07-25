@@ -1,13 +1,20 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 
-export default function Lightbox({ photos, index, title, onClose, onNavigate }) {
+export default function Lightbox({
+  photos,
+  index,
+  title,
+  onClose,
+  onNavigate,
+}) {
   useEffect(() => {
     document.body.style.overflow = "hidden";
     const onKey = (e) => {
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowRight") onNavigate((index + 1) % photos.length);
-      if (e.key === "ArrowLeft") onNavigate((index - 1 + photos.length) % photos.length);
+      if (e.key === "ArrowLeft")
+        onNavigate((index - 1 + photos.length) % photos.length);
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -20,7 +27,12 @@ export default function Lightbox({ photos, index, title, onClose, onNavigate }) 
     <div className="lightbox" onClick={onClose}>
       <button className="lightbox-close" aria-label="Close" onClick={onClose}>
         <svg viewBox="0 0 24 24" fill="none">
-          <path d="M6 6l12 12M18 6L6 18" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+          <path
+            d="M6 6l12 12M18 6L6 18"
+            stroke="#fff"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
         </svg>
       </button>
 
@@ -34,13 +46,22 @@ export default function Lightbox({ photos, index, title, onClose, onNavigate }) 
           }}
         >
           <svg viewBox="0 0 24 24" fill="none">
-            <path d="M15 5l-7 7 7 7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M15 5l-7 7 7 7"
+              stroke="#fff"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </button>
       )}
 
       <figure onClick={(e) => e.stopPropagation()}>
-        <img src={photos[index]} alt={title ? `${title} — photo ${index + 1}` : `Photo ${index + 1}`} />
+        <img
+          src={photos[index]}
+          alt={title ? `${title}, photo ${index + 1}` : `Photo ${index + 1}`}
+        />
         {photos.length > 1 && (
           <figcaption>
             {index + 1} / {photos.length}
@@ -58,11 +79,17 @@ export default function Lightbox({ photos, index, title, onClose, onNavigate }) 
           }}
         >
           <svg viewBox="0 0 24 24" fill="none">
-            <path d="M9 5l7 7-7 7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M9 5l7 7-7 7"
+              stroke="#fff"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </button>
       )}
     </div>,
-    document.body
+    document.body,
   );
 }

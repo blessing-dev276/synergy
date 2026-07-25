@@ -16,13 +16,13 @@ collections:
     format: "json"
     slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
     identifier_field: "title"
-    summary: "{{title}} — {{date}}"
+    summary: "{{title}}, {{date}}"
     sortable_fields: ["date", "title"]
     fields:
       - label: "Event Title"
         name: "title"
         widget: "string"
-        hint: "e.g. \"2026 Team Retreat\" — shown as the section heading on the gallery page."
+        hint: 'e.g. "2026 Team Retreat", shown as the section heading on the gallery page.'
       - label: "Date"
         name: "date"
         widget: "datetime"
@@ -37,4 +37,4 @@ collections:
           label: "Photo"
           name: "image"
           widget: "image"
-        hint: "Click \"Add photo\" for each picture. Drag to reorder."
+        hint: 'Click "Add photo" for each picture. Drag to reorder.'

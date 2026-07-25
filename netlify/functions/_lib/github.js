@@ -43,14 +43,23 @@ export async function createTextBlob(text) {
   return createBlob(Buffer.from(text, "utf-8").toString("base64"));
 }
 
-export async function commitTree({ baseTreeSha, parentCommitSha, entries, message }) {
+export async function commitTree({
+  baseTreeSha,
+  parentCommitSha,
+  entries,
+  message,
+}) {
   const tree = await githubRequest("/git/trees", {
     method: "POST",
     body: JSON.stringify({ base_tree: baseTreeSha, tree: entries }),
   });
   const commit = await githubRequest("/git/commits", {
     method: "POST",
-    body: JSON.stringify({ message, tree: tree.sha, parents: [parentCommitSha] }),
+    body: JSON.stringify({
+      message,
+      tree: tree.sha,
+      parents: [parentCommitSha],
+    }),
   });
   await githubRequest(`/git/refs/heads/${BRANCH}`, {
     method: "PATCH",
@@ -82,11 +91,15 @@ export function slugify(text) {
     .slice(0, 60);
 }
 
-// Path segments we build from user input (slug, filenames) — reject anything
+// Path segments we build from user input (slug, filenames), reject anything
 // that isn't a plain safe segment so a crafted title/filename can't escape
 // the gallery folders via "../" or similar.
 export function isSafePathSegment(segment) {
-  return typeof segment === "string" && /^[a-zA-Z0-9._-]+$/.test(segment) && !segment.includes("..");
+  return (
+    typeof segment === "string" &&
+    /^[a-zA-Z0-9._-]+$/.test(segment) &&
+    !segment.includes("..")
+  );
 }
 
 export function jsonResponse(statusCode, data) {

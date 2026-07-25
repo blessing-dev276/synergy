@@ -1,14 +1,14 @@
 // ---------------------------------------------------------------------------
 // Central site configuration & copy.
 //
-// EDIT THIS FILE FIRST. Everything a prospect sees — contact details, stats,
-// testimonials, FAQ answers — is driven from here so you rarely need to touch
+// EDIT THIS FILE FIRST. Everything a prospect sees, contact details, stats,
+// testimonials, FAQ answers, is driven from here so you rarely need to touch
 // component code to update copy.
 //
 // ⚠️ REPLACE BEFORE LAUNCH (if not already done):
 //   - whatsappNumber, in international format, no "+", no spaces
 //   - email
-//   - web3formsAccessKey — get one free at https://web3forms.com (dashboard
+//   - web3formsAccessKey, get one free at https://web3forms.com (dashboard
 //     shows which inbox it delivers to). Leave "" to run on WhatsApp only.
 // ---------------------------------------------------------------------------
 
@@ -16,7 +16,7 @@ export const SITE = {
   name: "SynergyTeam",
   shortTagline: "Build Your Future with SynergyTeam.",
   metaDescription:
-    "SynergyTeam trains members to earn from freelance tech skills and build a Neolife network marketing business — with real mentorship, systems, and a team that's already done it.",
+    "SynergyTeam trains members to earn from freelance tech skills and build a Neolife network marketing business, with real mentorship, systems, and a team that's already done it.",
   whatsappNumber: "2347047318901",
   whatsappDefaultMessage:
     "Hi SynergyTeam! I'd like to know more about joining the team.",
@@ -24,7 +24,7 @@ export const SITE = {
   location: "Lagos, Nigeria",
   // Web3Forms (https://web3forms.com) delivers Join-form submissions straight
   // to `email` above, in addition to the WhatsApp chat that always opens.
-  // Leave "" to run on WhatsApp only — everything still works without it.
+  // Leave "" to run on WhatsApp only, everything still works without it.
   web3formsAccessKey: "f4b6040d-eca8-4cc4-9475-4d72aa92f73c",
 };
 
@@ -60,8 +60,8 @@ export const ABOUT = {
   eyebrow: "Who we are",
   heading: "About SynergyTeam",
   body: [
-    "SynergyTeam is a team-first community built around two income paths: freelance tech skills that pay in dollars, and a Neolife network marketing business built on structured prospecting — both taught hands-on by people already running them, not theorists reading from a script.",
-    "We call it synergy because the two tracks aren't run in isolation — freelance income funds the network marketing business while it's still growing, so members are earning while they build instead of waiting years for a payoff.",
+    "SynergyTeam is a team-first community built around two income paths: freelance tech skills that pay in dollars, and a Neolife network marketing business built on structured prospecting, both taught hands-on by people already running them, not theorists reading from a script.",
+    "We call it synergy because the two tracks aren't run in isolation, freelance income funds the network marketing business while it's still growing, so members are earning while they build instead of waiting years for a payoff.",
   ],
 };
 
@@ -75,7 +75,7 @@ export const TRUST_STATS = [
 export const WHY_US = [
   {
     title: "Systems, not vibes",
-    body: "Scripts, spreadsheets, and training decks the team already uses daily — not generic advice.",
+    body: "Scripts, spreadsheets, and training decks the team already uses daily, not generic advice.",
   },
   {
     title: "Structured onboarding",
@@ -125,7 +125,7 @@ export const FREELANCE_STEPS = [
   },
   {
     title: "Hands-on training",
-    body: "Structured, practical sessions in Flutter, FlutterFlow, and AI-assisted development — you build real things, not slides.",
+    body: "Structured, practical sessions in Flutter, FlutterFlow, and AI-assisted development, you build real things, not slides.",
   },
   {
     title: "Portfolio & profile setup",
@@ -143,14 +143,14 @@ export const FREELANCE_STEPS = [
 
 export const FREELANCE_FIT_YES = [
   "You can commit a few focused hours a week to practice, not just watch tutorials",
-  'You\'re comfortable being a beginner in public — messaging clients before you feel "ready"',
+  'You\'re comfortable being a beginner in public, messaging clients before you feel "ready"',
   "You want a skill that pays in dollars and travels with you anywhere",
 ];
 
 export const FREELANCE_FIT_NO = [
   "You want a passive, done-for-you income with zero learning curve",
   "You can't dedicate any consistent weekly time to training",
-  "You're looking for a guaranteed income figure — freelancing income depends on your effort and skill",
+  "You're looking for a guaranteed income figure, freelancing income depends on your effort and skill",
 ];
 
 export const NETWORK_STEPS = [
@@ -160,7 +160,7 @@ export const NETWORK_STEPS = [
   },
   {
     title: "Prospecting system",
-    body: "A tested script and structured approach to reaching out — not guesswork, not pressure tactics.",
+    body: "A tested script and structured approach to reaching out, not guesswork, not pressure tactics.",
   },
   {
     title: "Weekly training",
@@ -175,7 +175,7 @@ export const NETWORK_STEPS = [
 export const NETWORK_BENEFITS = [
   {
     title: "Income that compounds",
-    body: "Every person you bring on and support adds to what the whole team moves — so your income isn't capped at what you alone can sell in a day.",
+    body: "Every person you bring on and support adds to what the whole team moves, so your income isn't capped at what you alone can sell in a day.",
   },
   {
     title: "A real, reorderable product",
@@ -206,15 +206,15 @@ export const NETWORK_FIT_YES = [
 ];
 
 export const NETWORK_FIT_NO = [
-  "You've been told this is guaranteed or passive — it isn't, it's a real business",
+  "You've been told this is guaranteed or passive, it isn't, it's a real business",
   "You're not willing to talk to people or build a customer base",
-  "You want overnight results — this track compounds over months, not days",
+  "You want overnight results, this track compounds over months, not days",
 ];
 
 export const FAQS = [
   {
     q: "Do I have to do both tracks?",
-    a: "Yes, by default. If you're serious about building a business that creates lasting wealth, you need both tracks — you're not just building something to feed yourself today, you're building a legacy that can provide for future generations. The one exception: if you already have another source of income financing your Neolife business, you can run Network Marketing on its own. Freelancing, on the other hand, is never offered as a standalone track — it only runs alongside Network Marketing.",
+    a: "Yes, by default. If you're serious about building a business that creates lasting wealth, you need both tracks, you're not just building something to feed yourself today, you're building a legacy that can provide for future generations. The one exception: if you already have another source of income financing your Neolife business, you can run Network Marketing on its own. Freelancing, on the other hand, is never offered as a standalone track, it only runs alongside Network Marketing.",
   },
   {
     q: "How much time do I need per week?",
@@ -230,15 +230,15 @@ export const FAQS = [
   },
   {
     q: "How fast can I start earning from freelancing?",
-    a: "This varies by person and effort, but the goal of the training and gig-setup process is to get you positioned for your first paying client as quickly as realistically possible — some members have landed their first gig within weeks of finishing setup. Results are not guaranteed and depend on your consistency.",
+    a: "This varies by person and effort, but the goal of the training and gig-setup process is to get you positioned for your first paying client as quickly as realistically possible, some members have landed their first gig within weeks of finishing setup. Results are not guaranteed and depend on your consistency.",
   },
   {
     q: "Is Neolife a legitimate business?",
-    a: "Neolife is an established network marketing company with a real product line. As with any network marketing business, results depend on individual effort — see our income disclaimer for the full picture before you commit.",
+    a: "Neolife is an established network marketing company with a real product line. As with any network marketing business, results depend on individual effort, see our income disclaimer for the full picture before you commit.",
   },
   {
     q: "What if I only want the network marketing side?",
-    a: "That's fine only if you already have another source of income financing your Neolife business — product costs and consistent activity take some capital. Tell us that on the application and we'll focus your training and mentorship there. If you don't have that funding in place yet, we'll onboard you onto both tracks so freelancing income can cover it.",
+    a: "That's fine only if you already have another source of income financing your Neolife business, product costs and consistent activity take some capital. Tell us that on the application and we'll focus your training and mentorship there. If you don't have that funding in place yet, we'll onboard you onto both tracks so freelancing income can cover it.",
   },
   {
     q: "How do I apply?",
@@ -246,7 +246,7 @@ export const FAQS = [
   },
 ];
 
-// Freelancing is only ever offered bundled with Network Marketing — it isn't
+// Freelancing is only ever offered bundled with Network Marketing, it isn't
 // available on its own. Network Marketing alone is only for applicants who
 // already have another income source to finance it (see the "financeNote"
 // field this drives on the Join form).
@@ -254,7 +254,7 @@ export const TRACK_OPTIONS = [
   {
     value: "both",
     label: "Both Tracks (standard path)",
-    desc: "Freelancing + Network Marketing together — how most members start.",
+    desc: "Freelancing + Network Marketing together, how most members start.",
   },
   {
     value: "network-marketing",

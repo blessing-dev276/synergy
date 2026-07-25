@@ -43,8 +43,7 @@ export default function Stories() {
           {STORIES.length === 0 ? (
             <div className="gallery-empty">
               <p>
-                Stories coming soon — check back after our next round of
-                results.
+                Stories coming soon, check back after our next round of results.
               </p>
             </div>
           ) : (

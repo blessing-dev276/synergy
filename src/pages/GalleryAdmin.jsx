@@ -147,8 +147,8 @@ function AdminPanel({ user }) {
         </div>
       )}
       <p className="admin-note">
-        Changes here trigger a new deploy — give it a minute or two, then
-        refresh the live <Link to="/gallery">gallery page</Link> to see it.
+        Changes here trigger a new deploy, give it a minute or two, then refresh
+        the live <Link to="/gallery">gallery page</Link> to see it.
       </p>
     </div>
   );
@@ -186,7 +186,7 @@ function NewEventForm({ onPublished }) {
       );
       setPhotos((prev) => [...prev, ...compressed]);
     } catch {
-      setError("Couldn't read one of those files — try a different photo.");
+      setError("Couldn't read one of those files, try a different photo.");
     } finally {
       setCompressing(false);
     }
@@ -246,7 +246,7 @@ function NewEventForm({ onPublished }) {
       setPhotos([]);
     } catch (err) {
       setError(
-        `${err.message} — photos already uploaded are safe, just try publishing again.`,
+        `${err.message}, photos already uploaded are safe, just try publishing again.`,
       );
     } finally {
       setPublishing(false);
@@ -307,7 +307,7 @@ function NewEventForm({ onPublished }) {
         >
           Choose photos
         </button>
-        <p>or drag and drop — select as many as you like at once</p>
+        <p>or drag and drop, select as many as you like at once</p>
         {compressing && <p className="mono">Preparing photos…</p>}
       </div>
 

@@ -20,7 +20,7 @@ export default function FAQ() {
           <h1>Frequently asked questions</h1>
           <p className="lede">
             Everything people usually ask before joining SynergyTeam. Still have
-            a question? Reach out on WhatsApp — we reply fast.
+            a question? Reach out on WhatsApp, we reply fast.
           </p>
         </div>
       </section>

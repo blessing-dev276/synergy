@@ -1,7 +1,7 @@
 // Adds photos to a gallery event in one commit per request. The admin page
 // calls this once per small batch of (already client-side compressed) photos
 // so a single "Publish" of many photos never has to fit in one oversized
-// request — see src/pages/GalleryAdmin.jsx for the batching loop. The final
+// request, see src/pages/GalleryAdmin.jsx for the batching loop. The final
 // batch passes finalize:true plus the full accumulated photo list, which is
 // when content/gallery/<slug>.json actually gets written/updated.
 import {
@@ -15,8 +15,10 @@ import {
 } from "./_lib/github.js";
 
 export const handler = async (event, context) => {
-  if (event.httpMethod !== "POST") return jsonResponse(405, { error: "Method not allowed" });
-  if (!requireUser(context)) return jsonResponse(401, { error: "Log in required" });
+  if (event.httpMethod !== "POST")
+    return jsonResponse(405, { error: "Method not allowed" });
+  if (!requireUser(context))
+    return jsonResponse(401, { error: "Log in required" });
 
   let body;
   try {
@@ -27,15 +29,21 @@ export const handler = async (event, context) => {
 
   const { slug, title, date, startIndex, images, finalize, photos } = body;
 
-  if (!isSafePathSegment(slug)) return jsonResponse(400, { error: "Invalid slug" });
+  if (!isSafePathSegment(slug))
+    return jsonResponse(400, { error: "Invalid slug" });
   if (!Array.isArray(images) || images.length === 0) {
     return jsonResponse(400, { error: "No images in batch" });
   }
   if (!Number.isInteger(startIndex) || startIndex < 0) {
     return jsonResponse(400, { error: "Invalid startIndex" });
   }
-  if (finalize && (!title || !date || !Array.isArray(photos) || photos.length === 0)) {
-    return jsonResponse(400, { error: "finalize requires title, date, and photos" });
+  if (
+    finalize &&
+    (!title || !date || !Array.isArray(photos) || photos.length === 0)
+  ) {
+    return jsonResponse(400, {
+      error: "finalize requires title, date, and photos",
+    });
   }
 
   try {
@@ -46,14 +54,27 @@ export const handler = async (event, context) => {
         const index = startIndex + i;
         const path = `public/uploads/gallery/${slug}/photo-${String(index).padStart(3, "0")}.jpg`;
         const blobSha = await createBlob(base64);
-        return { path, mode: "100644", type: "blob", sha: blobSha, publicPath: `/uploads/gallery/${slug}/photo-${String(index).padStart(3, "0")}.jpg` };
-      })
+        return {
+          path,
+          mode: "100644",
+          type: "blob",
+          sha: blobSha,
+          publicPath: `/uploads/gallery/${slug}/photo-${String(index).padStart(3, "0")}.jpg`,
+        };
+      }),
     );
 
-    const entries = imageEntries.map(({ path, mode, type, sha }) => ({ path, mode, type, sha }));
+    const entries = imageEntries.map(({ path, mode, type, sha }) => ({
+      path,
+      mode,
+      type,
+      sha,
+    }));
 
     if (finalize) {
-      const jsonSha = await createTextBlob(JSON.stringify({ title, date, photos }, null, 2) + "\n");
+      const jsonSha = await createTextBlob(
+        JSON.stringify({ title, date, photos }, null, 2) + "\n",
+      );
       entries.push({
         path: `content/gallery/${slug}.json`,
         mode: "100644",

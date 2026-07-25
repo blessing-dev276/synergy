@@ -43,13 +43,16 @@ export default function Footer() {
         </div>
 
         <p className="footer-disclaimer">
-          Income results mentioned or implied anywhere on this site are not typical and are not guaranteed.
-          Both the freelancing and network marketing tracks require consistent individual effort — see our{" "}
+          Income results mentioned or implied anywhere on this site are not
+          typical and are not guaranteed. Both the freelancing and network
+          marketing tracks require consistent individual effort, see our{" "}
           <NavLink to="/disclaimer">income disclaimer</NavLink> for details.
         </p>
 
         <div className="footer-bottom">
-          <span>© {new Date().getFullYear()} {SITE.name}. All rights reserved.</span>
+          <span>
+            © {new Date().getFullYear()} {SITE.name}. All rights reserved.
+          </span>
           <span>{SITE.location}</span>
         </div>
       </div>

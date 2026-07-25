@@ -29,8 +29,8 @@ export default function Gallery() {
           <div className="eyebrow">Moments from the team</div>
           <h1>Team Gallery</h1>
           <p className="lede">
-            Photos from trainings, events, and get-togethers — a look at the
-            team behind the two tracks.
+            Photos from trainings, events, and get-togethers, a look at the team
+            behind the two tracks.
           </p>
         </div>
       </section>
@@ -39,7 +39,7 @@ export default function Gallery() {
         <div className="wrap">
           {events.length === 0 ? (
             <div className="gallery-empty">
-              <p>Photos coming soon — check back after our next team event.</p>
+              <p>Photos coming soon, check back after our next team event.</p>
             </div>
           ) : (
             events.map((event) => {
@@ -83,7 +83,7 @@ export default function Gallery() {
                         >
                           <img
                             src={src}
-                            alt={`${event.title} — photo ${i + 1}`}
+                            alt={`${event.title}, photo ${i + 1}`}
                             loading="lazy"
                           />
                           {isLastVisible && (

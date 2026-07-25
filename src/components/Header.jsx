@@ -67,7 +67,7 @@ export default function Header() {
       {/*
         Rendered via portal straight onto <body>, not nested inside <header>.
         header.site-header uses backdrop-filter, which establishes a
-        containing block for position:fixed descendants — that silently
+        containing block for position:fixed descendants, that silently
         shrank this drawer down to the header's own ~75px height when it
         lived inside <header>. Portalling it out sidesteps that entirely.
       */}

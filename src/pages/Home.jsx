@@ -28,7 +28,7 @@ export default function Home() {
               </h1>
               <p className="lede">
                 We train people to earn from freelance tech skills and build a
-                network marketing business at the same time — with real
+                network marketing business at the same time, with real
                 mentorship, real systems, and a team that's already done it.
               </p>
               <div className="hero-ctas">
@@ -83,12 +83,12 @@ export default function Home() {
         <div className="wrap">
           <div className="section-head">
             <div className="eyebrow">How the tracks work together</div>
-            <h2>Both tracks, one team — with one exception.</h2>
+            <h2>Both tracks, one team, with one exception.</h2>
             <p>
               Most members run both: freelancing funds daily activity while
               network marketing builds the long-term asset. The only standalone
               option is Network Marketing, and only if you already have another
-              income source financing it — freelancing isn't offered on its own.
+              income source financing it, freelancing isn't offered on its own.
             </p>
           </div>
 
@@ -97,8 +97,8 @@ export default function Home() {
               <div className="engine-tag">Freelancing Track</div>
               <h3>Learn a skill, get paid in dollars.</h3>
               <p className="desc">
-                We teach the exact skills the team already earns from — app
-                development, no-code builds, and AI tools — then help you land
+                We teach the exact skills the team already earns from, app
+                development, no-code builds, and AI tools, then help you land
                 your first paying clients on Fiverr and Upwork.
               </p>
               <ul className="engine-list">
@@ -117,7 +117,7 @@ export default function Home() {
                 </li>
               </ul>
               <p className="engine-note">
-                Always paired with Network Marketing — not offered as a
+                Always paired with Network Marketing, not offered as a
                 standalone track.
               </p>
               <Link to="/freelancing" className="engine-link">
@@ -198,7 +198,7 @@ export default function Home() {
                 <h4>Network income</h4>
                 <p>
                   Grows slower but pays you even when you're not actively
-                  working — built once, earns on repeat.
+                  working, built once, earns on repeat.
                 </p>
               </div>
             </div>
@@ -277,7 +277,7 @@ export default function Home() {
           </div>
           {STORIES.length === 0 ? (
             <p className="placeholder-note">
-              Stories are on their way — check back soon, or{" "}
+              Stories are on their way, check back soon, or{" "}
               <Link to="/stories">see the stories page →</Link>
             </p>
           ) : (

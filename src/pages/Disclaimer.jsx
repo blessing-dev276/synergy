@@ -49,12 +49,12 @@ export default function Disclaimer() {
               The network marketing track involves becoming an independent
               distributor with Neolife. This is a real business that requires
               genuine effort, consistent prospecting, and customer relationships
-              — it is not a passive income stream and it is not an investment
+              , it is not a passive income stream and it is not an investment
               vehicle. As with any network marketing business, most participants
               earn modest amounts, and a smaller number who build and lead
               active teams over time earn more. SynergyTeam does not control,
               and is not responsible for, Neolife's official compensation plan,
-              pricing, or policies — ask your mentor for the current official
+              pricing, or policies, ask your mentor for the current official
               documentation before you commit to anything.
             </p>
 

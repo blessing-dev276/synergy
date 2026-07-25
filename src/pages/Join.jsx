@@ -24,7 +24,7 @@ export default function Join() {
     message: "",
     referral: "",
     consent: false,
-    botcheck: false, // honeypot — real users never see this field
+    botcheck: false, // honeypot, real users never see this field
   }));
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -56,7 +56,7 @@ export default function Join() {
       form.financeNote.trim().length < 3
     ) {
       next.financeNote =
-        "Freelancing isn't optional unless this is financed another way — tell us how.";
+        "Freelancing isn't optional unless this is financed another way, tell us how.";
     }
     if (!form.consent)
       next.consent = "Please confirm you understand before applying.";
@@ -104,7 +104,7 @@ export default function Join() {
           setSubmitNote(
             sent
               ? "We've also emailed your application to the team."
-              : "WhatsApp opened, but the email copy didn't send — no problem, we still received your message on WhatsApp.",
+              : "WhatsApp opened, but the email copy didn't send, no problem, we still received your message on WhatsApp.",
           );
         })
         .finally(() => {
@@ -116,7 +116,7 @@ export default function Join() {
       setSubmitted(true);
       if (!win) {
         setSubmitNote(
-          "Your browser blocked the WhatsApp popup — use the WhatsApp button below to send your details instead.",
+          "Your browser blocked the WhatsApp popup, use the WhatsApp button below to send your details instead.",
         );
       }
     }
@@ -133,7 +133,7 @@ export default function Join() {
               style={{ maxWidth: 620, margin: "0 auto" }}
             >
               <h3>
-                Thanks, {form.name.split(" ")[0] || "there"} — we've got your
+                Thanks, {form.name.split(" ")[0] || "there"}, we've got your
                 application.
               </h3>
               <p>
@@ -174,8 +174,8 @@ export default function Join() {
           <h1>Apply to join SynergyTeam.</h1>
           <p className="lede">
             Tell us a bit about yourself and which track you want to start on.
-            Both tracks run together by default — Network Marketing alone is
-            only for applicants already financing it another way. We reply and
+            Both tracks run together by default, Network Marketing alone is only
+            for applicants already financing it another way. We reply and
             onboard within 48 hours.
           </p>
         </div>
@@ -271,7 +271,7 @@ export default function Join() {
                 >
                   <label htmlFor="financeNote">
                     Freelancing is required unless this is financed another way
-                    — how will you fund your Network Marketing business?
+                    , how will you fund your Network Marketing business?
                   </label>
                   <input
                     id="financeNote"
@@ -330,7 +330,7 @@ export default function Join() {
                 />
               </div>
 
-              {/* Honeypot for spam bots — hidden from real users, never focusable. */}
+              {/* Honeypot for spam bots, hidden from real users, never focusable. */}
               <div className="hp-field" aria-hidden="true">
                 <label htmlFor="company">Company</label>
                 <input
@@ -354,7 +354,7 @@ export default function Join() {
                 />
                 <span>
                   I understand this involves genuine training and effort on my
-                  part — freelancing income and network marketing income are not
+                  part, freelancing income and network marketing income are not
                   passive or guaranteed. Read the{" "}
                   <Link to="/disclaimer">income disclaimer</Link>.
                 </span>
@@ -408,7 +408,7 @@ export default function Join() {
               <div className="form-side-card">
                 <h4>Your information</h4>
                 <p>
-                  Used only to contact you about joining SynergyTeam — never
+                  Used only to contact you about joining SynergyTeam, never
                   sold. See our <Link to="/privacy">privacy note</Link> for
                   details.
                 </p>
