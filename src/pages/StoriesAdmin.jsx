@@ -27,7 +27,7 @@ export default function StoriesAdmin() {
           </div>
           <div className="eyebrow">Team only</div>
           <h1>Stories Admin</h1>
-          <p className="lede">Add a member's story with their picture and result, or remove an old one.</p>
+          <p className="lede">Add a member's story with their picture and results, or remove an old one.</p>
         </div>
       </section>
 
@@ -100,7 +100,11 @@ function AdminPanel({ user }) {
               {s.picture ? <img src={s.picture} alt="" /> : <span className="admin-avatar-placeholder" />}
               <div className="admin-event-card-body">
                 <h4>{s.name}</h4>
-                <span className="mono">{s.status || "No status set"}</span>
+                <span className="mono">
+                  {s.status || "No status set"}
+                  {s.results?.length > 0 &&
+                    ` · ${s.results.length} result${s.results.length === 1 ? "" : "s"}`}
+                </span>
               </div>
               <button
                 className="admin-delete-btn"
@@ -159,12 +163,67 @@ function ImagePicker({ label, hint, photo, onChange, onRemove, disabled }) {
   );
 }
 
+function ResultsPicker({ results, onAdd, onRemove, onCaptionChange, disabled }) {
+  const inputRef = useRef(null);
+
+  return (
+    <div className="admin-field">
+      <span>Result images (optional)</span>
+      <div className="admin-dropzone compact">
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          ref={inputRef}
+          onChange={(e) => e.target.files.length > 0 && onAdd(e.target.files)}
+          hidden
+          disabled={disabled}
+        />
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => inputRef.current.click()}
+          disabled={disabled}
+        >
+          Choose images
+        </button>
+        <p>
+          Add one photo per result — e.g. separate shots of an iPhone and a bike someone won —
+          each with its own caption below.
+        </p>
+      </div>
+
+      {results.length > 0 && (
+        <div className="admin-results-grid">
+          {results.map((r) => (
+            <div className="admin-result-item" key={r.id}>
+              <div className="admin-photo-thumb single">
+                <img src={r.previewUrl} alt="" />
+                <button type="button" onClick={() => onRemove(r.id)} aria-label="Remove result image">
+                  ×
+                </button>
+              </div>
+              <input
+                type="text"
+                value={r.caption}
+                onChange={(e) => onCaptionChange(r.id, e.target.value)}
+                placeholder="What is this? e.g. iPhone 17 Pro Max"
+                disabled={disabled}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NewStoryForm({ onPublished }) {
   const [name, setName] = useState("");
   const [status, setStatus] = useState("");
   const [story, setStory] = useState("");
   const [picture, setPicture] = useState(null); // { base64, previewUrl }
-  const [result, setResult] = useState(null);
+  const [results, setResults] = useState([]); // [{ id, base64, previewUrl, caption }]
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
 
@@ -175,6 +234,29 @@ function NewStoryForm({ onPublished }) {
     } catch {
       setError("Couldn't read that image — try a different file.");
     }
+  }
+
+  async function handleResultsAdd(fileList) {
+    const files = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+    try {
+      const added = await Promise.all(
+        files.map(async (file) => {
+          const { base64, previewUrl } = await compressImage(file);
+          return { id: `${Date.now()}-${Math.random()}`, base64, previewUrl, caption: "" };
+        })
+      );
+      setResults((prev) => [...prev, ...added]);
+    } catch {
+      setError("Couldn't read one of those images — try different files.");
+    }
+  }
+
+  function removeResult(id) {
+    setResults((prev) => prev.filter((r) => r.id !== id));
+  }
+
+  function setResultCaption(id, caption) {
+    setResults((prev) => prev.map((r) => (r.id === id ? { ...r, caption } : r)));
   }
 
   async function handlePublish(e) {
@@ -199,7 +281,7 @@ function NewStoryForm({ onPublished }) {
           status: status.trim(),
           story: story.trim(),
           picture: picture?.base64 || null,
-          result: result?.base64 || null,
+          results: results.map((r) => ({ image: r.base64, caption: r.caption.trim() })),
         }),
       });
       const data = await res.json();
@@ -211,13 +293,13 @@ function NewStoryForm({ onPublished }) {
         status: status.trim(),
         story: story.trim(),
         picture: data.picture,
-        result: data.result,
+        results: data.results,
       });
       setName("");
       setStatus("");
       setStory("");
       setPicture(null);
-      setResult(null);
+      setResults([]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -269,12 +351,11 @@ function NewStoryForm({ onPublished }) {
         onRemove={() => setPicture(null)}
         disabled={publishing}
       />
-      <ImagePicker
-        label="Result image (optional)"
-        hint="A screenshot of earnings, a payment, a rank certificate — whatever backs up the story."
-        photo={result}
-        onChange={(file) => handleImageSelect(file, setResult)}
-        onRemove={() => setResult(null)}
+      <ResultsPicker
+        results={results}
+        onAdd={handleResultsAdd}
+        onRemove={removeResult}
+        onCaptionChange={setResultCaption}
         disabled={publishing}
       />
 

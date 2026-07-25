@@ -197,10 +197,6 @@ export const NETWORK_BENEFITS = [
     title: "Skills that outlast the business",
     body: "Prospecting, leadership, and people skills you pick up here carry over into anything else you go on to build.",
   },
-  {
-    name: "Emerald Director",
-    desc: "Leading a team of directors and building a significant customer base.",
-  },
 ];
 
 export const NETWORK_FIT_YES = [

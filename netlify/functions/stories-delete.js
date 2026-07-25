@@ -1,4 +1,4 @@
-// Deletes a story's JSON file plus its picture/result images, in one commit.
+// Deletes a story's JSON file plus its picture and all result images, in one commit.
 import { getBranchHead, commitTree, getFileContent, requireUser, isSafePathSegment, jsonResponse } from "./_lib/github.js";
 
 export const handler = async (event, context) => {
@@ -20,10 +20,12 @@ export const handler = async (event, context) => {
     const file = await getFileContent(jsonPath);
     if (!file) return jsonResponse(404, { error: "Story not found" });
 
-    const { picture, result } = JSON.parse(file.content);
+    const { picture, results } = JSON.parse(file.content);
     const entries = [{ path: jsonPath, mode: "100644", type: "blob", sha: null }];
     if (picture) entries.push({ path: `public${picture}`, mode: "100644", type: "blob", sha: null });
-    if (result) entries.push({ path: `public${result}`, mode: "100644", type: "blob", sha: null });
+    for (const r of results || []) {
+      entries.push({ path: `public${r.image}`, mode: "100644", type: "blob", sha: null });
+    }
 
     const { commitSha, treeSha } = await getBranchHead();
     await commitTree({

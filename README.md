@@ -79,8 +79,9 @@ minute or two.
 Managed the same way as the gallery, at **`/stories-admin`** — same Identity
 login, no new accounts needed. Log in, fill in the member's name, status
 (e.g. "Freelance track — landed first client"), their story, and optionally
-a profile picture and a result image (a screenshot of earnings, a payment, a
-rank certificate — whatever backs it up). Publish, and it shows up on the
+a profile picture and any number of result images — one photo per result
+(e.g. an iPhone and a bike someone won get their own photos, not one shared
+one), each with its own short caption. Publish, and it shows up on the
 homepage and the `/stories` page after the next deploy. Existing stories can
 be deleted from the same page.
 
