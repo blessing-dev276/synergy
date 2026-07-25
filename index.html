@@ -16,5 +16,21 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Netlify Identity invite/recovery emails link here with a token in the
+         URL hash. This widget picks that up, shows the "set your password"
+         modal, then sends the person on to the CMS at /admin. -->
+    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <script>
+      if (window.netlifyIdentity) {
+        window.netlifyIdentity.on("init", (user) => {
+          if (!user) {
+            window.netlifyIdentity.on("login", () => {
+              document.location.href = "/admin/";
+            });
+          }
+        });
+      }
+    </script>
   </body>
 </html>

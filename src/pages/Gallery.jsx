@@ -3,15 +3,11 @@ import { Link } from "react-router-dom";
 import PageMeta from "../components/PageMeta.jsx";
 import Lightbox from "../components/Lightbox.jsx";
 import { GALLERY_EVENTS } from "../data/gallery.js";
-import { getEventPhotos } from "../lib/galleryPhotos.js";
 
 export default function Gallery() {
   const [active, setActive] = useState(null); // { slug, title, index } | null
 
-  const events = GALLERY_EVENTS.map((event) => ({
-    ...event,
-    photos: getEventPhotos(event.slug),
-  })).filter((event) => event.photos.length > 0);
+  const events = GALLERY_EVENTS;
 
   return (
     <>
@@ -45,7 +41,7 @@ export default function Gallery() {
               <div className="gallery-event" key={event.slug}>
                 <div className="gallery-event-head">
                   <h3>{event.title}</h3>
-                  {event.date && <span className="mono">{event.date}</span>}
+                  {event.date && <span className="mono">{formatEventDate(event.date)}</span>}
                 </div>
                 <div className="gallery-grid">
                   {event.photos.map((src, i) => (
@@ -94,4 +90,11 @@ export default function Gallery() {
         })()}
     </>
   );
+}
+
+// CMS stores dates as ISO ("2026-03-01"); show them the way a caption reads.
+function formatEventDate(isoDate) {
+  const date = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return isoDate;
+  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }

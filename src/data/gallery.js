@@ -1,16 +1,18 @@
 // ---------------------------------------------------------------------------
-// Team Gallery — one entry per event, newest first.
+// Team Gallery — one JSON file per event, managed through the CMS at /admin.
 //
-// To add an event: create a folder in src/assets/images/gallery/ named
-// `slug` below, drop that event's photos into it, then add one entry here.
-// See src/assets/images/gallery/README.md for the full walkthrough. No image
-// imports needed — photos are picked up automatically from the folder.
+// Nobody should need to edit this file or content/gallery/*.json by hand:
+// log in at yoursite.com/admin, click "New Gallery Event", fill in a title,
+// date, and photos, then Publish. This module just reads whatever's there.
 // ---------------------------------------------------------------------------
 
-export const GALLERY_EVENTS = [
-  // {
-  //   slug: "2026-team-retreat",   // must match the folder name exactly
-  //   title: "2026 Team Retreat",
-  //   date: "March 2026",
-  // },
-];
+const modules = import.meta.glob("../../content/gallery/*.json", { eager: true });
+
+export const GALLERY_EVENTS = Object.entries(modules)
+  .map(([path, mod]) => {
+    const data = mod.default ?? mod;
+    const slug = path.match(/([^/]+)\.json$/)?.[1] ?? path;
+    return { slug, ...data };
+  })
+  .filter((event) => Array.isArray(event.photos) && event.photos.length > 0)
+  .sort((a, b) => (b.date || "").localeCompare(a.date || ""));

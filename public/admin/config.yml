@@ -1,0 +1,40 @@
+backend:
+  name: git-gateway
+  branch: main
+
+publish_mode: simple
+media_folder: "public/uploads/gallery"
+public_folder: "/uploads/gallery"
+
+collections:
+  - name: "gallery"
+    label: "Gallery Events"
+    label_singular: "Gallery Event"
+    folder: "content/gallery"
+    create: true
+    delete: true
+    format: "json"
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
+    identifier_field: "title"
+    summary: "{{title}} — {{date}}"
+    sortable_fields: ["date", "title"]
+    fields:
+      - label: "Event Title"
+        name: "title"
+        widget: "string"
+        hint: "e.g. \"2026 Team Retreat\" — shown as the section heading on the gallery page."
+      - label: "Date"
+        name: "date"
+        widget: "datetime"
+        format: "YYYY-MM-DD"
+        date_format: "YYYY-MM-DD"
+        time_format: false
+        picker_utc: true
+      - label: "Photos"
+        name: "photos"
+        widget: "list"
+        field:
+          label: "Photo"
+          name: "image"
+          widget: "image"
+        hint: "Click \"Add photo\" for each picture. Drag to reorder."
