@@ -88,7 +88,11 @@ export default function Join() {
 
     const message = buildMessage();
 
-    trackTikTok("SubmitForm", { content_name: selectedTrackLabel });
+    trackTikTok("Lead", {
+      content_name: selectedTrackLabel,
+      email: form.email || undefined,
+      phone: form.phone,
+    });
 
     // Open WhatsApp synchronously (in direct response to the click) so
     // browsers don't treat it as a blocked popup. Works out of the box with
@@ -129,6 +133,8 @@ export default function Join() {
     if (submitted) {
       trackTikTok("CompleteRegistration", {
         content_name: selectedTrackLabel,
+        email: form.email || undefined,
+        phone: form.phone,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

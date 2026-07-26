@@ -91,6 +91,29 @@ file in `content/stories/`, images land in `public/uploads/stories/`, and the
 commit is made by `netlify/functions/stories-publish.js` /
 `stories-delete.js`.
 
+## TikTok ad tracking
+
+The TikTok Pixel (client-side) is already wired into `index.html` and fires
+on every page. Key actions (the "Join The Team" CTAs, the Join-form
+submission, and the "application received" screen) also relay through
+TikTok's server-side Events API via `netlify/functions/tiktok-event.js`, see
+`src/lib/tiktok.js`, so those conversions still count even when a visitor's
+browser blocks the client-side pixel.
+
+### One-time setup (do this once, on the deployed site)
+
+1. In TikTok Events Manager, generate an Events API access token for the
+   pixel (`D9IJSEBC77U84G6G804G`), the "Implement Events API" panel has a
+   **Generate access token** button. TikTok only shows it once, copy it
+   immediately.
+2. In Netlify, **Site settings → Environment variables → Add a variable** —
+   name `TIKTOK_ACCESS_TOKEN`, value the token from step 1. Redeploy the site
+   once so the function picks it up.
+
+This token is a write credential for your TikTok ad account, treat it like a
+password: never put it in front-end code (`src/`) or commit it to the repo,
+only ever in the Netlify environment variable above.
+
 ## Deployment
 
 Configured for Netlify (`netlify.toml` + `public/_redirects` handle the SPA
