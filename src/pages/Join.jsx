@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import PageMeta from "../components/PageMeta.jsx";
 import { SITE, TRACK_OPTIONS, STATUS_OPTIONS } from "../data/site.js";
 import { whatsappLink } from "../lib/whatsapp.js";
 import { submitToWeb3Forms } from "../lib/web3forms.js";
+import { trackTikTok } from "../lib/tiktok.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -87,6 +88,8 @@ export default function Join() {
 
     const message = buildMessage();
 
+    trackTikTok("SubmitForm", { content_name: selectedTrackLabel });
+
     // Open WhatsApp synchronously (in direct response to the click) so
     // browsers don't treat it as a blocked popup. Works out of the box with
     // zero backend setup.
@@ -122,6 +125,15 @@ export default function Join() {
     }
   }
 
+  useEffect(() => {
+    if (submitted) {
+      trackTikTok("CompleteRegistration", {
+        content_name: selectedTrackLabel,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitted]);
+
   if (submitted) {
     return (
       <>
@@ -148,6 +160,7 @@ export default function Join() {
                 target="_blank"
                 rel="noreferrer"
                 className="btn btn-primary"
+                onClick={() => trackTikTok("Contact")}
               >
                 Open WhatsApp chat
               </a>
@@ -390,6 +403,7 @@ export default function Join() {
                   rel="noreferrer"
                   className="btn btn-secondary btn-block"
                   style={{ marginTop: 14 }}
+                  onClick={() => trackTikTok("Contact")}
                 >
                   Chat on WhatsApp
                 </a>

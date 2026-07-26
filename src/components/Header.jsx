@@ -4,6 +4,7 @@ import { NavLink } from "react-router-dom";
 import logoWordmark from "../assets/images/logo-wordmark.png";
 import { NAV_LINKS } from "../data/site.js";
 import { whatsappLink } from "../lib/whatsapp.js";
+import { trackTikTok } from "../lib/tiktok.js";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -43,7 +44,11 @@ export default function Header() {
         </div>
 
         <div className="nav-right">
-          <NavLink to="/join" className="nav-cta">
+          <NavLink
+            to="/join"
+            className="nav-cta"
+            onClick={() => trackTikTok("ClickButton", { content_name: "Join The Team (header)" })}
+          >
             Join The Team
           </NavLink>
           <button
@@ -115,7 +120,10 @@ export default function Header() {
             <NavLink
               to="/join"
               className="nav-cta"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                trackTikTok("ClickButton", { content_name: "Join The Team (mobile nav)" });
+              }}
             >
               Join The Team →
             </NavLink>
@@ -124,6 +132,7 @@ export default function Header() {
               target="_blank"
               rel="noreferrer"
               className="mobile-nav-whatsapp"
+              onClick={() => trackTikTok("Contact")}
             >
               Chat on WhatsApp
             </a>

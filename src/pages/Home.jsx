@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import PageMeta from "../components/PageMeta.jsx";
 import teamLead from "../assets/images/team-lead.jpg";
 import { whatsappLink } from "../lib/whatsapp.js";
+import { trackTikTok } from "../lib/tiktok.js";
 import { SITE, ABOUT, TRUST_STATS, WHY_US } from "../data/site.js";
 import { STORIES } from "../data/stories.js";
 import StoryCard from "../components/StoryCard.jsx";
@@ -32,7 +33,11 @@ export default function Home() {
                 mentorship, real systems, and a team that's already done it.
               </p>
               <div className="hero-ctas">
-                <Link to="/join" className="btn btn-primary">
+                <Link
+                  to="/join"
+                  className="btn btn-primary"
+                  onClick={() => trackTikTok("ClickButton", { content_name: "Join SynergyTeam (hero)" })}
+                >
                   Join SynergyTeam →
                 </Link>
                 <a href="#engines" className="btn btn-secondary">
@@ -305,7 +310,11 @@ export default function Home() {
               48 hours.
             </p>
             <div className="hero-ctas">
-              <Link to="/join" className="btn btn-primary">
+              <Link
+                to="/join"
+                className="btn btn-primary"
+                onClick={() => trackTikTok("ClickButton", { content_name: "Apply to join SynergyTeam (final CTA)" })}
+              >
                 Apply to join SynergyTeam
               </Link>
               <a
@@ -313,6 +322,7 @@ export default function Home() {
                 target="_blank"
                 rel="noreferrer"
                 className="btn btn-secondary"
+                onClick={() => trackTikTok("Contact")}
               >
                 Chat with us on WhatsApp
               </a>
