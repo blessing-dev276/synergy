@@ -733,16 +733,42 @@ img.wordmark{ height:44px; width:auto; }
 .admin-note{ font-size:13px; color:var(--slate); margin-top:8px; }
 
 /* ===== BUSINESS TOOLKIT ===== */
-.toolkit-feature-grid{
-  display:grid; grid-template-columns:repeat(4, 1fr); gap:14px;
+.toolkit-hero-grid{
+  display:grid; grid-template-columns:1.15fr 0.85fr; gap:48px; align-items:center;
 }
-.toolkit-feature-card{
+.toolkit-mockup{ padding:14px; height:340px; }
+.toolkit-mockup svg{ display:block; height:100%; }
+@media (max-width:860px){
+  .toolkit-hero-grid{ grid-template-columns:1fr; gap:32px; }
+  .toolkit-mockup{ height:260px; }
+}
+
+.toolkit-trust-section{ padding:8px 0 40px; }
+.trust-badges{ display:flex; flex-wrap:wrap; justify-content:center; gap:12px; }
+.trust-badge{
+  display:inline-flex; align-items:center; gap:8px;
+  background:var(--surface); border:1px solid var(--line); border-radius:100px;
+  padding:10px 18px; font-size:13.5px; font-weight:600; color:var(--navy-soft);
+}
+
+.bonus-box{
+  background:var(--gold-soft); border:1px solid var(--gold); border-radius:var(--radius);
+  padding:36px; text-align:center;
+}
+.bonus-box h3{ font-size:22px; margin-bottom:10px; color:#7A5210; }
+.bonus-box p{ color:#7A5210; font-size:15px; max-width:620px; margin:0 auto; }
+
+.toolkit-sticky-cta{
+  position:fixed; left:22px; bottom:22px; z-index:50;
   display:flex; align-items:center; gap:10px;
-  background:var(--surface); border:1px solid var(--line); border-radius:12px;
-  padding:16px 18px; font-size:14.5px; font-weight:600; color:var(--navy);
+  background:var(--surface); border:1px solid var(--line); border-radius:100px;
+  padding:8px 8px 8px 20px; box-shadow:0 14px 30px -10px rgba(11,31,58,0.3);
+  animation:toolkit-sticky-in .3s ease;
 }
-.toolkit-feature-card svg{ flex-shrink:0; }
-@media (max-width:860px){ .toolkit-feature-grid{ grid-template-columns:repeat(2, 1fr); } }
+.toolkit-sticky-cta span:first-child{ font-size:13.5px; font-weight:600; color:var(--navy-soft); white-space:nowrap; }
+.toolkit-sticky-cta .btn{ padding:9px 16px; font-size:13.5px; }
+@keyframes toolkit-sticky-in{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:translateY(0); } }
+@media (max-width:520px){ .toolkit-sticky-cta span:first-child{ display:none; } }
 
 .affiliate-disclosure{
   margin-top:32px; font-size:12.5px; color:var(--slate); line-height:1.6;
