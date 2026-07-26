@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import logoWordmark from "../assets/images/logo-wordmark.png";
 import { NAV_LINKS } from "../data/site.js";
+import { BUSINESS_TOOLKIT } from "../data/businessToolkit.js";
 import { whatsappLink } from "../lib/whatsapp.js";
 import { trackTikTok } from "../lib/tiktok.js";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [toolkitOpen, setToolkitOpen] = useState(false);
+  const location = useLocation();
+  const onToolkitRoute = location.pathname.startsWith("/business-toolkit");
 
   // Lock body scroll while the mobile drawer is open, and let Escape close it.
   useEffect(() => {
@@ -41,6 +45,43 @@ export default function Header() {
               {link.label}
             </NavLink>
           ))}
+          <div className="nav-dropdown">
+            <button
+              type="button"
+              className={`nav-dropdown-trigger ${onToolkitRoute ? "active" : ""}`}
+              aria-haspopup="true"
+            >
+              Business Toolkit
+              <svg
+                className="nav-dropdown-chevron"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <div className="nav-dropdown-menu">
+              {BUSINESS_TOOLKIT.map((tool) => (
+                <NavLink
+                  key={tool.slug}
+                  to={`/business-toolkit/${tool.slug}`}
+                  className={({ isActive }) =>
+                    `nav-dropdown-item ${isActive ? "active" : ""}`
+                  }
+                >
+                  {tool.name}
+                </NavLink>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="nav-right">
@@ -117,6 +158,49 @@ export default function Header() {
                 </NavLink>
               ))}
             </div>
+
+            <div className="mobile-toolkit">
+              <button
+                type="button"
+                className={`mobile-toolkit-trigger ${onToolkitRoute ? "active" : ""}`}
+                aria-expanded={toolkitOpen}
+                onClick={() => setToolkitOpen((v) => !v)}
+              >
+                Business Toolkit
+                <svg
+                  className={`nav-dropdown-chevron ${toolkitOpen ? "open" : ""}`}
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <path
+                    d="M6 9l6 6 6-6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              {toolkitOpen && (
+                <div className="mobile-toolkit-links">
+                  {BUSINESS_TOOLKIT.map((tool) => (
+                    <NavLink
+                      key={tool.slug}
+                      to={`/business-toolkit/${tool.slug}`}
+                      onClick={() => setOpen(false)}
+                      className={({ isActive }) =>
+                        isActive ? "active" : undefined
+                      }
+                    >
+                      {tool.name}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <NavLink
               to="/join"
               className="nav-cta"

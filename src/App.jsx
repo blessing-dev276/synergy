@@ -9,6 +9,7 @@ import GalleryAdmin from "./pages/GalleryAdmin.jsx";
 import Stories from "./pages/Stories.jsx";
 import StoriesAdmin from "./pages/StoriesAdmin.jsx";
 import Join from "./pages/Join.jsx";
+import BusinessToolkitTool from "./pages/BusinessToolkitTool.jsx";
 import FAQ from "./pages/FAQ.jsx";
 import Disclaimer from "./pages/Disclaimer.jsx";
 import Privacy from "./pages/Privacy.jsx";
@@ -27,6 +28,10 @@ function App() {
         <Route path="/stories" element={<Stories />} />
         <Route path="/stories-admin" element={<StoriesAdmin />} />
         <Route path="/join" element={<Join />} />
+        <Route
+          path="/business-toolkit/:slug"
+          element={<BusinessToolkitTool />}
+        />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/disclaimer" element={<Disclaimer />} />
         <Route path="/privacy" element={<Privacy />} />

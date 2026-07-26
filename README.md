@@ -17,6 +17,7 @@ npm run preview   # serve the production build locally
 | To change...                                                               | Edit...                                 |
 | -------------------------------------------------------------------------- | --------------------------------------- |
 | Any copy, stats, FAQ answers, testimonials, WhatsApp number, contact email | `src/data/site.js`                      |
+| Business Toolkit tools (add/edit a recommended tool)                       | `src/data/businessToolkit.js`           |
 | Gallery photos/events                                                      | Don't, use `/gallery-admin` (see below) |
 | Success stories / testimonials                                             | Don't, use `/stories-admin` (see below) |
 | Page layout/structure                                                      | `src/pages/*.jsx`                       |
@@ -27,6 +28,16 @@ touch, it has inline comments on every field, including the two things you
 must replace before launch (WhatsApp number, email) and the optional
 Web3Forms key that makes Join-form applications land in your inbox as well
 as WhatsApp.
+
+## Business Toolkit (`/business-toolkit/<slug>`)
+
+A resource hub of tools Synergy personally recommends (GoHighLevel is the
+only one live today, using the `fp_ref=5il6ha` referral link). It's
+config-driven: everything, the nav dropdown, the mobile menu, and each tool's
+landing page, is generated from the array in `src/data/businessToolkit.js`.
+To add a new tool (Canva, Hostinger, Namecheap, etc.), add one object to that
+array with a unique `slug`, its content, and its `affiliateLink`, nothing in
+`Header.jsx`, `App.jsx`, or routing needs to change.
 
 ## Team gallery (no code required)
 
