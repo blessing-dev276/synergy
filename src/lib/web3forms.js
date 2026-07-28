@@ -25,7 +25,6 @@ export async function submitToWeb3Forms(form, trackLabel) {
     financing:
       form.track === "network-marketing" ? form.financeNote : undefined,
     status: form.status || undefined,
-    referral: form.referral || undefined,
     message: form.message || undefined,
     // Honeypot: real visitors never see or fill this field. Web3Forms
     // silently discards submissions where it's non-empty.

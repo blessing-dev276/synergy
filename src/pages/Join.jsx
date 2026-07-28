@@ -24,7 +24,6 @@ export default function Join() {
     status: "",
     financeNote: "",
     message: "",
-    referral: "",
     consent: false,
     botcheck: false, // honeypot, real users never see this field
   }));
@@ -76,7 +75,6 @@ export default function Join() {
       form.track === "network-marketing" &&
         `Financing network marketing via: ${form.financeNote}`,
       form.status && `Current status: ${form.status}`,
-      form.referral && `Heard about us via: ${form.referral}`,
       form.message && `Why they want to join: ${form.message}`,
     ].filter(Boolean);
     return lines.join("\n");
@@ -193,12 +191,6 @@ export default function Join() {
           </div>
           <div className="eyebrow">Let's get you onboarded</div>
           <h1>Apply to join SynergyTeam.</h1>
-          <p className="lede">
-            Tell us a bit about yourself and which track you want to start on.
-            Both tracks run together by default, Network Marketing alone is only
-            for applicants already financing it another way. We reply and
-            onboard within 48 hours.
-          </p>
         </div>
       </section>
 
@@ -339,19 +331,6 @@ export default function Join() {
                     ))}
                   </select>
                 </div>
-              </div>
-
-              <div className="field">
-                <label htmlFor="referral">
-                  How did you hear about us?{" "}
-                  <span className="hint">(optional)</span>
-                </label>
-                <input
-                  id="referral"
-                  type="text"
-                  value={form.referral}
-                  onChange={(e) => update("referral", e.target.value)}
-                />
               </div>
 
               <div className="field">
