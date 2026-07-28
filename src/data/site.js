@@ -29,13 +29,17 @@ export const SITE = {
 };
 
 export const NAV_LINKS = [
-  { to: "/", label: "Home" },
-  { to: "/freelancing", label: "Freelancing" },
-  { to: "/network-marketing", label: "Network Marketing" },
   { to: "/leadership", label: "Leadership" },
   { to: "/gallery", label: "Gallery" },
   { to: "/stories", label: "Stories" },
   { to: "/faq", label: "FAQ" },
+];
+
+// Grouped into a "Tracks" nav dropdown instead of two flat top-level links,
+// see Header.jsx.
+export const TRACKS_NAV = [
+  { to: "/freelancing", label: "Freelancing" },
+  { to: "/network-marketing", label: "Network Marketing" },
 ];
 
 export const FOOTER_LINKS = {

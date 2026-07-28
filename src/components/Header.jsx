@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router-dom";
 import logoWordmark from "../assets/images/logo-wordmark.png";
-import { NAV_LINKS } from "../data/site.js";
+import { NAV_LINKS, TRACKS_NAV } from "../data/site.js";
 import { BUSINESS_TOOLKIT } from "../data/businessToolkit.js";
 import { whatsappLink } from "../lib/whatsapp.js";
 import { trackTikTok } from "../lib/tiktok.js";
@@ -10,8 +10,10 @@ import { trackTikTok } from "../lib/tiktok.js";
 export default function Header() {
   const [open, setOpen] = useState(false);
   const [toolkitOpen, setToolkitOpen] = useState(false);
+  const [tracksOpen, setTracksOpen] = useState(false);
   const location = useLocation();
   const onToolkitRoute = location.pathname.startsWith("/business-toolkit");
+  const onTracksRoute = TRACKS_NAV.some((t) => t.to === location.pathname);
 
   // Lock body scroll while the mobile drawer is open, and let Escape close it.
   useEffect(() => {
@@ -36,6 +38,49 @@ export default function Header() {
         </NavLink>
 
         <div className="nav-links">
+          <NavLink
+            to="/"
+            className={({ isActive }) => (isActive ? "active" : undefined)}
+          >
+            Home
+          </NavLink>
+          <div className="nav-dropdown">
+            <button
+              type="button"
+              className={`nav-dropdown-trigger ${onTracksRoute ? "active" : ""}`}
+              aria-haspopup="true"
+            >
+              Tracks
+              <svg
+                className="nav-dropdown-chevron"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <div className="nav-dropdown-menu">
+              {TRACKS_NAV.map((track) => (
+                <NavLink
+                  key={track.to}
+                  to={track.to}
+                  className={({ isActive }) =>
+                    `nav-dropdown-item ${isActive ? "active" : ""}`
+                  }
+                >
+                  {track.label}
+                </NavLink>
+              ))}
+            </div>
+          </div>
           {NAV_LINKS.map((link) => (
             <NavLink
               key={link.to}
@@ -144,6 +189,58 @@ export default function Header() {
                 </svg>
               </button>
             </div>
+            <div className="mobile-nav-links">
+              <NavLink
+                to="/"
+                onClick={() => setOpen(false)}
+                className={({ isActive }) => (isActive ? "active" : undefined)}
+              >
+                Home
+              </NavLink>
+            </div>
+
+            <div className="mobile-toolkit">
+              <button
+                type="button"
+                className={`mobile-toolkit-trigger ${onTracksRoute ? "active" : ""}`}
+                aria-expanded={tracksOpen}
+                onClick={() => setTracksOpen((v) => !v)}
+              >
+                Tracks
+                <svg
+                  className={`nav-dropdown-chevron ${tracksOpen ? "open" : ""}`}
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <path
+                    d="M6 9l6 6 6-6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              {tracksOpen && (
+                <div className="mobile-toolkit-links">
+                  {TRACKS_NAV.map((track) => (
+                    <NavLink
+                      key={track.to}
+                      to={track.to}
+                      onClick={() => setOpen(false)}
+                      className={({ isActive }) =>
+                        isActive ? "active" : undefined
+                      }
+                    >
+                      {track.label}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mobile-nav-links">
               {NAV_LINKS.map((link) => (
                 <NavLink
