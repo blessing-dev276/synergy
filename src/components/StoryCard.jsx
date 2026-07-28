@@ -1,7 +1,6 @@
 export default function StoryCard({ story }) {
   return (
     <div className="t-card">
-      <p className="quote">&quot;{story.story}&quot;</p>
       <div className="who">
         {story.picture ? (
           <img className="t-avatar" src={story.picture} alt={story.name} />
@@ -13,6 +12,7 @@ export default function StoryCard({ story }) {
           {story.status && <span>{story.status}</span>}
         </div>
       </div>
+      <p className="quote">&quot;{story.story}&quot;</p>
       {story.results?.length > 0 && (
         <div className="t-results">
           {story.results.map((r, i) => (
