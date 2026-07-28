@@ -20,6 +20,7 @@ export async function submitToWeb3Forms(form, trackLabel) {
     from_name: "SynergyTeam website",
     name: form.name,
     phone: form.phone,
+    location: form.location || undefined,
     track: trackLabel,
     financing:
       form.track === "network-marketing" ? form.financeNote : undefined,

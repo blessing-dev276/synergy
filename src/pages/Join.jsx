@@ -19,6 +19,7 @@ export default function Join() {
     name: "",
     phone: "",
     email: "",
+    location: "",
     track: initialTrack(searchParams),
     status: "",
     financeNote: "",
@@ -70,6 +71,7 @@ export default function Join() {
       `Name: ${form.name}`,
       `Phone: ${form.phone}`,
       form.email && `Email: ${form.email}`,
+      form.location && `Location: ${form.location}`,
       `Track: ${selectedTrackLabel}`,
       form.track === "network-marketing" &&
         `Financing network marketing via: ${form.financeNote}`,
@@ -306,22 +308,37 @@ export default function Join() {
                 </div>
               )}
 
-              <div className="field">
-                <label htmlFor="status">
-                  Current status <span className="hint">(optional)</span>
-                </label>
-                <select
-                  id="status"
-                  value={form.status}
-                  onChange={(e) => update("status", e.target.value)}
-                >
-                  <option value="">Select one…</option>
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+              <div className="form-row">
+                <div className="field">
+                  <label htmlFor="location">
+                    Location <span className="hint">(optional)</span>
+                  </label>
+                  <input
+                    id="location"
+                    type="text"
+                    value={form.location}
+                    onChange={(e) => update("location", e.target.value)}
+                    autoComplete="address-level2"
+                    placeholder="e.g. Lagos, Nigeria"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="status">
+                    Current status <span className="hint">(optional)</span>
+                  </label>
+                  <select
+                    id="status"
+                    value={form.status}
+                    onChange={(e) => update("status", e.target.value)}
+                  >
+                    <option value="">Select one…</option>
+                    {STATUS_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="field">
