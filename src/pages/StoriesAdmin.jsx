@@ -6,6 +6,7 @@ import { compressImage } from "../lib/compressImage.js";
 import {
   useNetlifyIdentity,
   getIdentityToken,
+  hasRole,
 } from "../lib/useNetlifyIdentity.js";
 
 function slugify(text) {
@@ -54,6 +55,20 @@ export default function StoriesAdmin() {
                 Log in
               </button>
             </div>
+          ) : !hasRole(user, "admin") ? (
+            <div className="admin-gate">
+              <p>
+                Logged in as {user.email}, but this account isn't set up as an
+                admin. Ask the site owner to add the "admin" role to your
+                account in Netlify Identity.
+              </p>
+              <button
+                className="btn btn-secondary"
+                onClick={() => window.netlifyIdentity.logout()}
+              >
+                Log out
+              </button>
+            </div>
           ) : (
             <AdminPanel user={user} />
           )}
@@ -66,6 +81,7 @@ export default function StoriesAdmin() {
 function AdminPanel({ user }) {
   const [stories, setStories] = useState(STORIES);
   const [deletingSlug, setDeletingSlug] = useState(null);
+  const [editingSlug, setEditingSlug] = useState(null);
   const [error, setError] = useState("");
 
   async function handleDelete(slug) {
@@ -115,30 +131,52 @@ function AdminPanel({ user }) {
         <p className="mono">No stories yet.</p>
       ) : (
         <div className="admin-event-list">
-          {stories.map((s) => (
-            <div className="admin-event-card" key={s.slug}>
-              {s.picture ? (
-                <img src={s.picture} alt="" />
-              ) : (
-                <span className="admin-avatar-placeholder" />
-              )}
-              <div className="admin-event-card-body">
-                <h4>{s.name}</h4>
-                <span className="mono">
-                  {s.status || "No status set"}
-                  {s.results?.length > 0 &&
-                    ` · ${s.results.length} result${s.results.length === 1 ? "" : "s"}`}
-                </span>
+          {stories.map((s) =>
+            editingSlug === s.slug ? (
+              <EditStoryForm
+                key={s.slug}
+                story={s}
+                onSaved={(updated) => {
+                  setStories((prev) =>
+                    prev.map((x) => (x.slug === s.slug ? updated : x)),
+                  );
+                  setEditingSlug(null);
+                }}
+                onCancel={() => setEditingSlug(null)}
+              />
+            ) : (
+              <div className="admin-event-card" key={s.slug}>
+                {s.picture ? (
+                  <img src={s.picture} alt="" />
+                ) : (
+                  <span className="admin-avatar-placeholder" />
+                )}
+                <div className="admin-event-card-body">
+                  <h4>{s.name}</h4>
+                  <span className="mono">
+                    {s.status || "No status set"}
+                    {s.results?.length > 0 &&
+                      ` · ${s.results.length} result${s.results.length === 1 ? "" : "s"}`}
+                  </span>
+                </div>
+                <div className="admin-card-actions">
+                  <button
+                    className="admin-edit-btn"
+                    onClick={() => setEditingSlug(s.slug)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="admin-delete-btn"
+                    disabled={deletingSlug === s.slug}
+                    onClick={() => handleDelete(s.slug)}
+                  >
+                    {deletingSlug === s.slug ? "Deleting…" : "Delete"}
+                  </button>
+                </div>
               </div>
-              <button
-                className="admin-delete-btn"
-                disabled={deletingSlug === s.slug}
-                onClick={() => handleDelete(s.slug)}
-              >
-                {deletingSlug === s.slug ? "Deleting…" : "Delete"}
-              </button>
-            </div>
-          ))}
+            ),
+          )}
         </div>
       )}
       <p className="admin-note">
@@ -417,6 +455,201 @@ function NewStoryForm({ onPublished }) {
       <button className="btn btn-primary" type="submit" disabled={publishing}>
         {publishing ? "Publishing…" : "Publish story"}
       </button>
+    </form>
+  );
+}
+
+// Reuses ImagePicker/ResultsPicker as-is: an existing picture/result is just
+// represented with its live URL as previewUrl, so the pickers can't tell it
+// apart from a freshly chosen file, only this form needs to know the
+// difference (to decide what to send to stories-update.js on save).
+function EditStoryForm({ story, onSaved, onCancel }) {
+  const [name, setName] = useState(story.name || "");
+  const [status, setStatus] = useState(story.status || "");
+  const [storyText, setStoryText] = useState(story.story || "");
+  const [picture, setPicture] = useState(
+    story.picture ? { existing: true, previewUrl: story.picture } : null,
+  );
+  const [pictureRemoved, setPictureRemoved] = useState(false);
+  const [results, setResults] = useState(
+    (story.results || []).map((r) => ({
+      id: r.image,
+      previewUrl: r.image,
+      caption: r.caption || "",
+      existingImage: r.image,
+    })),
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleImageSelect(file) {
+    try {
+      const { base64, previewUrl } = await compressImage(file);
+      setPicture({ base64, previewUrl });
+      setPictureRemoved(false);
+    } catch {
+      setError("Couldn't read that image, try a different file.");
+    }
+  }
+
+  function handleRemovePicture() {
+    setPicture(null);
+    setPictureRemoved(true);
+  }
+
+  async function handleResultsAdd(fileList) {
+    const files = Array.from(fileList).filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    try {
+      const added = await Promise.all(
+        files.map(async (file) => {
+          const { base64, previewUrl } = await compressImage(file);
+          return {
+            id: `${Date.now()}-${Math.random()}`,
+            base64,
+            previewUrl,
+            caption: "",
+          };
+        }),
+      );
+      setResults((prev) => [...prev, ...added]);
+    } catch {
+      setError("Couldn't read one of those images, try different files.");
+    }
+  }
+
+  function removeResult(id) {
+    setResults((prev) => prev.filter((r) => r.id !== id));
+  }
+
+  function setResultCaption(id, caption) {
+    setResults((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, caption } : r)),
+    );
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    if (!name.trim() || !storyText.trim()) {
+      setError("Add at least a name and a story.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+
+    const removedResultImages = (story.results || [])
+      .map((r) => r.image)
+      .filter((img) => !results.some((r) => r.existingImage === img));
+    const keepResults = results
+      .filter((r) => r.existingImage)
+      .map((r) => ({ image: r.existingImage, caption: r.caption.trim() }));
+    const newResults = results
+      .filter((r) => !r.existingImage)
+      .map((r) => ({ image: r.base64, caption: r.caption.trim() }));
+
+    try {
+      const token = await getIdentityToken();
+      const res = await fetch("/.netlify/functions/stories-update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          slug: story.slug,
+          name: name.trim(),
+          status: status.trim(),
+          story: storyText.trim(),
+          picture: picture && !picture.existing ? picture.base64 : undefined,
+          removePicture: pictureRemoved,
+          keepResults,
+          newResults,
+          removedResultImages,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Update failed");
+
+      onSaved({
+        ...story,
+        name: name.trim(),
+        status: status.trim(),
+        story: storyText.trim(),
+        picture: data.picture,
+        results: data.results,
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className="admin-form" onSubmit={handleSave}>
+      <h2 className="admin-section-title">Edit story</h2>
+
+      <label className="admin-field">
+        <span>Team member name</span>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={saving}
+        />
+      </label>
+
+      <label className="admin-field">
+        <span>Status</span>
+        <input
+          type="text"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          disabled={saving}
+        />
+      </label>
+
+      <label className="admin-field">
+        <span>Story</span>
+        <textarea
+          value={storyText}
+          onChange={(e) => setStoryText(e.target.value)}
+          rows={4}
+          disabled={saving}
+        />
+      </label>
+
+      <ImagePicker
+        label="Profile picture (optional)"
+        photo={picture}
+        onChange={handleImageSelect}
+        onRemove={handleRemovePicture}
+        disabled={saving}
+      />
+      <ResultsPicker
+        results={results}
+        onAdd={handleResultsAdd}
+        onRemove={removeResult}
+        onCaptionChange={setResultCaption}
+        disabled={saving}
+      />
+
+      {error && <div className="admin-error">{error}</div>}
+
+      <div className="admin-card-actions">
+        <button className="btn btn-primary" type="submit" disabled={saving}>
+          {saving ? "Saving…" : "Save changes"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={onCancel}
+          disabled={saving}
+        >
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }

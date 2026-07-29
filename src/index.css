@@ -724,12 +724,18 @@ img.wordmark{ height:44px; width:auto; }
 .admin-event-card-body{ flex:1; min-width:0; }
 .admin-event-card-body h4{ font-size:15px; margin-bottom:2px; }
 .admin-event-card-body .mono{ font-size:12px; color:var(--slate); }
+.admin-card-actions{ display:flex; gap:8px; flex-shrink:0; }
 .admin-delete-btn{
   background:none; border:1px solid var(--danger); color:var(--danger); border-radius:8px;
   padding:7px 14px; cursor:pointer; font-size:13px; flex-shrink:0;
 }
 .admin-delete-btn:hover{ background:var(--danger-soft); }
 .admin-delete-btn:disabled{ opacity:0.6; cursor:not-allowed; }
+.admin-edit-btn{
+  background:none; border:1px solid var(--blue); color:var(--blue-deep); border-radius:8px;
+  padding:7px 14px; cursor:pointer; font-size:13px; flex-shrink:0;
+}
+.admin-edit-btn:hover{ background:#E7F1FC; }
 .admin-note{ font-size:13px; color:var(--slate); margin-top:8px; }
 
 /* ===== BUSINESS TOOLKIT ===== */

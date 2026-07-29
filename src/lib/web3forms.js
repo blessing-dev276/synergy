@@ -10,7 +10,7 @@ const WEB3FORMS_ENDPOINT = "https://api.web3forms.com/submit";
  * network call when SITE.web3formsAccessKey is empty, the WhatsApp path
  * always works regardless of this.
  */
-export async function submitToWeb3Forms(form, trackLabel) {
+export async function submitToWeb3Forms(form, trackLabel, sponsor) {
   if (!SITE.web3formsAccessKey)
     return { sent: false, reason: "not-configured" };
 
@@ -21,6 +21,7 @@ export async function submitToWeb3Forms(form, trackLabel) {
     name: form.name,
     phone: form.phone,
     location: form.location || undefined,
+    sponsor: sponsor || undefined,
     track: trackLabel,
     financing:
       form.track === "network-marketing" ? form.financeNote : undefined,

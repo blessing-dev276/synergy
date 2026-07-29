@@ -61,13 +61,19 @@ typo in a title, but adding new events should always go through
    else who should manage the gallery) an invite email. The invite link drops
    them on the site, prompts them to set a password, that's the login
    `/gallery-admin` checks for.
-3. **Create a GitHub token** so the admin page can commit photos on your
+3. **Give that user the `admin` role**: Identity → the invited user → **Edit
+   user** → add `admin` under **Roles**. `/gallery-admin`, `/stories-admin`,
+   and the Netlify Functions behind them now require this role, not just "is
+   logged in" (see [Referral links](#referral-links-refer) below for why),
+   so skipping this step locks you out of both admin pages even after
+   logging in.
+4. **Create a GitHub token** so the admin page can commit photos on your
    behalf: on GitHub, go to **Settings → Developer settings → Personal
    access tokens → Fine-grained tokens → Generate new token**. Scope it to
    just this repository, and under **Repository permissions** set
    **Contents: Read and write**. Copy the token.
-4. In Netlify, **Site settings → Environment variables → Add a variable** —
-   name `GITHUB_TOKEN`, value the token from step 3. Redeploy the site once
+5. In Netlify, **Site settings → Environment variables → Add a variable** —
+   name `GITHUB_TOKEN`, value the token from step 4. Redeploy the site once
    so the function picks it up.
 
 Git Gateway is _not_ needed for `/gallery-admin` (only `/admin`/Decap still
@@ -88,19 +94,57 @@ minute or two.
 ## Success stories (no code required)
 
 Managed the same way as the gallery, at **`/stories-admin`**, same Identity
-login, no new accounts needed. Log in, fill in the member's name, status
-(e.g. "Freelance track, landed first client"), their story, and optionally
-a profile picture and any number of result images, one photo per result
-(e.g. an iPhone and a bike someone won get their own photos, not one shared
-one), each with its own short caption. Publish, and it shows up on the
-homepage and the `/stories` page after the next deploy. Existing stories can
-be deleted from the same page.
+login (requires the `admin` role, see the gallery setup above), no new
+accounts needed. Log in, fill in the member's name, status (e.g. "Freelance
+track, landed first client"), their story, and optionally a profile picture
+and any number of result images, one photo per result (e.g. an iPhone and a
+bike someone won get their own photos, not one shared one), each with its own
+short caption. Publish, and it shows up on the homepage and the `/stories`
+page after the next deploy. Existing stories can be **edited** (name, status,
+story text, swap or remove the picture, add/remove/re-caption result images)
+or **deleted** from the same page, click **Edit** on a story to open it.
 
 Uses the same `GITHUB_TOKEN` setup as the gallery admin (see above), nothing
 extra to configure if you've already done that step. Each story is a JSON
 file in `content/stories/`, images land in `public/uploads/stories/`, and the
 commit is made by `netlify/functions/stories-publish.js` /
-`stories-delete.js`.
+`stories-update.js` / `stories-delete.js`.
+
+## Referral links (`/refer`)
+
+Members log in at **`/refer`** (same Netlify Identity as the admin pages, but
+with the `member` role instead of `admin`) and get a personal link like
+`yoursite.com/join?ref=Jane%20Doe`, built from their name on the account,
+with **Copy link** and **Share on WhatsApp** buttons. Whoever applies through
+that link has "Referred by Jane Doe" shown on the Join page and included in
+both the WhatsApp message and the email notification (`sponsor` field), so
+you always know who sent you a given applicant. There's no separate member
+database, the member's name is just the account's Identity full name (or
+email if no name is set).
+
+### Inviting a member
+
+1. Identity → **Invite users**, send them an invite (same flow as gallery/
+   stories admins).
+2. Edit that user → add `member` under **Roles** (not `admin`, unless they
+   should also manage the gallery/stories). Set their **full name** on the
+   same screen, that's exactly what shows up as the sponsor name.
+3. Send them `yoursite.com/refer` to log in and grab their link.
+
+### The `refer.synergyteamm.com` subdomain
+
+This is one site, not two, `/refer` is just a route on it. `public/_redirects`
+already has a host-aware rule sending `refer.synergyteamm.com/*` to
+`synergyteamm.com/refer`, so the only steps left are DNS + Netlify, both need
+your access, not code:
+
+1. At your DNS provider, add a `CNAME` record: `refer` → your Netlify site's
+   default domain (e.g. `yoursite.netlify.app`).
+2. In Netlify, **Site settings → Domain management → Add a domain alias** —
+   enter `refer.synergyteamm.com`, verify it.
+
+Once that's verified, visiting `refer.synergyteamm.com` redirects straight to
+the `/refer` login/dashboard.
 
 ## TikTok ad tracking
 

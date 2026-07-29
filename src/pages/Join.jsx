@@ -15,6 +15,9 @@ function initialTrack(searchParams) {
 
 export default function Join() {
   const [searchParams] = useSearchParams();
+  // Referral members generate links like /join?ref=Jane%20Doe from /refer,
+  // whoever applies through it has that name sent along as their sponsor.
+  const sponsor = searchParams.get("ref")?.trim() || "";
   const [form, setForm] = useState(() => ({
     name: "",
     phone: "",
@@ -71,6 +74,7 @@ export default function Join() {
       `Phone: ${form.phone}`,
       form.email && `Email: ${form.email}`,
       form.location && `Location: ${form.location}`,
+      sponsor && `Sponsor: ${sponsor}`,
       `Track: ${selectedTrackLabel}`,
       form.track === "network-marketing" &&
         `Financing network marketing via: ${form.financeNote}`,
@@ -106,7 +110,7 @@ export default function Join() {
     setSubmitting(true);
 
     if (SITE.web3formsAccessKey) {
-      submitToWeb3Forms(form, selectedTrackLabel)
+      submitToWeb3Forms(form, selectedTrackLabel, sponsor)
         .then(({ sent }) => {
           setSubmitNote(
             sent
@@ -191,6 +195,9 @@ export default function Join() {
           </div>
           <div className="eyebrow">Let's get you onboarded</div>
           <h1>Apply to join SynergyTeam.</h1>
+          {sponsor && (
+            <p className="lede">Referred by <strong>{sponsor}</strong>.</p>
+          )}
         </div>
       </section>
 

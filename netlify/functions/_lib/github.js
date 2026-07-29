@@ -78,8 +78,13 @@ export async function getFileContent(path) {
   }
 }
 
-export function requireUser(context) {
-  return Boolean(context.clientContext && context.clientContext.user);
+// Netlify decodes the Identity JWT into context.clientContext.user, which
+// carries the same app_metadata.roles the client sees, checking the role
+// here (not just "is logged in") is what actually enforces it, the
+// client-side gate on the admin pages is only a UI convenience.
+export function requireRole(context, role) {
+  const user = context.clientContext && context.clientContext.user;
+  return Boolean(user && user.app_metadata?.roles?.includes(role));
 }
 
 export function slugify(text) {

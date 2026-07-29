@@ -6,6 +6,7 @@ import { compressImage } from "../lib/compressImage.js";
 import {
   useNetlifyIdentity,
   getIdentityToken as getToken,
+  hasRole,
 } from "../lib/useNetlifyIdentity.js";
 
 const BATCH_SIZE = 4;
@@ -55,6 +56,20 @@ export default function GalleryAdmin() {
                 onClick={() => window.netlifyIdentity.open("login")}
               >
                 Log in
+              </button>
+            </div>
+          ) : !hasRole(user, "admin") ? (
+            <div className="admin-gate">
+              <p>
+                Logged in as {user.email}, but this account isn't set up as an
+                admin. Ask the site owner to add the "admin" role to your
+                account in Netlify Identity.
+              </p>
+              <button
+                className="btn btn-secondary"
+                onClick={() => window.netlifyIdentity.logout()}
+              >
+                Log out
               </button>
             </div>
           ) : (
