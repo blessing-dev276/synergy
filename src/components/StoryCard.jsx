@@ -1,3 +1,35 @@
+import { useLayoutEffect, useRef, useState } from "react";
+
+// Clamps the quote to 10 lines and only shows "View more" if the story
+// actually overflows that, so short stories never get an empty toggle.
+function StoryQuote({ text }) {
+  const ref = useRef(null);
+  const [expanded, setExpanded] = useState(false);
+  const [clamped, setClamped] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el) setClamped(el.scrollHeight > el.clientHeight + 1);
+  }, [text]);
+
+  return (
+    <>
+      <p ref={ref} className={`quote ${expanded ? "" : "quote-clamp"}`}>
+        &quot;{text}&quot;
+      </p>
+      {clamped && (
+        <button
+          type="button"
+          className="quote-toggle"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? "View less" : "View more"}
+        </button>
+      )}
+    </>
+  );
+}
+
 export default function StoryCard({ story }) {
   return (
     <div className="t-card">
@@ -12,7 +44,7 @@ export default function StoryCard({ story }) {
           {story.status && <span>{story.status}</span>}
         </div>
       </div>
-      <p className="quote">&quot;{story.story}&quot;</p>
+      <StoryQuote text={story.story} />
       {story.results?.length > 0 && (
         <div className="t-results">
           {story.results.map((r, i) => (
