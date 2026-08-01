@@ -67,7 +67,48 @@ function AdminPanel({ user }) {
   const [stories, setStories] = useState(STORIES);
   const [deletingSlug, setDeletingSlug] = useState(null);
   const [editingSlug, setEditingSlug] = useState(null);
+  const [reorderingSlug, setReorderingSlug] = useState(null);
   const [error, setError] = useState("");
+
+  async function moveStory(index, direction) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= stories.length) return;
+
+    const prevStories = stories;
+    const next = [...stories];
+    [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+    setStories(next);
+    setReorderingSlug(next[index].slug);
+    setError("");
+
+    try {
+      const token = await getIdentityToken();
+      const res = await fetch("/.netlify/functions/stories-reorder", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          stories: next.map(({ slug, name, status, story, picture, results }) => ({
+            slug,
+            name,
+            status,
+            story,
+            picture,
+            results,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Reorder failed");
+    } catch (err) {
+      setStories(prevStories);
+      setError(err.message);
+    } finally {
+      setReorderingSlug(null);
+    }
+  }
 
   async function handleDelete(slug) {
     if (!window.confirm("Delete this story? This can't be undone.")) return;
@@ -112,11 +153,16 @@ function AdminPanel({ user }) {
       />
 
       <h2 className="admin-section-title">Existing stories</h2>
+      {stories.length > 1 && (
+        <p className="admin-note" style={{ marginTop: -8, marginBottom: 14 }}>
+          Use the arrows to set the order stories appear in on the site.
+        </p>
+      )}
       {stories.length === 0 ? (
         <p className="mono">No stories yet.</p>
       ) : (
         <div className="admin-event-list">
-          {stories.map((s) =>
+          {stories.map((s, i) =>
             editingSlug === s.slug ? (
               <EditStoryForm
                 key={s.slug}
@@ -145,6 +191,24 @@ function AdminPanel({ user }) {
                   </span>
                 </div>
                 <div className="admin-card-actions">
+                  <button
+                    type="button"
+                    className="admin-reorder-btn"
+                    aria-label="Move up"
+                    disabled={i === 0 || reorderingSlug !== null}
+                    onClick={() => moveStory(i, -1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-reorder-btn"
+                    aria-label="Move down"
+                    disabled={i === stories.length - 1 || reorderingSlug !== null}
+                    onClick={() => moveStory(i, 1)}
+                  >
+                    ↓
+                  </button>
                   <button
                     className="admin-edit-btn"
                     onClick={() => setEditingSlug(s.slug)}

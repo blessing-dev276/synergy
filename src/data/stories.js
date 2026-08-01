@@ -17,4 +17,12 @@ export const STORIES = Object.entries(modules)
     return { slug, ...data };
   })
   .filter((story) => story.name && story.story)
-  .sort((a, b) => (b.slug || "").localeCompare(a.slug || ""));
+  .sort((a, b) => {
+    // Stories arranged via /stories-admin carry an explicit `order`, lower
+    // shows first. Anything without one (never arranged yet) sinks below
+    // ordered stories and falls back to newest-first among themselves.
+    const orderA = typeof a.order === "number" ? a.order : Infinity;
+    const orderB = typeof b.order === "number" ? b.order : Infinity;
+    if (orderA !== orderB) return orderA - orderB;
+    return (b.slug || "").localeCompare(a.slug || "");
+  });

@@ -745,6 +745,13 @@ img.wordmark{ height:44px; width:auto; }
   padding:7px 14px; cursor:pointer; font-size:13px; flex-shrink:0;
 }
 .admin-edit-btn:hover{ background:#E7F1FC; }
+.admin-reorder-btn{
+  background:none; border:1px solid var(--line); color:var(--navy-soft); border-radius:8px;
+  width:32px; height:32px; cursor:pointer; font-size:14px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+}
+.admin-reorder-btn:hover:not(:disabled){ background:var(--bg); }
+.admin-reorder-btn:disabled{ opacity:0.4; cursor:not-allowed; }
 .admin-note{ font-size:13px; color:var(--slate); margin-top:8px; }
 
 /* ===== BUSINESS TOOLKIT ===== */
