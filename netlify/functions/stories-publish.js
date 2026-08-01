@@ -8,7 +8,7 @@ import {
   createBlob,
   createTextBlob,
   commitTree,
-  requireRole,
+  requireUser,
   isSafePathSegment,
   jsonResponse,
 } from "./_lib/github.js";
@@ -16,7 +16,7 @@ import {
 export const handler = async (event, context) => {
   if (event.httpMethod !== "POST")
     return jsonResponse(405, { error: "Method not allowed" });
-  if (!requireRole(context, "admin"))
+  if (!requireUser(context))
     return jsonResponse(401, { error: "Log in required" });
 
   let body;

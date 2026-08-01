@@ -54,11 +54,3 @@ export async function getIdentityToken() {
   if (!user) throw new Error("You've been logged out, log in again.");
   return user.jwt();
 }
-
-// Roles are assigned per user in Netlify's Identity dashboard
-// (Site settings → Identity → a user → Edit → Roles), not something a user
-// can set on themselves. "admin" gates the content-editing admin pages,
-// "member" gates the referral-link dashboard.
-export function hasRole(user, role) {
-  return Boolean(user?.app_metadata?.roles?.includes(role));
-}

@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import PageMeta from "../components/PageMeta.jsx";
-import {
-  useNetlifyIdentity,
-  hasRole,
-} from "../lib/useNetlifyIdentity.js";
+import { useNetlifyIdentity } from "../lib/useNetlifyIdentity.js";
 
 function memberDisplayName(user) {
   return user.user_metadata?.full_name?.trim() || user.email;
@@ -50,20 +47,6 @@ export default function Refer() {
                 onClick={() => window.netlifyIdentity.open("login")}
               >
                 Log in
-              </button>
-            </div>
-          ) : !hasRole(user, "member") && !hasRole(user, "admin") ? (
-            <div className="admin-gate">
-              <p>
-                Logged in as {user.email}, but this account isn't set up as a
-                member yet. Ask the site owner to add the "member" role to
-                your account in Netlify Identity.
-              </p>
-              <button
-                className="btn btn-secondary"
-                onClick={() => window.netlifyIdentity.logout()}
-              >
-                Log out
               </button>
             </div>
           ) : (

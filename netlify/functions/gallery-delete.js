@@ -1,10 +1,10 @@
 // Deletes a gallery event's JSON file and every photo it references, all in
 // a single commit (git trees API deletes a path by setting its sha to null).
-import { getBranchHead, commitTree, getFileContent, requireRole, isSafePathSegment, jsonResponse } from "./_lib/github.js";
+import { getBranchHead, commitTree, getFileContent, requireUser, isSafePathSegment, jsonResponse } from "./_lib/github.js";
 
 export const handler = async (event, context) => {
   if (event.httpMethod !== "POST") return jsonResponse(405, { error: "Method not allowed" });
-  if (!requireRole(context, "admin")) return jsonResponse(401, { error: "Log in required" });
+  if (!requireUser(context)) return jsonResponse(401, { error: "Log in required" });
 
   let body;
   try {
