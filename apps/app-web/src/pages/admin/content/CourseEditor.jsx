@@ -57,7 +57,7 @@ function NewLessonForm({ courseId, moduleId, onCreated }) {
       module_id: moduleId,
       course_id: courseId,
       title: title.trim(),
-      order_index: Date.now(),
+      order_index: Math.floor(Date.now() / 1000),
       content_type: contentType,
       content_body: contentBody.trim(),
       estimated_minutes: 10,
@@ -291,7 +291,7 @@ function NewModuleForm({ courseId, onCreated }) {
     const { error } = await supabase.from("modules").insert({
       course_id: courseId,
       title: title.trim(),
-      order_index: Date.now(),
+      order_index: Math.floor(Date.now() / 1000),
       published: true,
     });
     setSaving(false);

@@ -21,7 +21,7 @@ function NewPathForm({ onCreated }) {
     const { error } = await supabase.from("learning_paths").insert({
       title: title.trim(),
       description: description.trim(),
-      order_index: Date.now(),
+      order_index: Math.floor(Date.now() / 1000),
       published: false,
       created_by: user.id,
     });
@@ -99,7 +99,7 @@ function NewCourseForm({ pathId, onCreated }) {
       path_id: pathId,
       title: title.trim(),
       description: "",
-      order_index: Date.now(),
+      order_index: Math.floor(Date.now() / 1000),
       published: false,
       created_by: user.id,
     });

@@ -40,7 +40,7 @@ function NewStageForm({ onCreated }) {
       key: `${slugify(title)}-${Date.now().toString(36)}`,
       title: title.trim(),
       description: description.trim(),
-      order_index: Date.now(),
+      order_index: Math.floor(Date.now() / 1000),
       published: false,
       created_by: user.id,
     });
