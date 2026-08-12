@@ -1,10 +1,9 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
-import { db } from "../../firebase.js";
+import { useEffect, useState } from "react";
+import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
-import { useLiveQuery } from "../../lib/firestoreHooks.js";
-import { markLessonComplete } from "../../lib/callables.js";
+import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
+import { markLessonComplete } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 
@@ -15,43 +14,47 @@ export default function LessonViewer() {
   const navigate = useNavigate();
   const [completing, setCompleting] = useState(false);
 
-  const lessonRef = useMemo(
-    () => doc(db, "courses", courseId, "modules", moduleId, "lessons", lessonId),
-    [courseId, moduleId, lessonId],
+  const { loading, data: lesson } = useSupabaseQuery(
+    () => supabase.from("lessons").select("*").eq("id", lessonId).single(),
+    [lessonId],
   );
-  const { loading, data: lesson } = useLiveQuery(lessonRef, [courseId, moduleId, lessonId]);
 
-  const progressRef = useMemo(() => user && doc(db, "lessonProgress", `${user.uid}_${lessonId}`), [user, lessonId]);
-  const { data: progress } = useLiveQuery(progressRef, [user?.uid, lessonId]);
+  const { data: progress, refetch: refetchProgress } = useSupabaseQuery(
+    () => user && supabase.from("lesson_progress").select("*").eq("uid", user.id).eq("lesson_id", lessonId).maybeSingle(),
+    [user?.id, lessonId],
+  );
 
   // Mark "in_progress" the first time this lesson is opened — a low-stakes
   // owner-only write, unlike completion which always goes through the
-  // markLessonComplete callable so completion rules are enforced server-side.
+  // mark_lesson_complete RPC so completion rules are enforced server-side.
   useEffect(() => {
     if (!user || !lesson || progress) return;
-    setDoc(
-      doc(db, "lessonProgress", `${user.uid}_${lessonId}`),
-      {
-        uid: user.uid,
-        lessonId,
-        moduleId,
-        courseId,
-        pathId,
-        status: "in_progress",
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-  }, [user, lesson, progress, lessonId, moduleId, courseId, pathId]);
+    supabase
+      .from("lesson_progress")
+      .upsert(
+        {
+          uid: user.id,
+          lesson_id: lessonId,
+          module_id: moduleId,
+          course_id: courseId,
+          path_id: pathId,
+          status: "in_progress",
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "uid,lesson_id" },
+      )
+      .then(() => refetchProgress());
+  }, [user, lesson, progress, lessonId, moduleId, courseId, pathId, refetchProgress]);
 
   const isComplete = progress?.status === "completed";
-  const requiresQuiz = lesson?.completionRule === "quiz_pass";
+  const requiresQuiz = lesson?.completion_rule === "quiz_pass";
 
   const handleMarkComplete = async () => {
     setCompleting(true);
     try {
-      await markLessonComplete({ courseId, moduleId, lessonId });
+      await markLessonComplete(courseId, moduleId, lessonId);
       toast.success("Lesson complete!");
+      refetchProgress();
     } catch (err) {
       toast.error(err.message ?? "Couldn't mark this lesson complete.");
     } finally {
@@ -70,17 +73,17 @@ export default function LessonViewer() {
       <h1 style={{ marginTop: "10px" }}>{lesson.title}</h1>
 
       <div className="card" style={{ marginTop: "20px", marginBottom: "20px" }}>
-        {lesson.contentType === "video" && lesson.contentBody && (
-          <video controls style={{ width: "100%", borderRadius: "10px" }} src={lesson.contentBody} />
+        {lesson.content_type === "video" && lesson.content_body && (
+          <video controls style={{ width: "100%", borderRadius: "10px" }} src={lesson.content_body} />
         )}
-        {lesson.contentType === "text" && <div style={{ whiteSpace: "pre-wrap" }}>{lesson.contentBody}</div>}
-        {lesson.contentType === "pdf" && (
-          <a href={lesson.contentBody} target="_blank" rel="noreferrer" className="btn btn-secondary">
+        {lesson.content_type === "text" && <div style={{ whiteSpace: "pre-wrap" }}>{lesson.content_body}</div>}
+        {lesson.content_type === "pdf" && (
+          <a href={lesson.content_body} target="_blank" rel="noreferrer" className="btn btn-secondary">
             Open PDF resource
           </a>
         )}
-        {lesson.contentType === "link" && (
-          <a href={lesson.contentBody} target="_blank" rel="noreferrer" className="btn btn-secondary">
+        {lesson.content_type === "link" && (
+          <a href={lesson.content_body} target="_blank" rel="noreferrer" className="btn btn-secondary">
             Open resource
           </a>
         )}

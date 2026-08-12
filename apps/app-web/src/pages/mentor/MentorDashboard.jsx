@@ -1,15 +1,13 @@
 import { Link } from "react-router-dom";
-import { collection, query, where } from "firebase/firestore";
-import { useMemo } from "react";
-import { db } from "../../firebase.js";
+import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
-import { useLiveQuery } from "../../lib/firestoreHooks.js";
+import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
 
 function riskBadge(member) {
-  const lastActive = member.lastActiveAt?.seconds ? member.lastActiveAt.seconds * 1000 : null;
+  const lastActive = member.last_active_at ? new Date(member.last_active_at).getTime() : null;
   const daysInactive = lastActive ? (Date.now() - lastActive) / 86400000 : Infinity;
   if (daysInactive > 3) return { label: "🔴 Inactive", cls: "badge-danger" };
   if (daysInactive > 1) return { label: "🟡 Falling behind", cls: "badge-warning" };
@@ -19,20 +17,21 @@ function riskBadge(member) {
 export default function MentorDashboard() {
   const { user } = useAuth();
 
-  const assignmentsQuery = useMemo(
-    () => user && query(collection(db, "mentorAssignments"), where("mentorUid", "==", user.uid), where("active", "==", true)),
-    [user],
+  const {
+    loading: loadingAssignments,
+    error,
+    data: mentorAssignments,
+  } = useSupabaseQuery(
+    () => user && supabase.from("mentor_assignments").select("*").eq("mentor_uid", user.id).eq("active", true),
+    [user?.id],
   );
-  const { loading: loadingAssignments, error, data: mentorAssignments } = useLiveQuery(assignmentsQuery, [user?.uid]);
 
-  const memberUids = (mentorAssignments ?? []).map((a) => a.memberUid);
+  const memberUids = (mentorAssignments ?? []).map((a) => a.member_uid);
 
-  const membersQuery = useMemo(
-    () => memberUids.length > 0 && query(collection(db, "users"), where("__name__", "in", memberUids.slice(0, 30))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const { loading: loadingMembers, data: members } = useSupabaseQuery(
+    () => memberUids.length > 0 && supabase.from("profiles").select("*").in("id", memberUids),
     [memberUids.join(",")],
   );
-  const { loading: loadingMembers, data: members } = useLiveQuery(membersQuery, [memberUids.join(",")]);
 
   const loading = loadingAssignments || (memberUids.length > 0 && loadingMembers);
 
@@ -59,7 +58,7 @@ export default function MentorDashboard() {
                 const risk = riskBadge(member);
                 return (
                   <tr key={member.id}>
-                    <td>{member.displayName}</td>
+                    <td>{member.display_name}</td>
                     <td>
                       <span className={`badge ${risk.cls}`}>{risk.label}</span>
                     </td>

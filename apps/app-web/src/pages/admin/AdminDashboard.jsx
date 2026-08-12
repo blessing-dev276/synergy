@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, getCountFromServer, query, where, orderBy, limit, getDocs } from "firebase/firestore";
-import { db } from "../../firebase.js";
+import { supabase } from "../../supabaseClient.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 
@@ -23,22 +22,26 @@ export default function AdminDashboard() {
     let cancelled = false;
     (async () => {
       const [members, mentors, courses, pendingReviews] = await Promise.all([
-        getCountFromServer(query(collection(db, "users"), where("role", "==", "member"))),
-        getCountFromServer(query(collection(db, "users"), where("role", "==", "mentor"))),
-        getCountFromServer(query(collection(db, "courses"), where("published", "==", true))),
-        getCountFromServer(query(collection(db, "assignmentSubmissions"), where("status", "==", "submitted"))),
+        supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "member"),
+        supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "mentor"),
+        supabase.from("courses").select("*", { count: "exact", head: true }).eq("published", true),
+        supabase.from("assignment_submissions").select("*", { count: "exact", head: true }).eq("status", "submitted"),
       ]);
       if (cancelled) return;
       setStats({
-        members: members.data().count,
-        mentors: mentors.data().count,
-        courses: courses.data().count,
-        pendingReviews: pendingReviews.data().count,
+        members: members.count ?? 0,
+        mentors: mentors.count ?? 0,
+        courses: courses.count ?? 0,
+        pendingReviews: pendingReviews.count ?? 0,
       });
     })();
     (async () => {
-      const snap = await getDocs(query(collection(db, "activityLog"), orderBy("createdAt", "desc"), limit(10)));
-      if (!cancelled) setActivity(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const { data } = await supabase
+        .from("activity_log")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (!cancelled) setActivity(data ?? []);
     })();
     return () => {
       cancelled = true;
@@ -66,7 +69,7 @@ export default function AdminDashboard() {
               style={{ padding: "14px 20px", borderBottom: i === activity.length - 1 ? "none" : "1px solid var(--line)" }}
             >
               <span style={{ fontWeight: 600 }}>{a.action}</span>{" "}
-              <span style={{ color: "var(--slate)", fontSize: "13px" }}>{a.targetType}</span>
+              <span style={{ color: "var(--slate)", fontSize: "13px" }}>{a.target_type}</span>
             </div>
           ))}
         </div>

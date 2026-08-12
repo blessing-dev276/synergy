@@ -1,8 +1,6 @@
-import { collection, doc, query, where, orderBy, updateDoc } from "firebase/firestore";
-import { useMemo } from "react";
-import { db } from "../../firebase.js";
+import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
-import { useLiveQuery } from "../../lib/firestoreHooks.js";
+import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
@@ -10,13 +8,20 @@ import ErrorState from "../../components/state/ErrorState.jsx";
 export default function NotificationList() {
   const { user } = useAuth();
 
-  const notificationsQuery = useMemo(
-    () => user && query(collection(db, "notifications"), where("uid", "==", user.uid), orderBy("createdAt", "desc")),
-    [user],
+  const {
+    loading,
+    error,
+    data: notifications,
+    refetch,
+  } = useSupabaseQuery(
+    () => user && supabase.from("notifications").select("*").eq("uid", user.id).order("created_at", { ascending: false }),
+    [user?.id],
   );
-  const { loading, error, data: notifications } = useLiveQuery(notificationsQuery, [user?.uid]);
 
-  const markRead = (id) => updateDoc(doc(db, "notifications", id), { read: true });
+  const markRead = async (id) => {
+    await supabase.from("notifications").update({ read: true }).eq("id", id);
+    refetch();
+  };
 
   return (
     <div>

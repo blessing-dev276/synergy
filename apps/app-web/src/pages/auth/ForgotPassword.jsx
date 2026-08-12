@@ -1,29 +1,21 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "../../firebase.js";
+import { supabase } from "../../supabaseClient.js";
 import logoWordmark from "../../assets/images/logo-wordmark.png";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     setSubmitting(true);
-    try {
-      await sendPasswordResetEmail(auth, email.trim());
-      setSent(true);
-    } catch {
-      // Don't reveal whether the email exists — show the same confirmation
-      // either way, this is standard practice to avoid account enumeration.
-      setSent(true);
-    } finally {
-      setSubmitting(false);
-    }
+    await supabase.auth.resetPasswordForEmail(email.trim());
+    // Show the same confirmation regardless of outcome — standard practice
+    // to avoid account enumeration via this form.
+    setSubmitting(false);
+    setSent(true);
   };
 
   return (
@@ -52,7 +44,6 @@ export default function ForgotPassword() {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            {error && <div className="field-error" style={{ marginBottom: "14px" }}>{error}</div>}
             <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={submitting}>
               {submitting ? "Sending…" : "Send reset link"}
             </button>

@@ -1,14 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../firebase.js";
+import { supabase } from "../../supabaseClient.js";
 import logoWordmark from "../../assets/images/logo-wordmark.png";
-
-const ERROR_MESSAGES = {
-  "auth/invalid-credential": "That email or password isn't right.",
-  "auth/invalid-email": "That email address doesn't look right.",
-  "auth/too-many-requests": "Too many attempts, please wait a moment and try again.",
-};
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -22,14 +15,20 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setSubmitting(true);
-    try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-      navigate(location.state?.from?.pathname ?? "/dashboard", { replace: true });
-    } catch (err) {
-      setError(ERROR_MESSAGES[err.code] ?? "Couldn't log you in, please try again.");
-    } finally {
-      setSubmitting(false);
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    setSubmitting(false);
+    if (signInError) {
+      setError(
+        signInError.message === "Email not confirmed"
+          ? "Please confirm your email first — check your inbox for the link."
+          : "That email or password isn't right.",
+      );
+      return;
     }
+    navigate(location.state?.from?.pathname ?? "/dashboard", { replace: true });
   };
 
   return (

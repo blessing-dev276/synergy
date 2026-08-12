@@ -1,20 +1,11 @@
 import { useParams } from "react-router-dom";
 import { useState } from "react";
-import {
-  collection,
-  doc,
-  addDoc,
-  updateDoc,
-  query,
-  orderBy,
-  serverTimestamp,
-} from "firebase/firestore";
-import { db } from "../../../firebase.js";
-import { useLiveQuery } from "../../../lib/firestoreHooks.js";
+import { supabase } from "../../../supabaseClient.js";
+import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 
-function NewLessonForm({ courseId, moduleId }) {
+function NewLessonForm({ courseId, moduleId, onCreated }) {
   const toast = useToast();
   const [title, setTitle] = useState("");
   const [contentType, setContentType] = useState("text");
@@ -25,25 +16,26 @@ function NewLessonForm({ courseId, moduleId }) {
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    try {
-      await addDoc(collection(db, "courses", courseId, "modules", moduleId, "lessons"), {
-        title: title.trim(),
-        order: Date.now(),
-        contentType,
-        contentBody: contentBody.trim(),
-        estimatedMinutes: 10,
-        completionRule,
-        requiredQuizId: null,
-        published: true,
-      });
-      setTitle("");
-      setContentBody("");
-      toast.success("Lesson added.");
-    } catch {
+    const { error } = await supabase.from("lessons").insert({
+      module_id: moduleId,
+      course_id: courseId,
+      title: title.trim(),
+      order_index: Date.now(),
+      content_type: contentType,
+      content_body: contentBody.trim(),
+      estimated_minutes: 10,
+      completion_rule: completionRule,
+      published: true,
+    });
+    setSaving(false);
+    if (error) {
       toast.error("Couldn't add that lesson.");
-    } finally {
-      setSaving(false);
+      return;
     }
+    setTitle("");
+    setContentBody("");
+    toast.success("Lesson added.");
+    onCreated?.();
   };
 
   return (
@@ -76,8 +68,10 @@ function NewLessonForm({ courseId, moduleId }) {
 }
 
 function ModuleBlock({ courseId, module }) {
-  const lessonsQuery = query(collection(db, "courses", courseId, "modules", module.id, "lessons"), orderBy("order", "asc"));
-  const { data: lessons } = useLiveQuery(lessonsQuery, [courseId, module.id]);
+  const { data: lessons, refetch } = useSupabaseQuery(
+    () => supabase.from("lessons").select("*").eq("module_id", module.id).order("order_index", { ascending: true }),
+    [module.id],
+  );
 
   return (
     <div className="card" style={{ marginBottom: "14px" }}>
@@ -86,16 +80,16 @@ function ModuleBlock({ courseId, module }) {
         {lessons?.map((lesson) => (
           <li key={lesson.id} style={{ display: "flex", justifyContent: "space-between" }}>
             <span>{lesson.title}</span>
-            <span className="badge badge-neutral">{lesson.contentType}</span>
+            <span className="badge badge-neutral">{lesson.content_type}</span>
           </li>
         ))}
       </ul>
-      <NewLessonForm courseId={courseId} moduleId={module.id} />
+      <NewLessonForm courseId={courseId} moduleId={module.id} onCreated={refetch} />
     </div>
   );
 }
 
-function NewModuleForm({ courseId }) {
+function NewModuleForm({ courseId, onCreated }) {
   const toast = useToast();
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
@@ -103,20 +97,20 @@ function NewModuleForm({ courseId }) {
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    try {
-      await addDoc(collection(db, "courses", courseId, "modules"), {
-        title: title.trim(),
-        order: Date.now(),
-        published: true,
-        lessonCount: 0,
-      });
-      setTitle("");
-      toast.success("Module added.");
-    } catch {
+    const { error } = await supabase.from("modules").insert({
+      course_id: courseId,
+      title: title.trim(),
+      order_index: Date.now(),
+      published: true,
+    });
+    setSaving(false);
+    if (error) {
       toast.error("Couldn't add that module.");
-    } finally {
-      setSaving(false);
+      return;
     }
+    setTitle("");
+    toast.success("Module added.");
+    onCreated?.();
   };
 
   return (
@@ -139,18 +133,26 @@ export default function CourseEditor() {
   const { courseId } = useParams();
   const toast = useToast();
 
-  const courseRef = doc(db, "courses", courseId);
-  const { loading: loadingCourse, data: course } = useLiveQuery(courseRef, [courseId]);
+  const { loading: loadingCourse, data: course, refetch: refetchCourse } = useSupabaseQuery(
+    () => supabase.from("courses").select("*").eq("id", courseId).single(),
+    [courseId],
+  );
 
-  const modulesQuery = query(collection(db, "courses", courseId, "modules"), orderBy("order", "asc"));
-  const { data: modules } = useLiveQuery(modulesQuery, [courseId]);
+  const { data: modules, refetch: refetchModules } = useSupabaseQuery(
+    () => supabase.from("modules").select("*").eq("course_id", courseId).order("order_index", { ascending: true }),
+    [courseId],
+  );
 
   const togglePublish = async () => {
-    try {
-      await updateDoc(courseRef, { published: !course.published, updatedAt: serverTimestamp() });
-    } catch {
+    const { error } = await supabase
+      .from("courses")
+      .update({ published: !course.published, updated_at: new Date().toISOString() })
+      .eq("id", courseId);
+    if (error) {
       toast.error("Couldn't update publish state.");
+      return;
     }
+    refetchCourse();
   };
 
   if (loadingCourse) return <Skeleton variant="card" height="200px" />;
@@ -165,7 +167,7 @@ export default function CourseEditor() {
         </button>
       </div>
 
-      <NewModuleForm courseId={courseId} />
+      <NewModuleForm courseId={courseId} onCreated={refetchModules} />
 
       {modules?.map((module) => (
         <ModuleBlock key={module.id} courseId={courseId} module={module} />

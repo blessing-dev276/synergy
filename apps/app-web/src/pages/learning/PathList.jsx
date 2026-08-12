@@ -1,18 +1,15 @@
 import { Link } from "react-router-dom";
-import { collection, query, where, orderBy } from "firebase/firestore";
-import { useMemo } from "react";
-import { db } from "../../firebase.js";
-import { useLiveQuery } from "../../lib/firestoreHooks.js";
+import { supabase } from "../../supabaseClient.js";
+import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
 
 export default function PathList() {
-  const pathsQuery = useMemo(
-    () => query(collection(db, "learningPaths"), where("published", "==", true), orderBy("order", "asc")),
+  const { loading, error, data: paths } = useSupabaseQuery(
+    () => supabase.from("learning_paths").select("*").eq("published", true).order("order_index", { ascending: true }),
     [],
   );
-  const { loading, error, data: paths } = useLiveQuery(pathsQuery, []);
 
   return (
     <div>
@@ -37,7 +34,7 @@ export default function PathList() {
             <Link key={path.id} to={`/learning/${path.id}`} className="card">
               <div className="card-title">{path.title}</div>
               <div className="card-subtitle">{path.description}</div>
-              <span className="badge badge-neutral">{path.courseCount ?? 0} courses</span>
+              <span className="badge badge-neutral">{path.course_count ?? 0} courses</span>
             </Link>
           ))}
         </div>

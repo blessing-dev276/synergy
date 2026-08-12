@@ -1,10 +1,8 @@
 import { useParams } from "react-router-dom";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { useMemo, useState } from "react";
-import { db, storage } from "../../firebase.js";
+import { useState } from "react";
+import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
-import { useLiveQuery } from "../../lib/firestoreHooks.js";
+import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 
@@ -16,42 +14,65 @@ export default function AssignmentDetail() {
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const assignmentRef = useMemo(() => doc(db, "assignments", assignmentId), [assignmentId]);
-  const { loading, data: assignment } = useLiveQuery(assignmentRef, [assignmentId]);
-
-  const submissionRef = useMemo(
-    () => user && doc(db, "assignmentSubmissions", `${assignmentId}_${user.uid}`),
-    [user, assignmentId],
+  const { loading, data: assignment } = useSupabaseQuery(
+    () => supabase.from("assignments").select("*").eq("id", assignmentId).single(),
+    [assignmentId],
   );
-  const { data: submission } = useLiveQuery(submissionRef, [user?.uid, assignmentId]);
+
+  const { data: submission, refetch: refetchSubmission } = useSupabaseQuery(
+    () => user && supabase.from("assignment_submissions").select("*").eq("assignment_id", assignmentId).eq("uid", user.id).maybeSingle(),
+    [user?.id, assignmentId],
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    try {
-      let fileURLs = [];
-      if (file) {
-        const fileRef = ref(storage, `assignmentSubmissions/${user.uid}/${assignmentId}/${file.name}`);
-        await uploadBytes(fileRef, file);
-        fileURLs = [await getDownloadURL(fileRef)];
+
+    let fileUrls = submission?.file_urls ?? [];
+    if (file) {
+      const path = `${user.id}/${assignmentId}/${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("assignment-submissions")
+        .upload(path, file, { upsert: true });
+      if (uploadError) {
+        toast.error("Couldn't upload your file.");
+        setSubmitting(false);
+        return;
       }
-      await setDoc(doc(db, "assignmentSubmissions", `${assignmentId}_${user.uid}`), {
-        assignmentId,
-        uid: user.uid,
-        courseId: assignment?.courseId ?? null,
-        textResponse: textResponse.trim(),
-        fileURLs,
-        status: "submitted",
-        submittedAt: serverTimestamp(),
-      });
-      toast.success("Assignment submitted for review.");
-      setTextResponse("");
-      setFile(null);
-    } catch {
-      toast.error("Couldn't submit, please try again.");
-    } finally {
-      setSubmitting(false);
+      fileUrls = [path];
     }
+
+    const { error } = await supabase.from("assignment_submissions").upsert(
+      {
+        assignment_id: assignmentId,
+        uid: user.id,
+        course_id: assignment?.course_id ?? null,
+        text_response: textResponse.trim(),
+        file_urls: fileUrls,
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+      },
+      { onConflict: "assignment_id,uid" },
+    );
+
+    setSubmitting(false);
+    if (error) {
+      toast.error("Couldn't submit, please try again.");
+      return;
+    }
+    toast.success("Assignment submitted for review.");
+    setTextResponse("");
+    setFile(null);
+    refetchSubmission();
+  };
+
+  const openAttachment = async (path) => {
+    const { data, error } = await supabase.storage.from("assignment-submissions").createSignedUrl(path, 60);
+    if (error || !data) {
+      toast.error("Couldn't open that attachment.");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
   if (loading) return <Skeleton variant="card" height="200px" />;
@@ -65,9 +86,9 @@ export default function AssignmentDetail() {
       <div className="card" style={{ marginTop: "16px", marginBottom: "20px" }}>
         <div className="card-title">Instructions</div>
         <p>{assignment.instructions}</p>
-        {assignment.dueDate && (
+        {assignment.due_date && (
           <p style={{ marginTop: "8px", fontSize: "13px", color: "var(--slate)" }}>
-            Due: {new Date(assignment.dueDate.seconds ? assignment.dueDate.seconds * 1000 : assignment.dueDate).toLocaleDateString()}
+            Due: {new Date(assignment.due_date).toLocaleDateString()}
           </p>
         )}
       </div>
@@ -75,9 +96,16 @@ export default function AssignmentDetail() {
       {submission && (
         <div className="card" style={{ marginBottom: "20px" }}>
           <div className="card-title">Your submission</div>
-          <span className={`badge ${submission.status === "approved" ? "badge-success" : submission.status === "needs_revision" ? "badge-danger" : "badge-neutral"}`}>
+          <span
+            className={`badge ${submission.status === "approved" ? "badge-success" : submission.status === "needs_revision" ? "badge-danger" : "badge-neutral"}`}
+          >
             {submission.status}
           </span>
+          {submission.file_urls?.map((path) => (
+            <button key={path} type="button" className="badge badge-neutral" style={{ marginLeft: "8px" }} onClick={() => openAttachment(path)}>
+              View attachment
+            </button>
+          ))}
           {submission.feedback && (
             <p style={{ marginTop: "12px" }}>
               <strong>Mentor feedback:</strong> {submission.feedback}
@@ -85,7 +113,7 @@ export default function AssignmentDetail() {
           )}
           {typeof submission.grade === "number" && (
             <p style={{ marginTop: "6px" }}>
-              Grade: {submission.grade} / {assignment.maxScore}
+              Grade: {submission.grade} / {assignment.max_score}
             </p>
           )}
         </div>

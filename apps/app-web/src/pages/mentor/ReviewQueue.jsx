@@ -1,14 +1,13 @@
-import { collection, query, where } from "firebase/firestore";
-import { useMemo, useState } from "react";
-import { db } from "../../firebase.js";
+import { useState } from "react";
+import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
-import { useLiveQuery } from "../../lib/firestoreHooks.js";
-import { gradeAssignment } from "../../lib/callables.js";
+import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
+import { gradeAssignment } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 
-function ReviewRow({ submission }) {
+function ReviewRow({ submission, onGraded }) {
   const toast = useToast();
   const [feedback, setFeedback] = useState("");
   const [grade, setGrade] = useState("");
@@ -17,13 +16,9 @@ function ReviewRow({ submission }) {
   const decide = async (decision) => {
     setSubmitting(true);
     try {
-      await gradeAssignment({
-        submissionId: submission.id,
-        decision,
-        grade: grade === "" ? null : Number(grade),
-        feedback: feedback.trim(),
-      });
+      await gradeAssignment(submission.id, decision, grade === "" ? null : Number(grade), feedback.trim());
       toast.success(decision === "approved" ? "Approved." : "Sent back for revision.");
+      onGraded();
     } catch (err) {
       toast.error(err.message ?? "Couldn't submit that review.");
     } finally {
@@ -31,14 +26,23 @@ function ReviewRow({ submission }) {
     }
   };
 
+  const openAttachment = async (path) => {
+    const { data, error } = await supabase.storage.from("assignment-submissions").createSignedUrl(path, 60);
+    if (error || !data) {
+      toast.error("Couldn't open that attachment.");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className="card" style={{ marginBottom: "14px" }}>
       <div className="card-title">Submission from {submission.uid}</div>
-      <p style={{ margin: "8px 0" }}>{submission.textResponse || "(no text response)"}</p>
-      {submission.fileURLs?.map((url) => (
-        <a key={url} href={url} target="_blank" rel="noreferrer" className="badge badge-neutral" style={{ marginRight: "6px" }}>
+      <p style={{ margin: "8px 0" }}>{submission.text_response || "(no text response)"}</p>
+      {submission.file_urls?.map((path) => (
+        <button key={path} type="button" className="badge badge-neutral" style={{ marginRight: "6px" }} onClick={() => openAttachment(path)}>
           Attachment
-        </a>
+        </button>
       ))}
       <div className="field" style={{ marginTop: "14px" }}>
         <label>Feedback</label>
@@ -63,25 +67,22 @@ function ReviewRow({ submission }) {
 export default function ReviewQueue() {
   const { user } = useAuth();
 
-  const assignmentsQuery = useMemo(
-    () => user && query(collection(db, "mentorAssignments"), where("mentorUid", "==", user.uid), where("active", "==", true)),
-    [user],
+  const { data: mentorAssignments } = useSupabaseQuery(
+    () => user && supabase.from("mentor_assignments").select("*").eq("mentor_uid", user.id).eq("active", true),
+    [user?.id],
   );
-  const { data: mentorAssignments } = useLiveQuery(assignmentsQuery, [user?.uid]);
-  const memberUids = (mentorAssignments ?? []).map((a) => a.memberUid);
+  const memberUids = (mentorAssignments ?? []).map((a) => a.member_uid);
 
-  const submissionsQuery = useMemo(
+  const {
+    loading,
+    data: submissions,
+    refetch,
+  } = useSupabaseQuery(
     () =>
       memberUids.length > 0 &&
-      query(
-        collection(db, "assignmentSubmissions"),
-        where("status", "==", "submitted"),
-        where("uid", "in", memberUids.slice(0, 30)),
-      ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      supabase.from("assignment_submissions").select("*").eq("status", "submitted").in("uid", memberUids),
     [memberUids.join(",")],
   );
-  const { loading, data: submissions } = useLiveQuery(submissionsQuery, [memberUids.join(",")]);
 
   return (
     <div>
@@ -91,7 +92,7 @@ export default function ReviewQueue() {
         <EmptyState icon="🗂️" title="Nothing pending review" description="Submissions from your members will show up here." />
       )}
       {submissions?.map((s) => (
-        <ReviewRow key={s.id} submission={s} />
+        <ReviewRow key={s.id} submission={s} onGraded={refetch} />
       ))}
     </div>
   );

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../../firebase.js";
+import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useToast } from "../../components/state/Toast.jsx";
 
@@ -33,7 +32,7 @@ function toggle(list, value) {
 }
 
 export default function OnboardingFlow() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -47,23 +46,23 @@ export default function OnboardingFlow() {
 
   const finish = async () => {
     setSaving(true);
-    try {
-      await setDoc(
-        doc(db, "users", user.uid),
-        {
-          bio: bio.trim(),
-          onboarding: { completed: true, interests, goals, completedAt: serverTimestamp() },
-        },
-        { merge: true },
-      );
-      // Learning-path recommendation/assignment is a mentor/admin action in
-      // Phase 1 (spec section 4) — not auto-assigned here yet.
-      navigate("/dashboard", { replace: true });
-    } catch {
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        bio: bio.trim(),
+        onboarding: { completed: true, interests, goals, completedAt: new Date().toISOString() },
+      })
+      .eq("id", user.id);
+    setSaving(false);
+
+    if (error) {
       toast.error("Couldn't save that, please try again.");
-    } finally {
-      setSaving(false);
+      return;
     }
+    // Learning-path recommendation/assignment is a mentor/admin action in
+    // Phase 1 (spec section 4) — not auto-assigned here yet.
+    await refreshProfile();
+    navigate("/dashboard", { replace: true });
   };
 
   return (

@@ -1,6 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
-import { auth } from "../firebase.js";
+import { supabase } from "../supabaseClient.js";
 import { useAuth } from "../lib/AuthContext.jsx";
 import Sidebar from "./Sidebar.jsx";
 import BottomNav from "./BottomNav.jsx";
@@ -12,7 +11,7 @@ export default function AppShell({ sections, bottomItems, title }) {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await supabase.auth.signOut();
     navigate("/login");
   };
 
@@ -33,7 +32,7 @@ export default function AppShell({ sections, bottomItems, title }) {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <span style={{ fontSize: "13.5px", color: "var(--slate)" }}>
-              {profile?.displayName ?? user?.email}
+              {profile?.display_name ?? user?.email}
             </span>
           </div>
         </header>

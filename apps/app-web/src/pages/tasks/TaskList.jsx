@@ -1,8 +1,6 @@
-import { collection, doc, query, where, orderBy, setDoc, serverTimestamp } from "firebase/firestore";
-import { useMemo } from "react";
-import { db } from "../../firebase.js";
+import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
-import { useLiveQuery } from "../../lib/firestoreHooks.js";
+import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
@@ -12,30 +10,32 @@ export default function TaskList() {
   const { user } = useAuth();
   const toast = useToast();
 
-  const tasksQuery = useMemo(
-    () => user && query(collection(db, "tasks"), where("assignedToUid", "==", user.uid), orderBy("dueDate", "asc")),
-    [user],
+  const { loading, error, data: tasks } = useSupabaseQuery(
+    () => user && supabase.from("tasks").select("*").eq("assigned_to_uid", user.id).order("due_date", { ascending: true }),
+    [user?.id],
   );
-  const { loading, error, data: tasks } = useLiveQuery(tasksQuery, [user?.uid]);
 
-  const completionsQuery = useMemo(
-    () => user && query(collection(db, "taskCompletions"), where("uid", "==", user.uid)),
-    [user],
+  const { data: completions, refetch: refetchCompletions } = useSupabaseQuery(
+    () => user && supabase.from("task_completions").select("*").eq("uid", user.id),
+    [user?.id],
   );
-  const { data: completions } = useLiveQuery(completionsQuery, [user?.uid]);
-  const completedIds = new Set((completions ?? []).filter((c) => c.completed).map((c) => c.taskId));
+  const completedIds = new Set((completions ?? []).filter((c) => c.completed).map((c) => c.task_id));
 
   const toggleComplete = async (task) => {
-    try {
-      await setDoc(doc(db, "taskCompletions", `${task.id}_${user.uid}`), {
-        uid: user.uid,
-        taskId: task.id,
+    const { error: toggleError } = await supabase.from("task_completions").upsert(
+      {
+        uid: user.id,
+        task_id: task.id,
         completed: !completedIds.has(task.id),
-        completedAt: serverTimestamp(),
-      });
-    } catch {
+        completed_at: new Date().toISOString(),
+      },
+      { onConflict: "uid,task_id" },
+    );
+    if (toggleError) {
       toast.error("Couldn't update that task.");
+      return;
     }
+    refetchCompletions();
   };
 
   return (
@@ -65,11 +65,7 @@ export default function TaskList() {
                       <div style={{ fontSize: "13px", color: "var(--slate)" }}>{task.description}</div>
                     </td>
                     <td>{task.priority ?? "—"}</td>
-                    <td>
-                      {task.dueDate
-                        ? new Date(task.dueDate.seconds ? task.dueDate.seconds * 1000 : task.dueDate).toLocaleDateString()
-                        : "—"}
-                    </td>
+                    <td>{task.due_date ? new Date(task.due_date).toLocaleDateString() : "—"}</td>
                     <td>
                       <button
                         type="button"

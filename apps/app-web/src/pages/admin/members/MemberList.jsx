@@ -1,9 +1,8 @@
 import { Link } from "react-router-dom";
-import { collection, query, orderBy } from "firebase/firestore";
 import { useState } from "react";
-import { db } from "../../../firebase.js";
-import { useLiveQuery } from "../../../lib/firestoreHooks.js";
-import { setUserRole } from "../../../lib/callables.js";
+import { supabase } from "../../../supabaseClient.js";
+import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
+import { setUserRole } from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
@@ -14,14 +13,17 @@ export default function MemberList() {
   const toast = useToast();
   const [busyUid, setBusyUid] = useState(null);
 
-  const usersQuery = query(collection(db, "users"), orderBy("createdAt", "desc"));
-  const { loading, data: users } = useLiveQuery(usersQuery, []);
+  const { loading, data: users, refetch } = useSupabaseQuery(
+    () => supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+    [],
+  );
 
   const changeRole = async (uid, role) => {
     setBusyUid(uid);
     try {
-      await setUserRole({ uid, role });
+      await setUserRole(uid, role);
       toast.success("Role updated. They'll see it next time they log in.");
+      refetch();
     } catch (err) {
       toast.error(err.message ?? "Couldn't update role.");
     } finally {
@@ -48,7 +50,7 @@ export default function MemberList() {
               {users.map((u) => (
                 <tr key={u.id}>
                   <td>
-                    <Link to={`/admin/members/${u.id}`}>{u.displayName || u.email}</Link>
+                    <Link to={`/admin/members/${u.id}`}>{u.display_name || u.email}</Link>
                   </td>
                   <td>
                     <span className="badge badge-neutral">{u.role}</span>

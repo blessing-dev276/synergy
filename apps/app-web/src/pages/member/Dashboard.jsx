@@ -1,9 +1,7 @@
 import { Link } from "react-router-dom";
-import { collection, query, where, orderBy, limit } from "firebase/firestore";
-import { useMemo } from "react";
-import { db } from "../../firebase.js";
+import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
-import { useLiveQuery } from "../../lib/firestoreHooks.js";
+import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
@@ -18,34 +16,37 @@ function greeting() {
 export default function Dashboard() {
   const { user, profile } = useAuth();
 
-  const enrollmentsQuery = useMemo(
+  const {
+    loading: loadingEnrollment,
+    error: enrollmentError,
+    data: enrollments,
+  } = useSupabaseQuery(
     () =>
       user &&
-      query(
-        collection(db, "enrollments"),
-        where("uid", "==", user.uid),
-        orderBy("lastAccessedAt", "desc"),
-        limit(1),
-      ),
-    [user],
-  );
-  const { loading: loadingEnrollment, error: enrollmentError, data: enrollments } = useLiveQuery(
-    enrollmentsQuery,
-    [user?.uid],
+      supabase
+        .from("enrollments")
+        .select("*")
+        .eq("uid", user.id)
+        .order("last_accessed_at", { ascending: false })
+        .limit(1),
+    [user?.id],
   );
 
-  const tasksQuery = useMemo(
-    () => user && query(collection(db, "tasks"), where("assignedToUid", "==", user.uid), orderBy("dueDate", "asc")),
-    [user],
+  const {
+    loading: loadingTasks,
+    error: tasksError,
+    data: tasks,
+  } = useSupabaseQuery(
+    () => user && supabase.from("tasks").select("*").eq("assigned_to_uid", user.id).order("due_date", { ascending: true }),
+    [user?.id],
   );
-  const { loading: loadingTasks, error: tasksError, data: tasks } = useLiveQuery(tasksQuery, [user?.uid]);
 
   const current = enrollments?.[0];
 
   return (
     <div>
       <h1>
-        {greeting()}, {profile?.displayName?.split(" ")[0] ?? "there"} 👋
+        {greeting()}, {profile?.display_name?.split(" ")[0] ?? "there"} 👋
       </h1>
       <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "28px" }}>
         You're making progress. Keep going.
@@ -70,17 +71,14 @@ export default function Dashboard() {
           )}
           {current && (
             <>
-              <div style={{ fontWeight: 600, marginBottom: "6px" }}>{current.courseTitle}</div>
+              <div style={{ fontWeight: 600, marginBottom: "6px" }}>{current.course_title}</div>
               <div className="progress-bar" style={{ marginBottom: "8px" }}>
-                <div className="progress-bar-fill" style={{ width: `${current.progressPercent ?? 0}%` }} />
+                <div className="progress-bar-fill" style={{ width: `${current.progress_percent ?? 0}%` }} />
               </div>
               <div style={{ fontSize: "13px", color: "var(--slate)", marginBottom: "14px" }}>
-                {current.progressPercent ?? 0}% complete
+                {current.progress_percent ?? 0}% complete
               </div>
-              <Link
-                to={`/learning/${current.pathId}/${current.courseId}`}
-                className="btn btn-primary"
-              >
+              <Link to={`/learning/${current.path_id}/${current.course_id}`} className="btn btn-primary">
                 Continue Learning
               </Link>
             </>
@@ -99,7 +97,7 @@ export default function Dashboard() {
               {tasks.slice(0, 5).map((task) => (
                 <li key={task.id} style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
                   <span>{task.title}</span>
-                  <span className="badge badge-neutral">{task.status ?? "Not Started"}</span>
+                  <span className="badge badge-neutral">{task.priority ?? "medium"}</span>
                 </li>
               ))}
             </ul>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getQuizForAttempt, submitQuizAttempt, markLessonComplete } from "../../lib/callables.js";
+import { getQuizForAttempt, submitQuizAttempt, markLessonComplete } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
@@ -20,9 +20,9 @@ export default function QuizTaker() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getQuizForAttempt({ lessonId })
-      .then((res) => {
-        if (!cancelled) setQuiz(res.data);
+    getQuizForAttempt(lessonId)
+      .then((data) => {
+        if (!cancelled) setQuiz(data);
       })
       .catch((err) => !cancelled && setError(err))
       .finally(() => !cancelled && setLoading(false));
@@ -38,16 +38,16 @@ export default function QuizTaker() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const res = await submitQuizAttempt({
-        quizId: quiz.id,
-        answers: Object.entries(answers).map(([questionId, optionId]) => ({ questionId, optionId })),
-      });
-      setResult(res.data);
+      const res = await submitQuizAttempt(
+        quiz.id,
+        Object.entries(answers).map(([questionId, optionId]) => ({ questionId, optionId })),
+      );
+      setResult(res);
       // A pass satisfies this lesson's quiz_pass completion rule — mark it
       // complete now so the lesson page reflects that on return, rather
       // than making the member re-trigger completion manually.
-      if (res.data.passed) {
-        await markLessonComplete({ courseId, moduleId, lessonId }).catch(() => {});
+      if (res.passed) {
+        await markLessonComplete(courseId, moduleId, lessonId).catch(() => {});
       }
     } catch (err) {
       toast.error(err.message ?? "Couldn't submit your quiz.");
@@ -86,9 +86,7 @@ export default function QuizTaker() {
   return (
     <div>
       <h1>{quiz.title}</h1>
-      <p style={{ color: "var(--slate)", marginBottom: "20px" }}>
-        Pass mark: {quiz.passScorePercent}%
-      </p>
+      <p style={{ color: "var(--slate)", marginBottom: "20px" }}>Pass mark: {quiz.passScorePercent}%</p>
       {quiz.questions.map((question, index) => (
         <div key={question.id} className="card" style={{ marginBottom: "14px" }}>
           <div className="card-title">

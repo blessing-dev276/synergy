@@ -1,29 +1,35 @@
 import { useState } from "react";
-import { doc, updateDoc } from "firebase/firestore";
-import { updateProfile as updateAuthProfile } from "firebase/auth";
-import { db, auth } from "../../firebase.js";
+import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useToast } from "../../components/state/Toast.jsx";
 
 export default function Profile() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const toast = useToast();
-  const [displayName, setDisplayName] = useState(profile?.displayName ?? user?.displayName ?? "");
+  const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [saving, setSaving] = useState(false);
 
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    try {
-      await updateAuthProfile(auth.currentUser, { displayName: displayName.trim() });
-      await updateDoc(doc(db, "users", user.uid), { displayName: displayName.trim(), bio: bio.trim() });
-      toast.success("Profile updated.");
-    } catch {
-      toast.error("Couldn't save your profile.");
-    } finally {
-      setSaving(false);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ display_name: displayName.trim(), bio: bio.trim(), last_active_at: new Date().toISOString() })
+      .eq("id", user.id);
+
+    if (!error) {
+      await supabase.auth.updateUser({ data: { display_name: displayName.trim() } });
     }
+
+    setSaving(false);
+    if (error) {
+      toast.error("Couldn't save your profile.");
+      return;
+    }
+    toast.success("Profile updated.");
+    refreshProfile();
   };
 
   return (

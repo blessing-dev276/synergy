@@ -1,19 +1,17 @@
 import { Link, useParams } from "react-router-dom";
-import { collection, doc, query, orderBy, setDoc, serverTimestamp } from "firebase/firestore";
-import { useMemo, useState } from "react";
-import { db } from "../../firebase.js";
+import { useState } from "react";
+import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
-import { useLiveQuery } from "../../lib/firestoreHooks.js";
+import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 
 function ModuleSection({ pathId, courseId, moduleId, title }) {
-  const lessonsQuery = useMemo(
-    () => query(collection(db, "courses", courseId, "modules", moduleId, "lessons"), orderBy("order", "asc")),
-    [courseId, moduleId],
+  const { loading, data: lessons } = useSupabaseQuery(
+    () => supabase.from("lessons").select("*").eq("module_id", moduleId).order("order_index", { ascending: true }),
+    [moduleId],
   );
-  const { loading, data: lessons } = useLiveQuery(lessonsQuery, [courseId, moduleId]);
 
   return (
     <div className="card" style={{ marginBottom: "14px" }}>
@@ -33,7 +31,7 @@ function ModuleSection({ pathId, courseId, moduleId, title }) {
                   style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}
                 >
                   <span>{lesson.title}</span>
-                  <span style={{ color: "var(--slate)", fontSize: "13px" }}>{lesson.estimatedMinutes ?? "—"} min</span>
+                  <span style={{ color: "var(--slate)", fontSize: "13px" }}>{lesson.estimated_minutes ?? "—"} min</span>
                 </Link>
               </li>
             ))}
@@ -49,39 +47,42 @@ export default function CourseDetail() {
   const toast = useToast();
   const [enrolling, setEnrolling] = useState(false);
 
-  const courseRef = useMemo(() => doc(db, "courses", courseId), [courseId]);
-  const { loading: loadingCourse, data: course } = useLiveQuery(courseRef, [courseId]);
-
-  const enrollmentRef = useMemo(() => user && doc(db, "enrollments", `${user.uid}_${courseId}`), [user, courseId]);
-  const { data: enrollment } = useLiveQuery(enrollmentRef, [user?.uid, courseId]);
-
-  const modulesQuery = useMemo(
-    () => query(collection(db, "courses", courseId, "modules"), orderBy("order", "asc")),
+  const { loading: loadingCourse, data: course } = useSupabaseQuery(
+    () => supabase.from("courses").select("*").eq("id", courseId).single(),
     [courseId],
   );
-  const { loading: loadingModules, data: modules } = useLiveQuery(modulesQuery, [courseId]);
+
+  const { data: enrollment, refetch: refetchEnrollment } = useSupabaseQuery(
+    () => user && supabase.from("enrollments").select("*").eq("uid", user.id).eq("course_id", courseId).maybeSingle(),
+    [user?.id, courseId],
+  );
+
+  const { loading: loadingModules, data: modules } = useSupabaseQuery(
+    () => supabase.from("modules").select("*").eq("course_id", courseId).order("order_index", { ascending: true }),
+    [courseId],
+  );
 
   const handleEnroll = async () => {
     setEnrolling(true);
-    try {
-      await setDoc(doc(db, "enrollments", `${user.uid}_${courseId}`), {
-        uid: user.uid,
-        courseId,
-        pathId,
-        courseTitle: course?.title ?? "",
-        status: "in_progress",
-        completedLessonsCount: 0,
-        totalLessonsCount: course?.lessonCount ?? 0,
-        progressPercent: 0,
-        enrolledAt: serverTimestamp(),
-        lastAccessedAt: serverTimestamp(),
-      });
-      toast.success("Enrolled! Let's get started.");
-    } catch {
+    const { error } = await supabase.from("enrollments").insert({
+      uid: user.id,
+      course_id: courseId,
+      path_id: pathId,
+      course_title: course?.title ?? "",
+      status: "in_progress",
+      completed_lessons_count: 0,
+      total_lessons_count: course?.lesson_count ?? 0,
+      progress_percent: 0,
+      enrolled_at: new Date().toISOString(),
+      last_accessed_at: new Date().toISOString(),
+    });
+    setEnrolling(false);
+    if (error) {
       toast.error("Couldn't enroll, please try again.");
-    } finally {
-      setEnrolling(false);
+      return;
     }
+    toast.success("Enrolled! Let's get started.");
+    refetchEnrollment();
   };
 
   return (
@@ -98,7 +99,7 @@ export default function CourseDetail() {
               {enrolling ? "Enrolling…" : "Enroll"}
             </button>
           )}
-          {enrollment && <span className="badge badge-success">{enrollment.progressPercent ?? 0}% complete</span>}
+          {enrollment && <span className="badge badge-success">{enrollment.progress_percent ?? 0}% complete</span>}
         </div>
       )}
 

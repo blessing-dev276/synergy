@@ -1,9 +1,8 @@
 import { useParams } from "react-router-dom";
 import { useState } from "react";
-import { collection, doc, query, where } from "firebase/firestore";
-import { db } from "../../../firebase.js";
-import { useLiveQuery } from "../../../lib/firestoreHooks.js";
-import { assignMentor, unassignMentor } from "../../../lib/callables.js";
+import { supabase } from "../../../supabaseClient.js";
+import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
+import { assignMentor, unassignMentor } from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 
@@ -13,21 +12,28 @@ export default function MemberDetail() {
   const [selectedMentor, setSelectedMentor] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const userRef = doc(db, "users", uid);
-  const { loading, data: member } = useLiveQuery(userRef, [uid]);
+  const { loading, data: member, refetch: refetchMember } = useSupabaseQuery(
+    () => supabase.from("profiles").select("*").eq("id", uid).single(),
+    [uid],
+  );
 
-  const mentorsQuery = query(collection(db, "users"), where("role", "==", "mentor"));
-  const { data: mentors } = useLiveQuery(mentorsQuery, []);
+  const { data: mentors } = useSupabaseQuery(
+    () => supabase.from("profiles").select("*").eq("role", "mentor"),
+    [],
+  );
 
-  const currentAssignmentQuery = member?.mentorUid ? doc(db, "users", member.mentorUid) : null;
-  const { data: currentMentor } = useLiveQuery(currentAssignmentQuery, [member?.mentorUid]);
+  const { data: currentMentor } = useSupabaseQuery(
+    () => member?.mentor_uid && supabase.from("profiles").select("*").eq("id", member.mentor_uid).single(),
+    [member?.mentor_uid],
+  );
 
   const handleAssign = async () => {
     if (!selectedMentor) return;
     setSaving(true);
     try {
-      await assignMentor({ mentorUid: selectedMentor, memberUid: uid });
+      await assignMentor(selectedMentor, uid);
       toast.success("Mentor assigned.");
+      refetchMember();
     } catch (err) {
       toast.error(err.message ?? "Couldn't assign mentor.");
     } finally {
@@ -38,8 +44,9 @@ export default function MemberDetail() {
   const handleUnassign = async () => {
     setSaving(true);
     try {
-      await unassignMentor({ mentorUid: member.mentorUid, memberUid: uid });
+      await unassignMentor(member.mentor_uid, uid);
       toast.success("Mentor unassigned.");
+      refetchMember();
     } catch (err) {
       toast.error(err.message ?? "Couldn't unassign mentor.");
     } finally {
@@ -52,7 +59,7 @@ export default function MemberDetail() {
 
   return (
     <div>
-      <h1>{member.displayName || member.email}</h1>
+      <h1>{member.display_name || member.email}</h1>
       <span className="badge badge-neutral" style={{ marginTop: "8px" }}>
         {member.role}
       </span>
@@ -62,7 +69,7 @@ export default function MemberDetail() {
           <div className="card-title">Mentor</div>
           {currentMentor ? (
             <>
-              <p style={{ marginBottom: "12px" }}>Currently assigned to {currentMentor.displayName}.</p>
+              <p style={{ marginBottom: "12px" }}>Currently assigned to {currentMentor.display_name}.</p>
               <button type="button" className="btn btn-danger" onClick={handleUnassign} disabled={saving}>
                 Unassign mentor
               </button>
@@ -74,7 +81,7 @@ export default function MemberDetail() {
                   <option value="">Choose a mentor…</option>
                   {mentors?.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.displayName}
+                      {m.display_name}
                     </option>
                   ))}
                 </select>

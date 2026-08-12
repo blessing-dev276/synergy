@@ -1,9 +1,8 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { collection, addDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
-import { db } from "../../../firebase.js";
+import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
-import { useLiveQuery } from "../../../lib/firestoreHooks.js";
+import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
@@ -18,26 +17,22 @@ function NewPathForm({ onCreated }) {
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    try {
-      await addDoc(collection(db, "learningPaths"), {
-        title: title.trim(),
-        description: description.trim(),
-        order: Date.now(),
-        published: false,
-        courseCount: 0,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      setTitle("");
-      setDescription("");
-      toast.success("Learning path created (draft).");
-      onCreated?.();
-    } catch {
+    const { error } = await supabase.from("learning_paths").insert({
+      title: title.trim(),
+      description: description.trim(),
+      order_index: Date.now(),
+      published: false,
+      created_by: user.id,
+    });
+    setSaving(false);
+    if (error) {
       toast.error("Couldn't create that learning path.");
-    } finally {
-      setSaving(false);
+      return;
     }
+    setTitle("");
+    setDescription("");
+    toast.success("Learning path created (draft).");
+    onCreated?.();
   };
 
   return (
@@ -58,7 +53,7 @@ function NewPathForm({ onCreated }) {
   );
 }
 
-function NewCourseForm({ pathId }) {
+function NewCourseForm({ pathId, onCreated }) {
   const { user } = useAuth();
   const toast = useToast();
   const [title, setTitle] = useState("");
@@ -67,26 +62,22 @@ function NewCourseForm({ pathId }) {
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    try {
-      await addDoc(collection(db, "courses"), {
-        pathId,
-        title: title.trim(),
-        description: "",
-        order: Date.now(),
-        published: false,
-        moduleCount: 0,
-        lessonCount: 0,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      setTitle("");
-      toast.success("Course created (draft).");
-    } catch {
+    const { error } = await supabase.from("courses").insert({
+      path_id: pathId,
+      title: title.trim(),
+      description: "",
+      order_index: Date.now(),
+      published: false,
+      created_by: user.id,
+    });
+    setSaving(false);
+    if (error) {
       toast.error("Couldn't create that course.");
-    } finally {
-      setSaving(false);
+      return;
     }
+    setTitle("");
+    toast.success("Course created (draft).");
+    onCreated?.();
   };
 
   return (
@@ -106,9 +97,10 @@ function NewCourseForm({ pathId }) {
 }
 
 function PathBlock({ path }) {
-  const coursesQuery = query(collection(db, "courses"), orderBy("order", "asc"));
-  const { data: allCourses } = useLiveQuery(coursesQuery, []);
-  const courses = (allCourses ?? []).filter((c) => c.pathId === path.id);
+  const { data: courses, refetch } = useSupabaseQuery(
+    () => supabase.from("courses").select("*").eq("path_id", path.id).order("order_index", { ascending: true }),
+    [path.id],
+  );
 
   return (
     <div className="card" style={{ marginBottom: "16px" }}>
@@ -121,7 +113,7 @@ function PathBlock({ path }) {
         </span>
       </div>
       <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-        {courses.map((course) => (
+        {courses?.map((course) => (
           <Link
             key={course.id}
             to={`/admin/content/courses/${course.id}`}
@@ -134,14 +126,16 @@ function PathBlock({ path }) {
           </Link>
         ))}
       </div>
-      <NewCourseForm pathId={path.id} />
+      <NewCourseForm pathId={path.id} onCreated={refetch} />
     </div>
   );
 }
 
 export default function ContentBuilder() {
-  const pathsQuery = query(collection(db, "learningPaths"), orderBy("order", "asc"));
-  const { loading, data: paths } = useLiveQuery(pathsQuery, []);
+  const { loading, data: paths, refetch } = useSupabaseQuery(
+    () => supabase.from("learning_paths").select("*").order("order_index", { ascending: true }),
+    [],
+  );
 
   return (
     <div>
@@ -150,7 +144,7 @@ export default function ContentBuilder() {
         Learning Path → Course → Module → Lesson → Quiz/Assignment.
       </p>
 
-      <NewPathForm />
+      <NewPathForm onCreated={refetch} />
 
       {loading && <Skeleton variant="card" height="140px" />}
       {!loading && (!paths || paths.length === 0) && <EmptyState icon="🧱" title="No learning paths yet" />}

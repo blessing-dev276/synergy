@@ -1,54 +1,60 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
-import { auth, db } from "../firebase.js";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { supabase } from "../supabaseClient.js";
 
-// Firebase-Auth equivalent of the marketing site's useNetlifyIdentity.js —
-// same `ready` flag convention, so "has the auth state settled yet" reads
-// the same way across both codebases.
+// Supabase equivalent of the marketing site's useNetlifyIdentity.js — same
+// `ready` flag convention. Unlike Firebase, role is read live from the
+// `profiles` row on every auth-state change rather than cached in a JWT
+// claim, so there's no token-refresh race to work around after signup.
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [role, setRole] = useState(null);
   const [ready, setReady] = useState(false);
 
-  const refreshRole = useCallback(async () => {
-    if (!auth.currentUser) return null;
-    // Custom claims only land in the ID token on next mint, force a
-    // refresh right after signup or after an admin promotes this user.
-    const result = await auth.currentUser.getIdTokenResult(true);
-    const nextRole = result.claims.role ?? null;
-    setRole(nextRole);
-    return nextRole;
+  const loadProfile = useCallback(async (uid) => {
+    if (!uid) {
+      setProfile(null);
+      return;
+    }
+    const { data } = await supabase.from("profiles").select("*").eq("id", uid).single();
+    setProfile(data ?? null);
   }, []);
 
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, async (nextUser) => {
-      setUser(nextUser);
-      if (!nextUser) {
-        setProfile(null);
-        setRole(null);
-        setReady(true);
-        return;
-      }
-      const result = await nextUser.getIdTokenResult();
-      setRole(result.claims.role ?? null);
+    let cancelled = false;
+
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (cancelled) return;
+      setSession(data.session);
+      await loadProfile(data.session?.user?.id);
+      if (!cancelled) setReady(true);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      setSession(nextSession);
+      await loadProfile(nextSession?.user?.id);
       setReady(true);
     });
-    return unsubAuth;
-  }, []);
 
-  useEffect(() => {
-    if (!user) return undefined;
-    const unsubProfile = onSnapshot(doc(db, "users", user.uid), (snap) => {
-      setProfile(snap.exists() ? { id: snap.id, ...snap.data() } : null);
-    });
-    return unsubProfile;
-  }, [user]);
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [loadProfile]);
 
-  const value = { user, profile, role, ready, refreshRole };
+  const refreshProfile = useCallback(() => loadProfile(session?.user?.id), [loadProfile, session]);
+
+  const value = {
+    user: session?.user ?? null,
+    profile,
+    role: profile?.role ?? null,
+    ready,
+    refreshProfile,
+  };
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
