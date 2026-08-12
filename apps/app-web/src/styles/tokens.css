@@ -1,0 +1,44 @@
+/* Synergy brand tokens — kept in sync by hand with the root site's
+   src/index.css (lines 1-36). If the brand palette/fonts change there,
+   mirror the change here too. */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
+
+:root{
+  --bg: #F6F8FB;
+  --surface: #FFFFFF;
+  --line: #E3E8F0;
+  --navy: #0B1F3A;
+  --navy-soft: #33455E;
+  --slate: #5B6B84;
+  --blue-deep: #0B3E91;
+  --blue: #1E7FE0;
+  --blue-bright: #29B2E8;
+  --gold: #D9992E;
+  --gold-soft: #FBE9CC;
+  --danger: #C23B3B;
+  --danger-soft: #FBE3E3;
+  --success: #1FB971;
+  --success-soft: #DCF6EA;
+  --radius: 14px;
+}
+
+*{box-sizing:border-box; margin:0; padding:0;}
+html{scroll-behavior:smooth;}
+html, body, #root{ height:100%; }
+body{
+  background:var(--bg);
+  color:var(--navy);
+  font-family:'Inter', sans-serif;
+  -webkit-font-smoothing:antialiased;
+  line-height:1.5;
+}
+h1,h2,h3,.display{
+  font-family:'Space Grotesk', sans-serif;
+  color:var(--navy);
+  letter-spacing:-0.02em;
+}
+.mono{ font-family:'JetBrains Mono', monospace; letter-spacing:-0.02em; }
+a{color:inherit; text-decoration:none;}
+img{max-width:100%; display:block;}
+button{font:inherit;}
+input, textarea, select{font:inherit; color:inherit;}

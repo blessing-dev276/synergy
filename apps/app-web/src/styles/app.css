@@ -1,0 +1,148 @@
+/* App-shell & dashboard vocabulary for app.synergyteamm.com.
+   Distinct from the marketing site's index.css (nav dropdowns, hero
+   sections) — this is sidebar/table/card/form vocabulary, written fresh
+   but built on the same tokens.css variables. */
+
+/* ---------- layout ---------- */
+.app-shell{ display:flex; min-height:100vh; }
+
+.app-sidebar{
+  width:260px; flex-shrink:0;
+  background:var(--surface);
+  border-right:1px solid var(--line);
+  display:flex; flex-direction:column;
+  padding:22px 16px;
+  position:sticky; top:0; height:100vh; overflow-y:auto;
+}
+.app-sidebar .brand{ display:flex; align-items:center; gap:10px; padding:6px 10px 26px; }
+.app-sidebar .brand img{ height:32px; width:auto; }
+.app-nav{ display:flex; flex-direction:column; gap:2px; flex:1; }
+.app-nav-link{
+  display:flex; align-items:center; gap:12px;
+  padding:11px 14px; border-radius:10px;
+  font-size:14.5px; font-weight:500; color:var(--navy-soft);
+}
+.app-nav-link:hover{ background:var(--bg); color:var(--navy); }
+.app-nav-link.active{ background:var(--navy); color:#fff; }
+.app-nav-section{
+  font-family:'JetBrains Mono', monospace;
+  font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--slate); padding:18px 14px 6px;
+}
+.app-sidebar-footer{ border-top:1px solid var(--line); padding-top:14px; margin-top:14px; }
+
+.app-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.app-topbar{
+  position:sticky; top:0; z-index:20;
+  background:rgba(246,248,251,0.92); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 28px;
+}
+.app-content{ padding:28px; max-width:1180px; width:100%; margin:0 auto; flex:1; }
+
+.app-bottom-nav{
+  display:none;
+  position:fixed; bottom:0; left:0; right:0; z-index:60;
+  background:var(--surface); border-top:1px solid var(--line);
+  padding:8px 6px calc(8px + env(safe-area-inset-bottom));
+}
+.app-bottom-nav-links{ display:flex; justify-content:space-around; }
+.app-bottom-nav-link{
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  font-size:11px; font-weight:600; color:var(--slate);
+  padding:4px 8px; border-radius:10px; min-width:56px;
+}
+.app-bottom-nav-link.active{ color:var(--blue-deep); }
+
+@media (max-width: 900px){
+  .app-sidebar{ display:none; }
+  .app-bottom-nav{ display:block; }
+  .app-content{ padding:18px 16px 90px; }
+  .app-topbar{ padding:14px 16px; }
+}
+
+/* ---------- primitives ---------- */
+.card{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  padding:22px;
+}
+.card-title{ font-size:16px; font-weight:600; margin-bottom:4px; }
+.card-subtitle{ font-size:13.5px; color:var(--slate); margin-bottom:16px; }
+
+.grid{ display:grid; gap:16px; }
+.grid-2{ grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); }
+.grid-3{ grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); }
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  border:none; border-radius:100px; cursor:pointer;
+  padding:11px 22px; font-size:14px; font-weight:600;
+}
+.btn-primary{ background:var(--navy); color:#fff; }
+.btn-primary:hover{ background:var(--blue-deep); }
+.btn-secondary{ background:var(--bg); color:var(--navy); border:1px solid var(--line); }
+.btn-secondary:hover{ background:var(--line); }
+.btn-danger{ background:var(--danger-soft); color:var(--danger); }
+.btn:disabled{ opacity:0.55; cursor:not-allowed; }
+
+.field{ display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+.field label{ font-size:13px; font-weight:600; color:var(--navy-soft); }
+.field input, .field textarea, .field select{
+  border:1px solid var(--line); border-radius:10px; padding:11px 14px; font-size:14.5px;
+  background:var(--surface);
+}
+.field input:focus, .field textarea:focus, .field select:focus{
+  outline:2px solid var(--blue-bright); outline-offset:1px;
+}
+.field-error{ color:var(--danger); font-size:12.5px; }
+
+.badge{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:12px; font-weight:600; padding:4px 10px; border-radius:100px;
+}
+.badge-success{ background:var(--success-soft); color:var(--success); }
+.badge-warning{ background:var(--gold-soft); color:var(--gold); }
+.badge-danger{ background:var(--danger-soft); color:var(--danger); }
+.badge-neutral{ background:var(--line); color:var(--navy-soft); }
+
+.progress-bar{ height:8px; border-radius:100px; background:var(--line); overflow:hidden; }
+.progress-bar-fill{ height:100%; background:var(--blue); border-radius:100px; }
+
+table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
+.data-table th{ text-align:left; font-size:12px; color:var(--slate); font-weight:600; padding:10px 12px; border-bottom:1px solid var(--line); }
+.data-table td{ padding:12px; border-bottom:1px solid var(--line); }
+.data-table tr:last-child td{ border-bottom:none; }
+
+/* ---------- state components ---------- */
+.skeleton{ background:linear-gradient(90deg, var(--line) 25%, #eef1f6 37%, var(--line) 63%); background-size:400% 100%; animation:skeleton-shimmer 1.4s ease infinite; border-radius:8px; }
+@keyframes skeleton-shimmer{ 0%{background-position:100% 50%;} 100%{background-position:0 50%;} }
+
+.state-block{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px; padding:48px 20px; color:var(--slate); }
+.state-block .state-icon{ font-size:32px; }
+.state-block .state-title{ font-size:15px; font-weight:600; color:var(--navy); }
+.state-block .state-desc{ font-size:13.5px; max-width:340px; }
+
+.toast-stack{ position:fixed; bottom:24px; right:24px; z-index:100; display:flex; flex-direction:column; gap:10px; }
+.toast{
+  background:var(--navy); color:#fff; border-radius:12px; padding:12px 18px;
+  font-size:13.5px; font-weight:500; box-shadow:0 10px 30px -10px rgba(11,31,58,0.4);
+  max-width:320px;
+}
+.toast-danger{ background:var(--danger); }
+.toast-success{ background:var(--success); }
+
+@media (max-width: 900px){
+  .toast-stack{ left:16px; right:16px; bottom:86px; }
+  .toast{ max-width:none; }
+}
+
+/* ---------- auth pages ---------- */
+.auth-screen{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:var(--bg); }
+.auth-card{ width:100%; max-width:400px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:32px; }
+.auth-card .brand{ display:flex; align-items:center; gap:10px; margin-bottom:24px; }
+.auth-card .brand img{ height:36px; }
+.auth-card h1{ font-size:21px; margin-bottom:6px; }
+.auth-card p.sub{ color:var(--slate); font-size:13.5px; margin-bottom:24px; }
+.auth-switch{ text-align:center; font-size:13.5px; color:var(--slate); margin-top:14px; }
+.auth-switch a{ color:var(--blue-deep); font-weight:600; }

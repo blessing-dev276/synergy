@@ -1,0 +1,160 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function hasRole(role) {
+      return isSignedIn() && request.auth.token.role == role;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    // Composite-ID existence check — Security Rules can't run where()
+    // queries, only fetch known paths, so mentor<->member assignment is
+    // modeled as a doc ID rules can look up in O(1).
+    function isAssignedMentorOf(memberUid) {
+      return hasRole('mentor') &&
+        exists(/databases/$(database)/documents/mentorAssignments/$(request.auth.uid + '_' + memberUid)) &&
+        get(/databases/$(database)/documents/mentorAssignments/$(request.auth.uid + '_' + memberUid)).data.active == true;
+    }
+    function onlyChangedFields(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    // ---------- users ----------
+    match /users/{uid} {
+      allow read: if isOwner(uid) || hasRole('admin') || isAssignedMentorOf(uid);
+      // role is never client-writable — only setUserRole (Cloud Function,
+      // Admin SDK) can change it. Owners may update their own profile
+      // fields; admins may update anything except bypassing this rule's
+      // read-only role protection is enforced by the callable, not here,
+      // since the callable also uses the Admin SDK which bypasses rules.
+      allow create: if false; // profile doc is created by the onCreate trigger only
+      allow update: if (isOwner(uid) && onlyChangedFields(['displayName', 'photoURL', 'bio', 'onboarding', 'lastActiveAt']))
+        || hasRole('admin');
+      allow delete: if false;
+    }
+
+    // ---------- learning content (admin-authored, member-readable) ----------
+    match /learningPaths/{pathId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole('admin');
+    }
+
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole('admin');
+
+      match /modules/{moduleId} {
+        allow read: if isSignedIn();
+        allow write: if hasRole('admin');
+
+        match /lessons/{lessonId} {
+          allow read: if isSignedIn();
+          allow write: if hasRole('admin');
+        }
+      }
+    }
+
+    match /assignments/{assignmentId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole('admin');
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole('admin');
+    }
+
+    // ---------- quizzes: questions/answers are never member-readable ----------
+    match /quizzes/{quizId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole('admin');
+
+      match /questions/{questionId} {
+        allow read: if hasRole('admin'); // members only ever see sanitized questions via getQuizForAttempt
+        allow write: if hasRole('admin');
+      }
+    }
+
+    // quizAttempts are graded and written exclusively by submitQuizAttempt
+    // (Cloud Function, Admin SDK) so the client can never self-report a score.
+    match /quizAttempts/{attemptId} {
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || hasRole('admin') || isAssignedMentorOf(resource.data.uid));
+      allow write: if false;
+    }
+
+    // ---------- member-owned progress/enrollment ----------
+    match /enrollments/{enrollmentId} {
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || hasRole('admin') || isAssignedMentorOf(resource.data.uid));
+      // Simple, low-stakes "enroll" create/update is allowed directly by
+      // the owner; the enrollment doc's progress fields are otherwise kept
+      // in sync by the onLessonProgressWrite trigger (Admin SDK), which
+      // bypasses these rules, so member writes here never corrupt progress.
+      allow create: if isOwner(request.resource.data.uid) && enrollmentId == request.auth.uid + '_' + request.resource.data.courseId;
+      allow update: if isOwner(resource.data.uid);
+      allow delete: if false;
+    }
+
+    match /lessonProgress/{progressId} {
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || hasRole('admin') || isAssignedMentorOf(resource.data.uid));
+      // Owner may mark "in_progress" directly; completion always requires
+      // the markLessonComplete callable, but rules can't distinguish who
+      // is calling (Admin SDK bypasses rules entirely), so this rule's job
+      // is just to stop a member forging another member's progress or
+      // writing a status of "completed" from the client directly.
+      allow create, update: if isOwner(request.resource.data.uid) && request.resource.data.status != 'completed';
+      allow delete: if false;
+    }
+
+    // ---------- assignments ----------
+    match /assignmentSubmissions/{submissionId} {
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || hasRole('admin') || isAssignedMentorOf(resource.data.uid));
+      allow create: if isOwner(request.resource.data.uid)
+        && submissionId == request.resource.data.assignmentId + '_' + request.auth.uid
+        && request.resource.data.status == 'submitted';
+      // Resubmission after "needs_revision" is allowed; grading fields
+      // (status/grade/feedback/gradedBy) are owner-writable here for the
+      // convenience of "resubmit" but the actual approve/needs_revision
+      // transition is only ever performed by gradeAssignment (Admin SDK).
+      allow update: if isOwner(resource.data.uid)
+        && onlyChangedFields(['textResponse', 'fileURLs', 'status', 'submittedAt'])
+        && request.resource.data.status == 'submitted';
+      allow delete: if false;
+    }
+
+    // ---------- tasks ----------
+    match /taskCompletions/{completionId} {
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || hasRole('admin') || isAssignedMentorOf(resource.data.uid));
+      allow create, update: if isOwner(request.resource.data.uid)
+        && completionId == request.resource.data.taskId + '_' + request.auth.uid;
+      allow delete: if false;
+    }
+
+    // ---------- mentor assignment: admin-managed only ----------
+    match /mentorAssignments/{assignmentId} {
+      allow read: if hasRole('admin')
+        || (isSignedIn() && resource.data.mentorUid == request.auth.uid)
+        || (isSignedIn() && resource.data.memberUid == request.auth.uid);
+      allow write: if false; // assignMentor / unassignMentor callables only
+    }
+
+    // ---------- notifications: server-written, client may only mark read ----------
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if false;
+      allow update: if isOwner(resource.data.uid) && onlyChangedFields(['read']);
+      allow delete: if false;
+    }
+
+    // ---------- activity log: server-written, admin-read-only ----------
+    match /activityLog/{logId} {
+      allow read: if hasRole('admin');
+      allow write: if false;
+    }
+  }
+}

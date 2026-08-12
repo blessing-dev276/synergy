@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function hasRole(role) {
+      return isSignedIn() && request.auth.token.role == role;
+    }
+    function isAssignedMentorOf(memberUid) {
+      return hasRole('mentor') &&
+        firestore.exists(/databases/(default)/documents/mentorAssignments/$(request.auth.uid + '_' + memberUid)) &&
+        firestore.get(/databases/(default)/documents/mentorAssignments/$(request.auth.uid + '_' + memberUid)).data.active == true;
+    }
+
+    match /users/{uid}/profile/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == uid && request.resource.size < 5 * 1024 * 1024;
+    }
+
+    match /assignmentSubmissions/{uid}/{assignmentId}/{fileName} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || hasRole('admin') || isAssignedMentorOf(uid));
+      allow write: if isSignedIn() && request.auth.uid == uid && request.resource.size < 25 * 1024 * 1024;
+    }
+
+    match /courseContent/{courseId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if hasRole('admin');
+    }
+  }
+}

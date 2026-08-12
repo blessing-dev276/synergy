@@ -110,24 +110,34 @@ commit is made by `netlify/functions/stories-publish.js` /
 
 ## Referral links (`/refer`)
 
-Members log in at **`/refer`** (same Netlify Identity as the admin pages) and
-get a personal link like `yoursite.com/join?ref=Jane%20Doe`, built from their
-name on the account, with **Copy link** and **Share on WhatsApp** buttons.
-Whoever applies through that link has "Referred by Jane Doe" shown on the
-Join page and included in both the WhatsApp message and the email
-notification (`sponsor` field), so you always know who sent you a given
-applicant. There's no separate member database, the member's name is just
-the account's Identity full name (or email if no name is set).
+Members unlock **`/refer`** with a shared passcode (not Netlify Identity, so
+grabbing a referral link never also opens `/gallery-admin` or
+`/stories-admin`), type in their name, and get a personal link like
+`yoursite.com/join?ref=Jane%20Doe`, with **Copy link** and **Share on
+WhatsApp** buttons. Whoever applies through that link has "Referred by Jane
+Doe" shown on the Join page and included in both the WhatsApp message and the
+email notification (`sponsor` field), so you always know who sent you a given
+applicant. There's no member database, the name is just whatever they typed
+in, remembered on their device (`localStorage`) so they don't re-enter it
+every visit.
 
-### Inviting a member
+The passcode itself is verified server-side by
+`netlify/functions/refer-auth.js`, it's never shipped in the front-end
+bundle.
 
-1. Identity → **Invite users**, send them an invite (same flow as gallery/
-   stories admins). Set their **full name** on their user record, that's
-   exactly what shows up as the sponsor name.
-2. Send them `yoursite.com/refer` to log in and grab their link.
+### One-time setup (do this once, on the deployed site)
 
-Remember this is the same login as `/gallery-admin` and `/stories-admin`,
-anyone you invite can reach all three.
+1. Pick a passcode (anything, it's just a shared secret you hand out, not a
+   per-person login).
+2. In Netlify, **Site settings → Environment variables → Add a variable** —
+   name `REFER_PASSCODE`, value the passcode from step 1. Redeploy the site
+   once so the function picks it up.
+3. Share the passcode with your team members directly (WhatsApp, etc.), along
+   with `yoursite.com/refer`. They enter their name and the passcode once.
+
+To revoke access for everyone at once, change `REFER_PASSCODE` in Netlify and
+redeploy, anyone still using the old one is locked out until you give them
+the new one.
 
 ### The `refer.synergyteamm.com` subdomain
 
