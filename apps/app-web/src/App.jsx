@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import RoleGuard from "./components/RoleGuard.jsx";
 import OnboardingGate from "./components/OnboardingGate.jsx";
@@ -40,6 +40,11 @@ import NotFound from "./pages/NotFound.jsx";
 function App() {
   return (
     <Routes>
+      {/* ProtectedRoute bounces unauthenticated visitors to /login, and
+          RoleGuard further redirects to the right role's home — so a
+          single target here correctly resolves for every visitor. */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
