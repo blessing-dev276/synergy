@@ -13,24 +13,58 @@ function greeting() {
   return "Good evening";
 }
 
+function ProgressRing({ percent, size = 76, stroke = 7 }) {
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - Math.min(percent, 100) / 100);
+
+  return (
+    <div className="progress-ring-wrap" style={{ width: size, height: size }}>
+      <svg width={size} height={size}>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--line)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="var(--blue)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          style={{ transition: "stroke-dashoffset .4s ease" }}
+        />
+      </svg>
+      <div className="progress-ring-label">{percent}%</div>
+    </div>
+  );
+}
+
+const QUICK_ACTIONS = [
+  { to: "/learning", icon: "📚", label: "Browse Learning" },
+  { to: "/assignments", icon: "📝", label: "Assignments" },
+  { to: "/tasks", icon: "✅", label: "Tasks" },
+  { to: "/notifications", icon: "🔔", label: "Notifications" },
+];
+
 export default function Dashboard() {
   const { user, profile } = useAuth();
 
+  // get_journey_overview/get_next_best_action are reads despite being RPCs
+  // (progress/next-action logic must be server-authoritative, see
+  // supabase/migrations/0009_journey_functions.sql) — used the same way as
+  // any other useSupabaseQuery read.
   const {
-    loading: loadingEnrollment,
-    error: enrollmentError,
-    data: enrollments,
-  } = useSupabaseQuery(
-    () =>
-      user &&
-      supabase
-        .from("enrollments")
-        .select("*")
-        .eq("uid", user.id)
-        .order("last_accessed_at", { ascending: false })
-        .limit(1),
-    [user?.id],
-  );
+    loading: loadingJourney,
+    error: journeyError,
+    data: journey,
+  } = useSupabaseQuery(() => user && supabase.rpc("get_journey_overview", { p_uid: user.id }), [user?.id]);
+
+  const {
+    loading: loadingAction,
+    error: actionError,
+    data: nextAction,
+  } = useSupabaseQuery(() => user && supabase.rpc("get_next_best_action", { p_uid: user.id }), [user?.id]);
 
   const {
     loading: loadingTasks,
@@ -41,51 +75,70 @@ export default function Dashboard() {
     [user?.id],
   );
 
-  const current = enrollments?.[0];
+  const stage = journey?.stage;
+  const tracks = journey?.tracks ?? [];
+  const firstName = profile?.display_name?.split(" ")[0] ?? "there";
 
   return (
     <div>
-      <h1>
-        {greeting()}, {profile?.display_name?.split(" ")[0] ?? "there"} 👋
-      </h1>
-      <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "28px" }}>
-        You're making progress. Keep going.
-      </p>
+      <div className="hero-banner">
+        <h1>
+          {greeting()}, {firstName} 👋
+        </h1>
+        <p>{stage ? `Your Synergy Journey — ${stage.title}` : "You're making progress. Keep going."}</p>
+      </div>
+
+      {loadingJourney && <Skeleton variant="card" height="100px" style={{ marginTop: "24px" }} />}
+      {journeyError && <ErrorState description="Couldn't load your journey." />}
+      {!loadingJourney && !journeyError && !stage && (
+        <div style={{ marginTop: "24px" }}>
+          <EmptyState icon="🧭" title="Your journey hasn't started yet" description="Your mentor will get you set up shortly." />
+        </div>
+      )}
+
+      {tracks.length > 0 && (
+        <div className="grid grid-3" style={{ marginTop: "24px", marginBottom: "24px" }}>
+          {tracks.map((track) => (
+            <div key={track.trackId} className="card-elevated">
+              <div className="card-title">
+                <span aria-hidden="true">{track.icon}</span> {track.label}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "10px" }}>
+                <ProgressRing percent={track.progressPercent ?? 0} size={60} stroke={6} />
+                <div style={{ fontSize: "13px", color: "var(--slate)" }}>
+                  {track.progressPercent ?? 0}% complete
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-2" style={{ marginBottom: "24px" }}>
-        <div className="card">
-          <div className="card-title">Continue Learning</div>
-          {loadingEnrollment && <Skeleton variant="card" height="80px" />}
-          {enrollmentError && <ErrorState description="Couldn't load your progress." />}
-          {!loadingEnrollment && !enrollmentError && !current && (
-            <EmptyState
-              icon="📚"
-              title="No course in progress yet"
-              description="Browse the Skill, Freelancing, or Business Academy to get started."
-              action={
-                <Link to="/learning" className="btn btn-primary">
-                  Browse Learning
-                </Link>
-              }
-            />
+        <div className="card-elevated">
+          <div className="card-title">Your Next Best Action</div>
+          {loadingAction && <Skeleton variant="card" height="80px" />}
+          {actionError && <ErrorState description="Couldn't load your next step." />}
+          {!loadingAction && !actionError && !nextAction && (
+            <EmptyState icon="🎉" title="You're all caught up" description="Check back soon for your next task." />
           )}
-          {current && (
+          {nextAction && (
             <>
-              <div style={{ fontWeight: 600, marginBottom: "6px" }}>{current.course_title}</div>
-              <div className="progress-bar" style={{ marginBottom: "8px" }}>
-                <div className="progress-bar-fill" style={{ width: `${current.progress_percent ?? 0}%` }} />
-              </div>
-              <div style={{ fontSize: "13px", color: "var(--slate)", marginBottom: "14px" }}>
-                {current.progress_percent ?? 0}% complete
-              </div>
-              <Link to={`/learning/${current.path_id}/${current.course_id}`} className="btn btn-primary">
-                Continue Learning
+              <span className="badge badge-neutral" style={{ marginBottom: "8px" }}>
+                <span aria-hidden="true">{nextAction.trackIcon}</span> {nextAction.trackLabel}
+              </span>
+              <div style={{ fontWeight: 600, margin: "6px 0" }}>{nextAction.title}</div>
+              {nextAction.description && (
+                <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>{nextAction.description}</p>
+              )}
+              <Link to="/tasks" className="btn btn-primary">
+                Continue →
               </Link>
             </>
           )}
         </div>
 
-        <div className="card">
+        <div className="card-elevated">
           <div className="card-title">Today's Tasks</div>
           {loadingTasks && <Skeleton variant="card" height="80px" />}
           {tasksError && <ErrorState description="Couldn't load your tasks." />}
@@ -108,6 +161,17 @@ export default function Dashboard() {
             </Link>
           </div>
         </div>
+      </div>
+
+      <div className="quick-actions">
+        {QUICK_ACTIONS.map((qa) => (
+          <Link key={qa.to} to={qa.to} className="quick-action">
+            <span className="qa-icon" aria-hidden="true">
+              {qa.icon}
+            </span>
+            <span className="qa-label">{qa.label}</span>
+          </Link>
+        ))}
       </div>
     </div>
   );

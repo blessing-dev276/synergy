@@ -31,6 +31,7 @@ import ReviewQueue from "./pages/mentor/ReviewQueue.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import ContentBuilder from "./pages/admin/content/ContentBuilder.jsx";
 import CourseEditor from "./pages/admin/content/CourseEditor.jsx";
+import StageBuilder from "./pages/admin/journey/StageBuilder.jsx";
 import MemberList from "./pages/admin/members/MemberList.jsx";
 import MemberDetail from "./pages/admin/members/MemberDetail.jsx";
 
@@ -86,6 +87,7 @@ function App() {
           <Route element={<RoleGuard allow={["admin"]} />}>
             <Route element={<AdminLayout />}>
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/journey" element={<StageBuilder />} />
               <Route path="/admin/content" element={<ContentBuilder />} />
               <Route path="/admin/content/courses/:courseId" element={<CourseEditor />} />
               <Route path="/admin/members" element={<MemberList />} />

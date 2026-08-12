@@ -2,6 +2,7 @@ import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
+import { completeTask } from "../../lib/rpc.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
@@ -21,21 +22,16 @@ export default function TaskList() {
   );
   const completedIds = new Set((completions ?? []).filter((c) => c.completed).map((c) => c.task_id));
 
-  const toggleComplete = async (task) => {
-    const { error: toggleError } = await supabase.from("task_completions").upsert(
-      {
-        uid: user.id,
-        task_id: task.id,
-        completed: !completedIds.has(task.id),
-        completed_at: new Date().toISOString(),
-      },
-      { onConflict: "uid,task_id" },
-    );
-    if (toggleError) {
-      toast.error("Couldn't update that task.");
-      return;
+  // One-way, same as lesson completion (LessonViewer.jsx) — always goes
+  // through the complete_task RPC so dependency/linked-course/linked-
+  // assignment rules are enforced server-side, not just in this UI.
+  const markComplete = async (task) => {
+    try {
+      await completeTask(task.id);
+      refetchCompletions();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't complete that task.");
     }
-    refetchCompletions();
   };
 
   return (
@@ -67,13 +63,13 @@ export default function TaskList() {
                     <td>{task.priority ?? "—"}</td>
                     <td>{task.due_date ? new Date(task.due_date).toLocaleDateString() : "—"}</td>
                     <td>
-                      <button
-                        type="button"
-                        className={`badge ${done ? "badge-success" : "badge-neutral"}`}
-                        onClick={() => toggleComplete(task)}
-                      >
-                        {done ? "Completed" : "Mark done"}
-                      </button>
+                      {done ? (
+                        <span className="badge badge-success">Completed</span>
+                      ) : (
+                        <button type="button" className="badge badge-neutral" onClick={() => markComplete(task)}>
+                          Mark done
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

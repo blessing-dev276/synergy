@@ -5,8 +5,11 @@ const sections = [
     items: [{ to: "/admin", label: "Overview", icon: "📊", end: true }],
   },
   {
-    label: "Learning",
-    items: [{ to: "/admin/content", label: "Content Builder", icon: "🧱" }],
+    label: "Journey",
+    items: [
+      { to: "/admin/journey", label: "Stage Builder", icon: "🧭" },
+      { to: "/admin/content", label: "Content Builder", icon: "🧱" },
+    ],
   },
   {
     label: "People",
@@ -16,7 +19,7 @@ const sections = [
 
 const bottomItems = [
   { to: "/admin", label: "Overview", icon: "📊", end: true },
-  { to: "/admin/content", label: "Content", icon: "🧱" },
+  { to: "/admin/journey", label: "Journey", icon: "🧭" },
   { to: "/admin/members", label: "People", icon: "👥" },
 ];
 

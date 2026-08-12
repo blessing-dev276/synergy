@@ -127,13 +127,195 @@ async function main() {
     { question_id: question.id, text: "Client Revenue Model", is_correct: false, order_index: 3 },
   ]);
 
-  console.log("Seeding an assignment and a task…");
-  await supabase.from("assignments").insert({
-    course_id: course.id,
-    title: "Build a lead follow-up workflow",
-    instructions: "Create a simple 3-step follow-up workflow in your GoHighLevel sandbox and share a link or screenshot.",
-    max_score: 100,
+  console.log("Seeding an assignment…");
+  const { data: workflowAssignment } = await supabase
+    .from("assignments")
+    .insert({
+      course_id: course.id,
+      title: "Build a lead follow-up workflow",
+      instructions: "Create a simple 3-step follow-up workflow in your GoHighLevel sandbox and share a link or screenshot.",
+      max_score: 100,
+      published: true,
+    })
+    .select()
+    .single();
+
+  console.log("Seeding Business and Freelancing academy content…");
+  const { data: businessPath } = await supabase
+    .from("learning_paths")
+    .insert({ title: "Business Development Academy", description: "Mindset, communication, and prospecting fundamentals every member builds alongside their skill.", order_index: 2, published: true, created_by: adminUid })
+    .select()
+    .single();
+
+  const { data: businessCourse } = await supabase
+    .from("courses")
+    .insert({ path_id: businessPath.id, title: "Synergy Orientation & Prospecting", description: "How Synergy works, and how to start building a prospect list.", order_index: 1, published: true, estimated_minutes: 25, created_by: adminUid })
+    .select()
+    .single();
+
+  const { data: businessModule } = await supabase
+    .from("modules")
+    .insert({ course_id: businessCourse.id, title: "Getting Started", order_index: 1, published: true })
+    .select()
+    .single();
+
+  await supabase.from("lessons").insert({
+    module_id: businessModule.id,
+    course_id: businessCourse.id,
+    title: "Prospecting fundamentals",
+    order_index: 1,
+    content_type: "text",
+    content_body: "A prospect list is the raw material of every business conversation. Start with people you already know...",
+    estimated_minutes: 15,
+    completion_rule: "manual",
     published: true,
+  });
+
+  const { data: freelancingPath } = await supabase
+    .from("learning_paths")
+    .insert({ title: "Freelancing Academy", description: "How to package, market, and sell your skill on Fiverr and Upwork.", order_index: 3, published: true, created_by: adminUid })
+    .select()
+    .single();
+
+  const { data: freelancingCourse } = await supabase
+    .from("courses")
+    .insert({ path_id: freelancingPath.id, title: "Freelance Marketplaces 101", description: "How Fiverr and Upwork work, and how to research a profitable niche.", order_index: 1, published: true, estimated_minutes: 20, created_by: adminUid })
+    .select()
+    .single();
+
+  const { data: freelancingModule } = await supabase
+    .from("modules")
+    .insert({ course_id: freelancingCourse.id, title: "Getting Started", order_index: 1, published: true })
+    .select()
+    .single();
+
+  await supabase.from("lessons").insert({
+    module_id: freelancingModule.id,
+    course_id: freelancingCourse.id,
+    title: "What makes a gig sell",
+    order_index: 1,
+    content_type: "text",
+    content_body: "Before you publish anything, study what's already working. Look at 5 competitors in your niche...",
+    estimated_minutes: 15,
+    completion_rule: "manual",
+    published: true,
+  });
+
+  console.log("Creating Stage 1 — Foundation with all three tracks…");
+  const { data: stage1 } = await supabase
+    .from("stages")
+    .insert({ key: "foundation", title: "Stage 1 — Foundation", description: "Get oriented: your first skill training, your first business conversations, your first look at freelancing.", order_index: 1, published: true, created_by: adminUid })
+    .select()
+    .single();
+
+  const { data: tracks } = await supabase.from("tracks").select("id, key");
+  const trackId = Object.fromEntries(tracks.map((t) => [t.key, t.id]));
+
+  await supabase.from("stage_tracks").insert([
+    { stage_id: stage1.id, track_id: trackId.skill, intro_text: "Learn the CRM fundamentals that make you valuable." },
+    { stage_id: stage1.id, track_id: trackId.business, intro_text: "Learn how Synergy works and how to start real conversations." },
+    { stage_id: stage1.id, track_id: trackId.freelancing, intro_text: "Get a first look at how freelancers actually get paid." },
+  ]);
+
+  console.log("Seeding Stage 1 tasks across all three tracks…");
+  const { data: skillLearningTask } = await supabase
+    .from("tasks")
+    .insert({
+      title: "Complete CRM Fundamentals",
+      description: "Work through the CRM Fundamentals course, including the Contacts & Pipelines quiz.",
+      scope: "individual",
+      course_id: course.id,
+      assigned_to_uid: memberUid,
+      priority: "high",
+      created_by: adminUid,
+      stage_id: stage1.id,
+      track_id: trackId.skill,
+      task_type: "learning",
+      xp_reward: 10,
+      is_required: true,
+      linked_course_id: course.id,
+    })
+    .select()
+    .single();
+
+  const { data: skillSubmissionTask } = await supabase.from("tasks").insert({
+    title: "Submit your lead follow-up workflow",
+    description: "Build and submit your 3-step follow-up workflow for mentor review.",
+    scope: "individual",
+    course_id: course.id,
+    assigned_to_uid: memberUid,
+    priority: "high",
+    created_by: adminUid,
+    stage_id: stage1.id,
+    track_id: trackId.skill,
+    task_type: "submission",
+    xp_reward: 50,
+    is_required: true,
+    requires_mentor_approval: true,
+    linked_assignment_id: workflowAssignment.id,
+  }).select().single();
+
+  await supabase.from("task_dependencies").insert({
+    task_id: skillSubmissionTask.id,
+    depends_on_task_id: skillLearningTask.id,
+  });
+
+  await supabase.from("tasks").insert({
+    title: "Complete Synergy Orientation & Prospecting",
+    description: "Work through the orientation lesson on prospecting fundamentals.",
+    scope: "individual",
+    assigned_to_uid: memberUid,
+    priority: "medium",
+    created_by: adminUid,
+    stage_id: stage1.id,
+    track_id: trackId.business,
+    task_type: "learning",
+    xp_reward: 10,
+    is_required: true,
+    linked_course_id: businessCourse.id,
+  });
+
+  await supabase.from("tasks").insert({
+    title: "Contact 5 prospects",
+    description: "Reach out to 5 people in your network and record the conversation.",
+    scope: "individual",
+    assigned_to_uid: memberUid,
+    priority: "medium",
+    created_by: adminUid,
+    stage_id: stage1.id,
+    track_id: trackId.business,
+    task_type: "business_activity",
+    xp_reward: 20,
+    is_required: true,
+  });
+
+  await supabase.from("tasks").insert({
+    title: "Complete Freelance Marketplaces 101",
+    description: "Learn how Fiverr and Upwork work before choosing where to sell your skill.",
+    scope: "individual",
+    assigned_to_uid: memberUid,
+    priority: "medium",
+    created_by: adminUid,
+    stage_id: stage1.id,
+    track_id: trackId.freelancing,
+    task_type: "learning",
+    xp_reward: 10,
+    is_required: true,
+    linked_course_id: freelancingCourse.id,
+  });
+
+  await supabase.from("tasks").insert({
+    title: "Research 5 Fiverr gigs in your niche",
+    description: "Find 5 successful gigs close to the skill you're learning and note what makes them work.",
+    scope: "individual",
+    assigned_to_uid: memberUid,
+    priority: "medium",
+    created_by: adminUid,
+    stage_id: stage1.id,
+    track_id: trackId.freelancing,
+    task_type: "freelancing_activity",
+    xp_reward: 20,
+    is_required: true,
   });
 
   await supabase.from("tasks").insert({
@@ -141,9 +323,20 @@ async function main() {
     description: "Join the weekly live training session.",
     scope: "global",
     assigned_to_uid: memberUid,
-    priority: "medium",
+    priority: "low",
     created_by: adminUid,
+    stage_id: stage1.id,
+    track_id: trackId.business,
+    task_type: "attendance",
+    xp_reward: 5,
+    is_required: false,
   });
+
+  console.log("Starting the demo member's journey at Stage 1…");
+  await supabase.from("member_journey").upsert(
+    { uid: memberUid, current_stage_id: stage1.id },
+    { onConflict: "uid" },
+  );
 
   console.log("\nSeed complete. Log in with:");
   console.log("  admin@synergyteamm.com  / password123");

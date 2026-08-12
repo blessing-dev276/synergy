@@ -8,9 +8,9 @@ const HOME_BY_ROLE = {
   admin: "/admin",
 };
 
-// UX-only redirect based on the role custom claim. Never treat this as the
-// security boundary — Firestore Security Rules and Cloud Functions read
-// request.auth.token.role independently and are the actual enforcement.
+// UX-only redirect based on profiles.role. Never treat this as the security
+// boundary — RLS policies and SECURITY DEFINER RPCs (see supabase/migrations)
+// read current_role() independently and are the actual enforcement.
 export default function RoleGuard({ allow }) {
   const { role, ready } = useAuth();
 

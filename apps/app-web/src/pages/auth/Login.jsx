@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
-import logoWordmark from "../../assets/images/logo-wordmark.png";
+import AuthLayout from "../../components/AuthLayout.jsx";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -32,50 +32,45 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <div className="brand">
-          <img src={logoWordmark} alt="Synergy" />
-        </div>
-        <h1>Welcome back</h1>
-        <p className="sub">Log in to continue your learning journey.</p>
+    <AuthLayout>
+      <h1>Welcome back</h1>
+      <p className="sub">Log in to continue your learning journey.</p>
 
-        <form onSubmit={handleSubmit}>
-          <div className="field">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          {error && <div className="field-error" style={{ marginBottom: "14px" }}>{error}</div>}
-          <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={submitting}>
-            {submitting ? "Logging in…" : "Log in"}
-          </button>
-        </form>
+      <form onSubmit={handleSubmit}>
+        <div className="field field-lg">
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="field field-lg">
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        {error && <div className="field-error" style={{ marginBottom: "16px" }}>{error}</div>}
+        <button type="submit" className="btn btn-primary btn-lg" disabled={submitting}>
+          {submitting ? "Logging in…" : "Log in"}
+        </button>
+      </form>
 
-        <div className="auth-switch">
-          <Link to="/forgot-password">Forgot your password?</Link>
-        </div>
-        <div className="auth-switch">
-          New to Synergy? <Link to="/signup">Create an account</Link>
-        </div>
+      <div className="auth-switch">
+        <Link to="/forgot-password">Forgot your password?</Link>
       </div>
-    </div>
+      <div className="auth-switch">
+        New to Synergy? <Link to="/signup">Create an account</Link>
+      </div>
+    </AuthLayout>
   );
 }

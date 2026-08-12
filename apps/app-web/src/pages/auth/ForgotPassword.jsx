@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
-import logoWordmark from "../../assets/images/logo-wordmark.png";
+import AuthLayout from "../../components/AuthLayout.jsx";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -19,41 +19,36 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <div className="brand">
-          <img src={logoWordmark} alt="Synergy" />
-        </div>
-        <h1>Reset your password</h1>
-        <p className="sub">We'll email you a link to set a new one.</p>
+    <AuthLayout>
+      <h1>Reset your password</h1>
+      <p className="sub">We'll email you a link to set a new one.</p>
 
-        {sent ? (
-          <div className="badge badge-success" style={{ display: "block", padding: "14px" }}>
-            If an account exists for {email}, a reset link is on its way.
+      {sent ? (
+        <div className="badge badge-success" style={{ display: "block", padding: "16px", fontSize: "13.5px" }}>
+          If an account exists for {email}, a reset link is on its way.
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit}>
+          <div className="field field-lg">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="field">
-              <label htmlFor="email">Email</label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={submitting}>
-              {submitting ? "Sending…" : "Send reset link"}
-            </button>
-          </form>
-        )}
+          <button type="submit" className="btn btn-primary btn-lg" disabled={submitting}>
+            {submitting ? "Sending…" : "Send reset link"}
+          </button>
+        </form>
+      )}
 
-        <div className="auth-switch">
-          <Link to="/login">Back to log in</Link>
-        </div>
+      <div className="auth-switch">
+        <Link to="/login">Back to log in</Link>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
