@@ -15,8 +15,9 @@
   position:sticky; top:0; height:100vh; overflow-y:auto; overflow-x:hidden;
   transition:width .2s ease, padding .2s ease;
 }
-.app-sidebar .brand{ display:flex; align-items:center; padding:6px 4px 22px; }
+.app-sidebar .brand{ display:flex; align-items:center; justify-content:center; gap:10px; padding:6px 4px 22px; }
 .app-sidebar .brand img{ height:32px; width:32px; }
+.app-sidebar .brand .brand-wordmark{ width:auto; height:20px; }
 .app-nav{ display:flex; flex-direction:column; gap:2px; flex:1; }
 .app-nav-link{
   display:flex; align-items:center; gap:12px;
