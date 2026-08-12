@@ -1,33 +1,50 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import Icon from "./Icon.jsx";
 import logoIcon from "../assets/images/logo-icon.png";
-import logoWordmark from "../assets/images/logo-wordmark.png";
 
 export default function Sidebar({ sections, footer }) {
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sidebarCollapsed") === "true");
+
+  const toggle = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebarCollapsed", String(next));
+      return next;
+    });
+  };
+
   return (
-    <aside className="app-sidebar">
+    <aside className={`app-sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="brand">
-        <img src={logoIcon} alt="" />
-        <img src={logoWordmark} alt="Synergy" style={{ height: "22px" }} />
+        <img src={logoIcon} alt="Synergy" />
       </div>
+
       <nav className="app-nav">
         {sections.map((section) => (
           <div key={section.label ?? "default"}>
-            {section.label && <div className="app-nav-section">{section.label}</div>}
+            {section.label && !collapsed && <div className="app-nav-section">{section.label}</div>}
             {section.items.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 end={item.end}
+                title={collapsed ? item.label : undefined}
                 className={({ isActive }) => `app-nav-link${isActive ? " active" : ""}`}
               >
-                <span aria-hidden="true">{item.icon}</span>
-                <span>{item.label}</span>
+                <Icon name={item.icon} size={18} />
+                {!collapsed && <span>{item.label}</span>}
               </NavLink>
             ))}
           </div>
         ))}
       </nav>
-      {footer && <div className="app-sidebar-footer">{footer}</div>}
+
+      <button type="button" className="sidebar-toggle" onClick={toggle} title={collapsed ? "Expand" : "Collapse"}>
+        <Icon name={collapsed ? "chevron-right" : "chevron-left"} size={16} />
+      </button>
+
+      {footer && <div className="app-sidebar-footer">{footer(collapsed)}</div>}
     </aside>
   );
 }

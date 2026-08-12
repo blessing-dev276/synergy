@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import Icon from "./Icon.jsx";
 
 export default function BottomNav({ items }) {
   return (
@@ -11,7 +12,7 @@ export default function BottomNav({ items }) {
             end={item.end}
             className={({ isActive }) => `app-bottom-nav-link${isActive ? " active" : ""}`}
           >
-            <span aria-hidden="true">{item.icon}</span>
+            <Icon name={item.icon} size={19} />
             <span>{item.label}</span>
           </NavLink>
         ))}

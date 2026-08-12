@@ -2,35 +2,9 @@ import { useState } from "react";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useToast } from "../../components/state/Toast.jsx";
+import { INTERESTS, GOALS, toggleOption } from "../../lib/onboardingOptions.js";
 import logoIcon from "../../assets/images/logo-icon.png";
 import logoWordmark from "../../assets/images/logo-wordmark.png";
-
-const INTERESTS = [
-  { label: "Graphics Design", icon: "🎨" },
-  { label: "GoHighLevel CRM", icon: "🧩" },
-  { label: "FlutterFlow", icon: "📱" },
-  { label: "Mobile App Development", icon: "💻" },
-  { label: "Freelancing", icon: "💼" },
-  { label: "Fiverr", icon: "🛒" },
-  { label: "Upwork", icon: "🤝" },
-  { label: "Network Marketing", icon: "📈" },
-  { label: "Leadership", icon: "🧭" },
-  { label: "Business Development", icon: "🚀" },
-];
-
-const GOALS = [
-  { label: "Learn a digital skill", icon: "🎓" },
-  { label: "Start freelancing", icon: "🧑‍💻" },
-  { label: "Get my first client", icon: "🥇" },
-  { label: "Build a portfolio", icon: "🗂️" },
-  { label: "Develop business skills", icon: "📊" },
-  { label: "Build a team", icon: "👥" },
-  { label: "Become a leader", icon: "🧭" },
-];
-
-function toggle(list, value) {
-  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-}
 
 function Stepper({ step, total }) {
   return (
@@ -131,7 +105,7 @@ export default function OnboardingFlow() {
                       key={interest.label}
                       type="button"
                       className={`option-card ${selected ? "selected" : ""}`}
-                      onClick={() => setInterests((prev) => toggle(prev, interest.label))}
+                      onClick={() => setInterests((prev) => toggleOption(prev, interest.label))}
                     >
                       <span aria-hidden="true">{interest.icon}</span>
                       <span style={{ flex: 1 }}>{interest.label}</span>
@@ -163,7 +137,7 @@ export default function OnboardingFlow() {
                       key={goal.label}
                       type="button"
                       className={`option-card ${selected ? "selected" : ""}`}
-                      onClick={() => setGoals((prev) => toggle(prev, goal.label))}
+                      onClick={() => setGoals((prev) => toggleOption(prev, goal.label))}
                     >
                       <span aria-hidden="true">{goal.icon}</span>
                       <span style={{ flex: 1 }}>{goal.label}</span>

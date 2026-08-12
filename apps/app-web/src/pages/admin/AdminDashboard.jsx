@@ -1,18 +1,31 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
+import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 
-function StatCard({ label, value, loading }) {
+function StatCard({ label, value, icon, loading }) {
   return (
-    <div className="card">
-      <div className="card-subtitle" style={{ marginBottom: "6px" }}>
-        {label}
+    <div className="card-elevated" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+      <span className="qa-icon" style={{ width: "44px", height: "44px" }}>
+        <Icon name={icon} size={19} />
+      </span>
+      <div>
+        <div className="card-subtitle" style={{ marginBottom: "2px" }}>
+          {label}
+        </div>
+        {loading ? <Skeleton variant="text" width="50px" height="24px" /> : <div style={{ fontSize: "24px", fontWeight: 700 }}>{value}</div>}
       </div>
-      {loading ? <Skeleton variant="text" width="60px" height="26px" /> : <div style={{ fontSize: "26px", fontWeight: 700 }}>{value}</div>}
     </div>
   );
 }
+
+const QUICK_LINKS = [
+  { to: "/admin/journey", icon: "compass", label: "Stage Builder" },
+  { to: "/admin/content", icon: "layers", label: "Content Builder" },
+  { to: "/admin/members", icon: "users", label: "Members & Mentors" },
+];
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
@@ -50,19 +63,36 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <h1>Admin Overview</h1>
-      <div className="grid grid-3" style={{ marginTop: "20px", marginBottom: "28px" }}>
-        <StatCard label="Members" value={stats?.members} loading={!stats} />
-        <StatCard label="Mentors" value={stats?.mentors} loading={!stats} />
-        <StatCard label="Published Courses" value={stats?.courses} loading={!stats} />
-        <StatCard label="Pending Reviews" value={stats?.pendingReviews} loading={!stats} />
+      <div className="hero-banner">
+        <h1>Admin Overview</h1>
+        <p>Manage the member journey, learning content, and your team from here.</p>
       </div>
 
-      <h2 style={{ fontSize: "16px", marginBottom: "12px" }}>Recent Activity</h2>
+      <div className="grid grid-3" style={{ marginBottom: "24px" }}>
+        <StatCard label="Members" value={stats?.members} icon="users" loading={!stats} />
+        <StatCard label="Mentors" value={stats?.mentors} icon="user" loading={!stats} />
+        <StatCard label="Published Courses" value={stats?.courses} icon="book" loading={!stats} />
+        <StatCard label="Pending Reviews" value={stats?.pendingReviews} icon="folder" loading={!stats} />
+      </div>
+
+      <div className="quick-actions" style={{ marginTop: 0, marginBottom: "24px" }}>
+        {QUICK_LINKS.map((q) => (
+          <Link key={q.to} to={q.to} className="quick-action">
+            <span className="qa-icon">
+              <Icon name={q.icon} size={17} />
+            </span>
+            <span className="qa-label">{q.label}</span>
+          </Link>
+        ))}
+      </div>
+
+      <div className="card-title" style={{ marginBottom: "12px" }}>
+        Recent Activity
+      </div>
       {!activity && <Skeleton variant="card" height="160px" />}
-      {activity && activity.length === 0 && <EmptyState icon="🗒️" title="No activity yet" />}
+      {activity && activity.length === 0 && <EmptyState icon={<Icon name="clipboard" size={26} />} title="No activity yet" />}
       {activity && activity.length > 0 && (
-        <div className="card" style={{ padding: 0 }}>
+        <div className="card-elevated" style={{ padding: 0 }}>
           {activity.map((a, i) => (
             <div
               key={a.id}

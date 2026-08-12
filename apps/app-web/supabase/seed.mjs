@@ -19,7 +19,7 @@ if (!url || !serviceKey) {
 
 const supabase = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
-async function upsertUser({ email, password, displayName, role }) {
+async function upsertUser({ email, password, displayName, role, invitedByUid }) {
   const { data: existing } = await supabase.auth.admin.listUsers({ page: 1, perPage: 200 });
   let user = existing?.users.find((u) => u.email === email);
 
@@ -28,7 +28,9 @@ async function upsertUser({ email, password, displayName, role }) {
       email,
       password,
       email_confirm: true,
-      user_metadata: { display_name: displayName },
+      // invited_by_uid is read by the handle_new_user trigger (0012) the
+      // same way the real signup form (Signup.jsx) passes it.
+      user_metadata: { display_name: displayName, invited_by_uid: invitedByUid ?? null },
     });
     if (error) throw error;
     user = data.user;
@@ -52,8 +54,8 @@ async function upsertUser({ email, password, displayName, role }) {
 async function main() {
   console.log("Seeding demo users…");
   const adminUid = await upsertUser({ email: "admin@synergyteamm.com", password: "password123", displayName: "Synergy Admin", role: "admin" });
-  const mentorUid = await upsertUser({ email: "mentor@synergyteamm.com", password: "password123", displayName: "Sample Mentor", role: "mentor" });
-  const memberUid = await upsertUser({ email: "member@synergyteamm.com", password: "password123", displayName: "Sample Member", role: "member" });
+  const mentorUid = await upsertUser({ email: "mentor@synergyteamm.com", password: "password123", displayName: "Sample Mentor", role: "mentor", invitedByUid: adminUid });
+  const memberUid = await upsertUser({ email: "member@synergyteamm.com", password: "password123", displayName: "Sample Member", role: "member", invitedByUid: mentorUid });
 
   console.log("Assigning mentor…");
   await supabase.from("mentor_assignments").upsert(

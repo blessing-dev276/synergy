@@ -4,6 +4,7 @@ import { supabase } from "../../../supabaseClient.js";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { setUserRole } from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
+import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 
@@ -33,16 +34,19 @@ export default function MemberList() {
 
   return (
     <div>
-      <h1>Members & Mentors</h1>
+      <div className="section-heading">
+        <h1>Members & Mentors</h1>
+      </div>
       {loading && <Skeleton variant="card" height="200px" />}
-      {!loading && (!users || users.length === 0) && <EmptyState icon="👥" title="No members yet" />}
+      {!loading && (!users || users.length === 0) && <EmptyState icon={<Icon name="users" size={26} />} title="No members yet" />}
       {users && users.length > 0 && (
-        <div className="card">
+        <div className="card-elevated" style={{ padding: 0 }}>
           <table className="data-table">
             <thead>
               <tr>
                 <th>Name</th>
                 <th>Role</th>
+                <th>Change role</th>
                 <th></th>
               </tr>
             </thead>
@@ -50,7 +54,9 @@ export default function MemberList() {
               {users.map((u) => (
                 <tr key={u.id}>
                   <td>
-                    <Link to={`/admin/members/${u.id}`}>{u.display_name || u.email}</Link>
+                    <Link to={`/admin/members/${u.id}`} style={{ fontWeight: 600 }}>
+                      {u.display_name || u.email}
+                    </Link>
                   </td>
                   <td>
                     <span className="badge badge-neutral">{u.role}</span>
@@ -68,6 +74,11 @@ export default function MemberList() {
                         </option>
                       ))}
                     </select>
+                  </td>
+                  <td>
+                    <Link to={`/admin/members/${u.id}`} className="icon-btn" title="Manage">
+                      <Icon name="pencil" size={14} />
+                    </Link>
                   </td>
                 </tr>
               ))}

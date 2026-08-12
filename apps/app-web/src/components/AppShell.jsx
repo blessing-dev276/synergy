@@ -1,11 +1,13 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
 import { useAuth } from "../lib/AuthContext.jsx";
+import Icon from "./Icon.jsx";
 import Sidebar from "./Sidebar.jsx";
 import BottomNav from "./BottomNav.jsx";
 
-// Desktop: fixed sidebar. Mobile: bottom tab bar. One shell, parameterized
-// by the nav config each role's layout supplies (spec section 32).
+// Desktop: fixed sidebar (collapsible, icon-only <-> expanded). Mobile:
+// bottom tab bar. One shell, parameterized by the nav config each role's
+// layout supplies (spec section 32).
 export default function AppShell({ sections, bottomItems, title }) {
   const { profile, user } = useAuth();
   const navigate = useNavigate();
@@ -19,11 +21,12 @@ export default function AppShell({ sections, bottomItems, title }) {
     <div className="app-shell">
       <Sidebar
         sections={sections}
-        footer={
-          <button type="button" className="btn btn-secondary" style={{ width: "100%" }} onClick={handleLogout}>
-            Log out
+        footer={(collapsed) => (
+          <button type="button" className="btn btn-secondary logout-btn" onClick={handleLogout} title={collapsed ? "Log out" : undefined}>
+            <Icon name="log-out" size={16} />
+            {!collapsed && <span>Log out</span>}
           </button>
-        }
+        )}
       />
       <div className="app-main">
         <header className="app-topbar">

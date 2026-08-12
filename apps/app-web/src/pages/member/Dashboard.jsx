@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
+import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
@@ -11,6 +12,18 @@ function greeting() {
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
   return "Good evening";
+}
+
+// Track icons are admin-configurable free-text (emoji) in the DB, but the
+// three built-in tracks get a matching line icon for visual consistency
+// with the rest of the app; unknown/custom track keys fall back to
+// whatever the admin set.
+const TRACK_ICONS = { skill: "target", business: "briefcase", freelancing: "laptop" };
+
+function TrackIcon({ track, size = 18 }) {
+  const iconName = TRACK_ICONS[track.key];
+  if (iconName) return <Icon name={iconName} size={size} />;
+  return <span aria-hidden="true">{track.icon}</span>;
 }
 
 function ProgressRing({ percent, size = 76, stroke = 7 }) {
@@ -41,10 +54,10 @@ function ProgressRing({ percent, size = 76, stroke = 7 }) {
 }
 
 const QUICK_ACTIONS = [
-  { to: "/learning", icon: "📚", label: "Browse Learning" },
-  { to: "/assignments", icon: "📝", label: "Assignments" },
-  { to: "/tasks", icon: "✅", label: "Tasks" },
-  { to: "/notifications", icon: "🔔", label: "Notifications" },
+  { to: "/learning", icon: "book", label: "Browse Learning" },
+  { to: "/assignments", icon: "clipboard", label: "Assignments" },
+  { to: "/tasks", icon: "check-square", label: "Tasks" },
+  { to: "/notifications", icon: "bell", label: "Notifications" },
 ];
 
 export default function Dashboard() {
@@ -92,7 +105,11 @@ export default function Dashboard() {
       {journeyError && <ErrorState description="Couldn't load your journey." />}
       {!loadingJourney && !journeyError && !stage && (
         <div style={{ marginTop: "24px" }}>
-          <EmptyState icon="🧭" title="Your journey hasn't started yet" description="Your mentor will get you set up shortly." />
+          <EmptyState
+            icon={<Icon name="compass" size={28} />}
+            title="Your journey hasn't started yet"
+            description="Your mentor will get you set up shortly."
+          />
         </div>
       )}
 
@@ -100,8 +117,9 @@ export default function Dashboard() {
         <div className="grid grid-3" style={{ marginTop: "24px", marginBottom: "24px" }}>
           {tracks.map((track) => (
             <div key={track.trackId} className="card-elevated">
-              <div className="card-title">
-                <span aria-hidden="true">{track.icon}</span> {track.label}
+              <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <TrackIcon track={track} />
+                {track.label}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "10px" }}>
                 <ProgressRing percent={track.progressPercent ?? 0} size={60} stroke={6} />
@@ -120,12 +138,13 @@ export default function Dashboard() {
           {loadingAction && <Skeleton variant="card" height="80px" />}
           {actionError && <ErrorState description="Couldn't load your next step." />}
           {!loadingAction && !actionError && !nextAction && (
-            <EmptyState icon="🎉" title="You're all caught up" description="Check back soon for your next task." />
+            <EmptyState icon={<Icon name="check" size={28} />} title="You're all caught up" description="Check back soon for your next task." />
           )}
           {nextAction && (
             <>
-              <span className="badge badge-neutral" style={{ marginBottom: "8px" }}>
-                <span aria-hidden="true">{nextAction.trackIcon}</span> {nextAction.trackLabel}
+              <span className="badge badge-neutral" style={{ marginBottom: "8px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <Icon name={TRACK_ICONS[nextAction.trackKey] ?? "target"} size={13} />
+                {nextAction.trackLabel}
               </span>
               <div style={{ fontWeight: 600, margin: "6px 0" }}>{nextAction.title}</div>
               {nextAction.description && (
@@ -143,7 +162,7 @@ export default function Dashboard() {
           {loadingTasks && <Skeleton variant="card" height="80px" />}
           {tasksError && <ErrorState description="Couldn't load your tasks." />}
           {!loadingTasks && !tasksError && (!tasks || tasks.length === 0) && (
-            <EmptyState icon="✅" title="Nothing assigned right now" />
+            <EmptyState icon={<Icon name="check-square" size={28} />} title="Nothing assigned right now" />
           )}
           {tasks && tasks.length > 0 && (
             <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -166,8 +185,8 @@ export default function Dashboard() {
       <div className="quick-actions">
         {QUICK_ACTIONS.map((qa) => (
           <Link key={qa.to} to={qa.to} className="quick-action">
-            <span className="qa-icon" aria-hidden="true">
-              {qa.icon}
+            <span className="qa-icon">
+              <Icon name={qa.icon} size={17} />
             </span>
             <span className="qa-label">{qa.label}</span>
           </Link>
