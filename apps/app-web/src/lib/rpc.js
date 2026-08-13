@@ -44,3 +44,7 @@ export const getNextBestAction = (uid) => call("get_next_best_action", { p_uid: 
 export const setMemberStage = (uid, stageId) => call("set_member_stage", { p_uid: uid, p_stage_id: stageId });
 
 export const setMemberStatus = (uid, status) => call("set_member_status", { p_uid: uid, p_status: status });
+
+export const getOrientationContent = () => call("get_orientation_content", {});
+
+export const submitOrientation = (answers) => call("submit_orientation", { p_answers: answers });

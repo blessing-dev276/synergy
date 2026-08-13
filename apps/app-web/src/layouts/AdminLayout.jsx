@@ -13,7 +13,10 @@ const sections = [
   },
   {
     label: "People",
-    items: [{ to: "/admin/members", label: "Members & Mentors", icon: "users" }],
+    items: [
+      { to: "/admin/members", label: "Members & Mentors", icon: "users" },
+      { to: "/admin/orientation", label: "Orientation Builder", icon: "clock" },
+    ],
   },
   {
     label: "Audit",

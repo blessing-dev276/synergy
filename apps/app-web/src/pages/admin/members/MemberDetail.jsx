@@ -212,10 +212,66 @@ function MentorPanel({ member, onChanged }) {
 }
 
 const STATUS_BADGE = {
+  pending: "badge-info",
   active: "badge-success",
   suspended: "badge-warning",
   removed: "badge-danger",
 };
+
+function OrientationReview({ member }) {
+  const { data: attempt } = useSupabaseQuery(
+    () => supabase.from("orientation_attempts").select("*").eq("uid", member.id).maybeSingle(),
+    [member.id],
+  );
+  const { data: questions } = useSupabaseQuery(
+    () => supabase.from("orientation_questions").select("*").order("order_index"),
+    [],
+  );
+  const { data: options } = useSupabaseQuery(() => supabase.from("orientation_options").select("*"), []);
+
+  if (!attempt) {
+    return (
+      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
+        Hasn't submitted the orientation yet.
+      </p>
+    );
+  }
+
+  const givenFor = (questionId) => attempt.answers?.find((a) => a.questionId === questionId)?.optionId;
+
+  return (
+    <div style={{ marginBottom: "16px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+        <span className="qa-icon" style={{ width: "36px", height: "36px" }}>
+          <Icon name="award" size={16} />
+        </span>
+        <div>
+          <div style={{ fontSize: "18px", fontWeight: 700 }}>
+            {attempt.score}% <span style={{ fontSize: "12.5px", fontWeight: 500, color: "var(--slate)" }}>({attempt.total} questions · submitted {new Date(attempt.submitted_at).toLocaleDateString()})</span>
+          </div>
+        </div>
+      </div>
+      {questions && options && (
+        <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
+          {questions.map((q) => {
+            const qOptions = options.filter((o) => o.question_id === q.id);
+            const givenId = givenFor(q.id);
+            const given = qOptions.find((o) => o.id === givenId);
+            const correct = given?.is_correct === true;
+            return (
+              <li key={q.id} style={{ fontSize: "13px" }}>
+                <span style={{ color: correct ? "var(--success)" : "var(--danger)", marginRight: "6px" }}>
+                  <Icon name={correct ? "check" : "x"} size={12} style={{ verticalAlign: "-2px" }} />
+                </span>
+                <strong>{q.prompt}</strong> — {given?.text ?? "no answer"}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function StatusPanel({ member, onChanged }) {
   const toast = useToast();
@@ -224,12 +280,15 @@ function StatusPanel({ member, onChanged }) {
 
   const changeStatus = async (newStatus) => {
     if (newStatus === "suspended" && !window.confirm(`Suspend ${member.display_name || member.email}? They'll stay logged in but won't be able to take part in any training, tasks, or assignments until reinstated.`)) return;
-    if (newStatus === "removed" && !window.confirm(`Remove ${member.display_name || member.email}? Their profile is archived and hidden from the member list, and they lose access to the program. Their data is kept, not deleted, and this can be undone.`)) return;
+    if (newStatus === "removed" && status === "pending" && !window.confirm(`Reject ${member.display_name || member.email}'s application? Their profile is archived and hidden from the member list. This can be undone.`)) return;
+    if (newStatus === "removed" && status !== "pending" && !window.confirm(`Remove ${member.display_name || member.email}? Their profile is archived and hidden from the member list, and they lose access to the program. Their data is kept, not deleted, and this can be undone.`)) return;
     setSaving(true);
     try {
       await setMemberStatus(member.id, newStatus);
       toast.success(
-        newStatus === "active" ? "Member reinstated." : newStatus === "suspended" ? "Member suspended." : "Member removed (archived).",
+        newStatus === "active"
+          ? status === "pending" ? "Member approved." : "Member reinstated."
+          : newStatus === "suspended" ? "Member suspended." : status === "pending" ? "Application rejected." : "Member removed (archived).",
       );
       onChanged();
     } catch (err) {
@@ -248,20 +307,35 @@ function StatusPanel({ member, onChanged }) {
       <p style={{ marginBottom: "12px", fontSize: "14px" }}>
         Currently <span className={`badge ${STATUS_BADGE[status] ?? "badge-neutral"}`}>{status}</span>
       </p>
+
+      {status === "pending" && <OrientationReview member={member} />}
+
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-        {status !== "suspended" && (
+        {status === "pending" && (
+          <>
+            <button type="button" className="btn btn-primary" onClick={() => changeStatus("active")} disabled={saving}>
+              <Icon name="check" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+              Approve
+            </button>
+            <button type="button" className="btn btn-danger" onClick={() => changeStatus("removed")} disabled={saving}>
+              <Icon name="x" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+              Reject
+            </button>
+          </>
+        )}
+        {status !== "pending" && status !== "suspended" && (
           <button type="button" className="btn btn-secondary" onClick={() => changeStatus("suspended")} disabled={saving}>
             <Icon name="ban" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
             Suspend
           </button>
         )}
-        {status !== "active" && (
+        {status !== "pending" && status !== "active" && (
           <button type="button" className="btn btn-secondary" onClick={() => changeStatus("active")} disabled={saving}>
             <Icon name="rotate-ccw" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
             Reinstate
           </button>
         )}
-        {status !== "removed" && (
+        {status !== "pending" && status !== "removed" && (
           <button type="button" className="btn btn-danger" onClick={() => changeStatus("removed")} disabled={saving}>
             <Icon name="user-x" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
             Remove member

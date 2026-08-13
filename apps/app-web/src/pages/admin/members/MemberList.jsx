@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
@@ -12,7 +12,8 @@ import EmptyState from "../../../components/state/EmptyState.jsx";
 const ROLES = ["member", "mentor", "admin"];
 
 const STATUS_FILTERS = [
-  { value: "not_removed", label: "Active & Suspended" },
+  { value: "not_removed", label: "All except removed" },
+  { value: "pending", label: "Pending approval" },
   { value: "active", label: "Active only" },
   { value: "suspended", label: "Suspended only" },
   { value: "removed", label: "Removed / Archived" },
@@ -20,6 +21,7 @@ const STATUS_FILTERS = [
 ];
 
 const STATUS_BADGE = {
+  pending: "badge-info",
   active: "badge-success",
   suspended: "badge-warning",
   removed: "badge-danger",
@@ -34,8 +36,11 @@ function matchesFilter(status, filter) {
 export default function MemberList() {
   const toast = useToast();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const validFilters = new Set(STATUS_FILTERS.map((f) => f.value));
+  const initialFilter = searchParams.get("status");
   const [busyUid, setBusyUid] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("not_removed");
+  const [statusFilter, setStatusFilter] = useState(validFilters.has(initialFilter) ? initialFilter : "not_removed");
   const [selected, setSelected] = useState(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
@@ -60,13 +65,15 @@ export default function MemberList() {
   };
 
   const changeStatus = async (u, status) => {
+    const wasPending = (u.status ?? "active") === "pending";
     if (status === "suspended" && !window.confirm(`Suspend ${u.display_name || u.email}? They'll stay logged in but won't be able to take part in any training, tasks, or assignments until reinstated.`)) return;
-    if (status === "removed" && !window.confirm(`Remove ${u.display_name || u.email}? Their profile is archived and hidden from this list, and they lose access to the program. Their data is kept, not deleted, and this can be undone.`)) return;
+    if (status === "removed" && wasPending && !window.confirm(`Reject ${u.display_name || u.email}'s application? Their profile is archived and hidden from this list. This can be undone.`)) return;
+    if (status === "removed" && !wasPending && !window.confirm(`Remove ${u.display_name || u.email}? Their profile is archived and hidden from this list, and they lose access to the program. Their data is kept, not deleted, and this can be undone.`)) return;
     setBusyUid(u.id);
     try {
       await setMemberStatus(u.id, status);
       toast.success(
-        status === "active" ? "Member reinstated." : status === "suspended" ? "Member suspended." : "Member removed (archived).",
+        status === "active" ? (wasPending ? "Member approved." : "Member reinstated.") : status === "suspended" ? "Member suspended." : wasPending ? "Application rejected." : "Member removed (archived).",
       );
       refetch();
     } catch (err) {
@@ -211,17 +218,27 @@ export default function MemberList() {
                         <Link to={`/admin/members/${u.id}`} className="icon-btn" title="Manage">
                           <Icon name="pencil" size={14} />
                         </Link>
-                        {!isSelf && !isAdmin && status !== "suspended" && (
+                        {!isSelf && !isAdmin && status === "pending" && (
+                          <>
+                            <button type="button" className="icon-btn" title="Approve" disabled={busyUid === u.id} onClick={() => changeStatus(u, "active")}>
+                              <Icon name="check" size={14} />
+                            </button>
+                            <button type="button" className="icon-btn icon-btn-danger" title="Reject" disabled={busyUid === u.id} onClick={() => changeStatus(u, "removed")}>
+                              <Icon name="x" size={14} />
+                            </button>
+                          </>
+                        )}
+                        {!isSelf && !isAdmin && status !== "pending" && status !== "suspended" && (
                           <button type="button" className="icon-btn" title="Suspend" disabled={busyUid === u.id} onClick={() => changeStatus(u, "suspended")}>
                             <Icon name="ban" size={14} />
                           </button>
                         )}
-                        {!isSelf && !isAdmin && status !== "active" && (
+                        {!isSelf && !isAdmin && status !== "pending" && status !== "active" && (
                           <button type="button" className="icon-btn" title="Reinstate" disabled={busyUid === u.id} onClick={() => changeStatus(u, "active")}>
                             <Icon name="rotate-ccw" size={14} />
                           </button>
                         )}
-                        {!isSelf && !isAdmin && status !== "removed" && (
+                        {!isSelf && !isAdmin && status !== "pending" && status !== "removed" && (
                           <button type="button" className="icon-btn icon-btn-danger" title="Remove" disabled={busyUid === u.id} onClick={() => changeStatus(u, "removed")}>
                             <Icon name="user-x" size={14} />
                           </button>

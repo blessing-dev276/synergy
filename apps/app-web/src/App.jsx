@@ -2,11 +2,15 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import RoleGuard from "./components/RoleGuard.jsx";
 import OnboardingGate from "./components/OnboardingGate.jsx";
+import StatusGate from "./components/StatusGate.jsx";
 
 import Login from "./pages/auth/Login.jsx";
 import Signup from "./pages/auth/Signup.jsx";
 import ForgotPassword from "./pages/auth/ForgotPassword.jsx";
 import OnboardingFlow from "./pages/onboarding/OnboardingFlow.jsx";
+import OrientationFlow from "./pages/onboarding/OrientationFlow.jsx";
+import PendingApproval from "./pages/onboarding/PendingApproval.jsx";
+import BlockedAccount from "./pages/BlockedAccount.jsx";
 
 import MemberLayout from "./layouts/MemberLayout.jsx";
 import MentorLayout from "./layouts/MentorLayout.jsx";
@@ -31,6 +35,7 @@ import ReviewQueue from "./pages/mentor/ReviewQueue.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import ActivityLog from "./pages/admin/ActivityLog.jsx";
 import ContentBuilder from "./pages/admin/content/ContentBuilder.jsx";
+import OrientationBuilder from "./pages/admin/content/OrientationBuilder.jsx";
 import CourseEditor from "./pages/admin/content/CourseEditor.jsx";
 import StageBuilder from "./pages/admin/journey/StageBuilder.jsx";
 import MemberList from "./pages/admin/members/MemberList.jsx";
@@ -54,6 +59,11 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<OnboardingGate />}>
           <Route path="/onboarding" element={<OnboardingFlow />} />
+
+          <Route element={<StatusGate />}>
+          <Route path="/orientation" element={<OrientationFlow />} />
+          <Route path="/pending-approval" element={<PendingApproval />} />
+          <Route path="/blocked" element={<BlockedAccount />} />
 
           <Route element={<RoleGuard allow={["member"]} />}>
             <Route element={<MemberLayout />}>
@@ -91,10 +101,12 @@ function App() {
               <Route path="/admin/journey" element={<StageBuilder />} />
               <Route path="/admin/content" element={<ContentBuilder />} />
               <Route path="/admin/content/courses/:courseId" element={<CourseEditor />} />
+              <Route path="/admin/orientation" element={<OrientationBuilder />} />
               <Route path="/admin/members" element={<MemberList />} />
               <Route path="/admin/members/:uid" element={<MemberDetail />} />
               <Route path="/admin/activity" element={<ActivityLog />} />
             </Route>
+          </Route>
           </Route>
         </Route>
       </Route>

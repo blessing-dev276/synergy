@@ -5,9 +5,9 @@ import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 
-function StatCard({ label, value, icon, loading }) {
-  return (
-    <div className="card-elevated" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+function StatCard({ label, value, icon, loading, to }) {
+  const content = (
+    <>
       <span className="qa-icon" style={{ width: "44px", height: "44px" }}>
         <Icon name={icon} size={19} />
       </span>
@@ -17,6 +17,18 @@ function StatCard({ label, value, icon, loading }) {
         </div>
         {loading ? <Skeleton variant="text" width="50px" height="24px" /> : <div style={{ fontSize: "24px", fontWeight: 700 }}>{value}</div>}
       </div>
+    </>
+  );
+  if (to) {
+    return (
+      <Link to={to} className="card-elevated" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <div className="card-elevated" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+      {content}
     </div>
   );
 }
@@ -34,11 +46,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [members, mentors, courses, pendingReviews] = await Promise.all([
+      const [members, mentors, courses, pendingReviews, pendingApplicants] = await Promise.all([
         supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "member"),
         supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "mentor"),
         supabase.from("courses").select("*", { count: "exact", head: true }).eq("published", true),
         supabase.from("assignment_submissions").select("*", { count: "exact", head: true }).eq("status", "submitted"),
+        supabase.from("profiles").select("*", { count: "exact", head: true }).eq("status", "pending"),
       ]);
       if (cancelled) return;
       setStats({
@@ -46,6 +59,7 @@ export default function AdminDashboard() {
         mentors: mentors.count ?? 0,
         courses: courses.count ?? 0,
         pendingReviews: pendingReviews.count ?? 0,
+        pendingApplicants: pendingApplicants.count ?? 0,
       });
     })();
     (async () => {
@@ -73,6 +87,7 @@ export default function AdminDashboard() {
         <StatCard label="Mentors" value={stats?.mentors} icon="user" loading={!stats} />
         <StatCard label="Published Courses" value={stats?.courses} icon="book" loading={!stats} />
         <StatCard label="Pending Reviews" value={stats?.pendingReviews} icon="folder" loading={!stats} />
+        <StatCard label="Pending Approvals" value={stats?.pendingApplicants} icon="clock" loading={!stats} to="/admin/members?status=pending" />
       </div>
 
       <div className="quick-actions" style={{ marginTop: 0, marginBottom: "24px" }}>
