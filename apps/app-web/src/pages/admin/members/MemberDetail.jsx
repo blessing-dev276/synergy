@@ -3,11 +3,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { assignMentor, unassignMentor, setMemberStage, setMemberStatus } from "../../../lib/rpc.js";
+import { assignSponsor, setMemberStage, setMemberStatus } from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
+import SponsorPicker from "../../../components/SponsorPicker.jsx";
 
 const TASK_TYPES = [
   "learning",
@@ -37,9 +38,9 @@ function initials(name) {
 function ProfilePanel({ member }) {
   const [signedPhotoUrl, setSignedPhotoUrl] = useState(null);
 
-  const { data: inviter } = useSupabaseQuery(
-    () => member.invited_by_uid && supabase.from("profiles").select("id, display_name").eq("id", member.invited_by_uid).single(),
-    [member.invited_by_uid],
+  const { data: sponsor } = useSupabaseQuery(
+    () => member.sponsor_uid && supabase.from("profiles").select("id, display_name").eq("id", member.sponsor_uid).single(),
+    [member.sponsor_uid],
   );
 
   useEffect(() => {
@@ -134,46 +135,40 @@ function ProfilePanel({ member }) {
         <dd>{member.email}</dd>
         <dt style={{ color: "var(--slate)" }}>Member since</dt>
         <dd>{member.created_at ? new Date(member.created_at).toLocaleDateString() : "—"}</dd>
-        <dt style={{ color: "var(--slate)" }}>Invited by</dt>
-        <dd>{inviter ? inviter.display_name : "—"}</dd>
+        <dt style={{ color: "var(--slate)" }}>Sponsor</dt>
+        <dd>{sponsor ? sponsor.display_name : "—"}</dd>
       </dl>
     </div>
   );
 }
 
-function MentorPanel({ member, onChanged }) {
+// Sponsor is a relationship every member can hold (see
+// supabase/migrations/0018_role_simplification_and_sponsor_schema.sql), not
+// a role — this panel lets an admin assign a first sponsor or reassign an
+// existing one. Reassignment is logged (assign_sponsor writes activity_log)
+// and can affect downline calculations once a compensation plan is
+// configured, so the copy below says so up front rather than only in an
+// audit trail nobody reads day-to-day.
+function SponsorPanel({ member, onChanged }) {
   const toast = useToast();
-  const [selectedMentor, setSelectedMentor] = useState("");
+  const [picked, setPicked] = useState({ selected: null, claimedName: "" });
   const [saving, setSaving] = useState(false);
 
-  const { data: mentors } = useSupabaseQuery(() => supabase.from("profiles").select("*").eq("role", "mentor"), []);
-  const { data: currentMentor } = useSupabaseQuery(
-    () => member?.mentor_uid && supabase.from("profiles").select("*").eq("id", member.mentor_uid).single(),
-    [member?.mentor_uid],
+  const { data: currentSponsor } = useSupabaseQuery(
+    () => member?.sponsor_uid && supabase.from("profiles").select("*").eq("id", member.sponsor_uid).single(),
+    [member?.sponsor_uid],
   );
 
   const handleAssign = async () => {
-    if (!selectedMentor) return;
+    if (!picked.selected) return;
     setSaving(true);
     try {
-      await assignMentor(selectedMentor, member.id);
-      toast.success("Mentor assigned.");
+      await assignSponsor(member.id, picked.selected.id);
+      toast.success("Sponsor updated.");
+      setPicked({ selected: null, claimedName: "" });
       onChanged();
     } catch (err) {
-      toast.error(err.message ?? "Couldn't assign mentor.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleUnassign = async () => {
-    setSaving(true);
-    try {
-      await unassignMentor(member.mentor_uid, member.id);
-      toast.success("Mentor unassigned.");
-      onChanged();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't unassign mentor.");
+      toast.error(err.message ?? "Couldn't update sponsor.");
     } finally {
       setSaving(false);
     }
@@ -182,30 +177,23 @@ function MentorPanel({ member, onChanged }) {
   return (
     <div className="card-elevated">
       <div className="card-title">
-        <Icon name="users" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        Mentor
+        <Icon name="network" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Sponsor
       </div>
-      {currentMentor ? (
-        <>
-          <p style={{ marginBottom: "12px", fontSize: "14px" }}>Currently assigned to <strong>{currentMentor.display_name}</strong>.</p>
-          <button type="button" className="btn btn-danger" onClick={handleUnassign} disabled={saving}>
-            Unassign mentor
-          </button>
-        </>
-      ) : (
-        <div style={{ display: "flex", gap: "8px" }}>
-          <select value={selectedMentor} onChange={(e) => setSelectedMentor(e.target.value)} style={{ flex: 1, border: "1px solid var(--line)", borderRadius: "10px", padding: "9px 12px" }}>
-            <option value="">Choose a mentor…</option>
-            {mentors?.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.display_name}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="btn btn-primary" onClick={handleAssign} disabled={saving || !selectedMentor}>
-            Assign
-          </button>
-        </div>
+      {currentSponsor && (
+        <p style={{ marginBottom: "12px", fontSize: "14px" }}>
+          Currently sponsored by <strong>{currentSponsor.display_name}</strong>.
+        </p>
+      )}
+      <p style={{ fontSize: "12.5px", color: "var(--slate)", marginBottom: "10px" }}>
+        {currentSponsor ? "Reassigning" : "Assigning"} a sponsor is logged and can affect downline calculations
+        once a compensation plan is configured.
+      </p>
+      <SponsorPicker value={picked} onChange={(v) => setPicked({ selected: v.selected, claimedName: "" })} />
+      {picked.selected && (
+        <button type="button" className="btn btn-primary" onClick={handleAssign} disabled={saving} style={{ marginTop: "10px" }}>
+          {saving ? "Saving…" : currentSponsor ? "Reassign sponsor" : "Assign sponsor"}
+        </button>
       )}
     </div>
   );
@@ -656,18 +644,10 @@ export default function MemberDetail() {
         <>
           <div className="grid grid-2">
             <StagePanel member={member} journey={journey} stages={stages} onChanged={refetchJourney} />
-            <MentorPanel member={member} onChanged={refetchMember} />
+            <SponsorPanel member={member} onChanged={refetchMember} />
           </div>
           <ActivitiesPanel member={member} stages={stages} tracks={tracks} defaultStageId={journey?.current_stage_id} />
         </>
-      )}
-
-      {member.role === "mentor" && (
-        <div className="card-elevated" style={{ maxWidth: "420px" }}>
-          <p style={{ fontSize: "14px", color: "var(--slate)" }}>
-            This account is a mentor. Assign members to them from the member's own detail page.
-          </p>
-        </div>
       )}
     </div>
   );

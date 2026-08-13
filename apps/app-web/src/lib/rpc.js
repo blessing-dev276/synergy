@@ -13,11 +13,24 @@ async function call(fnName, args) {
 export const setUserRole = (targetUid, newRole) =>
   call("set_user_role", { target_uid: targetUid, new_role: newRole });
 
-export const assignMentor = (mentorUid, memberUid) =>
-  call("assign_mentor", { p_mentor_uid: mentorUid, p_member_uid: memberUid });
+export const searchSponsors = (query) => call("search_sponsors", { p_query: query });
 
-export const unassignMentor = (mentorUid, memberUid) =>
-  call("unassign_mentor", { p_mentor_uid: mentorUid, p_member_uid: memberUid });
+export const getMySponsor = () => call("get_my_sponsor", {});
+
+export const assignSponsor = (memberUid, sponsorUid) =>
+  call("assign_sponsor", { p_member_uid: memberUid, p_sponsor_uid: sponsorUid });
+
+export const resolveSponsorRequest = (requestId, sponsorUid, note) =>
+  call("resolve_sponsor_request", { p_request_id: requestId, p_sponsor_uid: sponsorUid, p_note: note });
+
+export const rejectSponsorRequest = (requestId, note) =>
+  call("reject_sponsor_request", { p_request_id: requestId, p_note: note });
+
+export const getPersonallySponsored = (uid) => call("get_personally_sponsored", { p_uid: uid });
+
+export const getNetwork = (uid) => call("get_network", { p_uid: uid });
+
+export const getNetworkOverview = (uid) => call("get_network_overview", { p_uid: uid });
 
 export const markLessonComplete = (courseId, moduleId, lessonId) =>
   call("mark_lesson_complete", { p_course_id: courseId, p_module_id: moduleId, p_lesson_id: lessonId });

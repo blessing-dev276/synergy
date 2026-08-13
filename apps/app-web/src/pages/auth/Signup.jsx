@@ -1,39 +1,25 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
-import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import AuthLayout from "../../components/AuthLayout.jsx";
-
-const ROLE_LABEL = { admin: "Admin", mentor: "Mentor", member: "Member" };
+import SponsorPicker from "../../components/SponsorPicker.jsx";
 
 export default function Signup() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [invitedByUid, setInvitedByUid] = useState("");
-  const [inviterSearch, setInviterSearch] = useState("");
+  const [sponsor, setSponsor] = useState({ selected: null, claimedName: "" });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const navigate = useNavigate();
 
-  // Anon-callable on purpose (see supabase/migrations/0012) — the signup
-  // form has no session yet.
-  const { loading: loadingInviters, data: inviters } = useSupabaseQuery(() => supabase.rpc("list_inviters"), []);
-
-  const filteredInviters = useMemo(() => {
-    const list = inviters ?? [];
-    const q = inviterSearch.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter((i) => i.display_name.toLowerCase().includes(q));
-  }, [inviters, inviterSearch]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!invitedByUid) {
-      setError("Please select who invited you.");
+    if (!sponsor.selected && !sponsor.claimedName) {
+      setError("Please tell us who invited/sponsored you.");
       return;
     }
 
@@ -41,7 +27,13 @@ export default function Signup() {
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { data: { display_name: name.trim(), invited_by_uid: invitedByUid } },
+      options: {
+        data: {
+          display_name: name.trim(),
+          sponsor_uid: sponsor.selected?.id ?? null,
+          claimed_sponsor_name: sponsor.selected ? null : sponsor.claimedName,
+        },
+      },
     });
 
     setSubmitting(false);
@@ -110,45 +102,12 @@ export default function Signup() {
         </div>
 
         <div className="field field-lg">
-          <label htmlFor="invitedBy">Who invited you?</label>
-          {loadingInviters && <div style={{ fontSize: "13px", color: "var(--slate)" }}>Loading…</div>}
-          {!loadingInviters && (inviters ?? []).length === 0 && (
-            <div className="field-error">
-              We couldn't find anyone to select yet — ask whoever invited you to make sure their account is
-              active, then refresh this page.
-            </div>
-          )}
-          {!loadingInviters && (inviters ?? []).length > 0 && (
-            <>
-              <input
-                type="text"
-                placeholder="Search by name…"
-                value={inviterSearch}
-                onChange={(e) => setInviterSearch(e.target.value)}
-                style={{ marginBottom: "8px" }}
-              />
-              <select
-                id="invitedBy"
-                required
-                value={invitedByUid}
-                onChange={(e) => setInvitedByUid(e.target.value)}
-              >
-                <option value="" disabled>
-                  Select the person who invited you
-                </option>
-                {filteredInviters.map((inviter) => (
-                  <option key={inviter.id} value={inviter.id}>
-                    {inviter.display_name}
-                    {inviter.role !== "member" ? ` — ${ROLE_LABEL[inviter.role] ?? inviter.role}` : ""}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
+          <label htmlFor="sponsor">Who invited/sponsored you?</label>
+          <SponsorPicker value={sponsor} onChange={setSponsor} placeholder="Search by name…" />
         </div>
 
         {error && <div className="field-error" style={{ marginBottom: "16px" }}>{error}</div>}
-        <button type="submit" className="btn btn-primary btn-lg" disabled={submitting || loadingInviters}>
+        <button type="submit" className="btn btn-primary btn-lg" disabled={submitting}>
           {submitting ? "Creating account…" : "Create account"}
         </button>
       </form>

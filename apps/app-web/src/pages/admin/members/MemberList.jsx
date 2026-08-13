@@ -5,11 +5,10 @@ import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { setUserRole, setMemberStatus } from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
+import { ROLES } from "../../../lib/roles.js";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
-
-const ROLES = ["member", "mentor", "admin"];
 
 const STATUS_FILTERS = [
   { value: "not_removed", label: "All except removed" },
@@ -120,7 +119,7 @@ export default function MemberList() {
   return (
     <div>
       <div className="section-heading">
-        <h1>Members & Mentors</h1>
+        <h1>Members</h1>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}

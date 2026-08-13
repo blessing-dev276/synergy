@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import { INTERESTS, GOALS, toggleOption } from "../../lib/onboardingOptions.js";
+import { ROLE_LABEL } from "../../lib/roles.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 
-const ROLE_LABEL = { admin: "Admin", mentor: "Mentor", member: "Member" };
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 function initials(name) {
@@ -84,16 +85,19 @@ export default function Profile() {
     };
   }, [profile?.photo_url]);
 
-  // Anon-callable list (see supabase/migrations/0012), reused here to
-  // resolve invited_by_uid -> a name without a second directory endpoint.
-  const { data: directory } = useSupabaseQuery(() => supabase.rpc("list_inviters"), []);
-  const inviter = directory?.find((p) => p.id === profile?.invited_by_uid);
+  const { data: sponsorRows } = useSupabaseQuery(() => supabase.rpc("get_my_sponsor"), []);
+  const sponsor = sponsorRows?.[0];
 
-  const { data: mentorRows } = useSupabaseQuery(
-    () => profile?.mentor_uid && supabase.rpc("get_my_mentor"),
-    [profile?.mentor_uid],
+  // profile.sponsor_uid is only set once a sponsor is matched/resolved —
+  // while it's null, show the member their own pending claim (if any) so
+  // they know it's waiting on an admin, not lost.
+  const { data: pendingSponsorRequest } = useSupabaseQuery(
+    () =>
+      !profile?.sponsor_uid &&
+      user &&
+      supabase.from("sponsor_requests").select("*").eq("member_uid", user.id).eq("status", "pending").maybeSingle(),
+    [profile?.sponsor_uid, user?.id],
   );
-  const mentor = mentorRows?.[0];
 
   const handlePhotoChange = async (e) => {
     const file = e.target.files?.[0];
@@ -305,12 +309,25 @@ export default function Profile() {
           <dt style={{ color: "var(--slate)" }}>Member since</dt>
           <dd>{profile.created_at ? new Date(profile.created_at).toLocaleDateString() : "—"}</dd>
 
-          <dt style={{ color: "var(--slate)" }}>Your mentor</dt>
-          <dd>{mentor ? mentor.display_name : "Not assigned yet"}</dd>
-
-          <dt style={{ color: "var(--slate)" }}>Invited by</dt>
-          <dd>{inviter ? inviter.display_name : "—"}</dd>
+          <dt style={{ color: "var(--slate)" }}>Your sponsor</dt>
+          <dd>
+            {sponsor
+              ? sponsor.display_name
+              : pendingSponsorRequest
+                ? `"${pendingSponsorRequest.claimed_sponsor_name}" — pending admin review`
+                : "Not assigned yet"}
+          </dd>
         </dl>
+      </div>
+
+      <div className="card" style={{ maxWidth: "640px", marginTop: "20px" }}>
+        <div className="card-title">Network</div>
+        <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "12px" }}>
+          See who you've personally sponsored and how your wider network is growing.
+        </p>
+        <Link to="/network" className="btn btn-secondary">
+          View my network
+        </Link>
       </div>
     </div>
   );
