@@ -9,6 +9,7 @@ import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 import SponsorPicker from "../../../components/SponsorPicker.jsx";
+import ContentPicker from "../../../components/ContentPicker.jsx";
 
 const TASK_TYPES = [
   "learning",
@@ -445,30 +446,31 @@ function PromotionPanel({ member, onChanged }) {
   );
 }
 
-function EditActivityForm({ task, tracks, onSaved, onCancel }) {
+// Edits placement-specific settings only (stage/track/type/xp/required) —
+// the content's own title/description live on content_items and are shared
+// across every place it's used, so they're not editable from here.
+function EditActivityForm({ assignment, stages, tracks, onSaved, onCancel }) {
   const toast = useToast();
-  const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description ?? "");
-  const [trackId, setTrackId] = useState(task.track_id ?? "");
-  const [taskType, setTaskType] = useState(task.task_type ?? "practical");
-  const [xpReward, setXpReward] = useState(task.xp_reward ?? 0);
-  const [isRequired, setIsRequired] = useState(task.is_required ?? true);
+  const [stageId, setStageId] = useState(assignment.stage_id ?? "");
+  const [trackId, setTrackId] = useState(assignment.track_id ?? "");
+  const [taskType, setTaskType] = useState(assignment.task_type ?? "practical");
+  const [xpReward, setXpReward] = useState(assignment.xp_reward ?? 0);
+  const [isRequired, setIsRequired] = useState(assignment.is_required ?? true);
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     const { error } = await supabase
-      .from("tasks")
+      .from("content_assignments")
       .update({
-        title: title.trim(),
-        description: description.trim(),
+        stage_id: stageId || null,
         track_id: trackId || null,
         task_type: taskType,
         xp_reward: Number(xpReward) || 0,
         is_required: isRequired,
       })
-      .eq("id", task.id);
+      .eq("id", assignment.id);
     setSaving(false);
     if (error) {
       toast.error("Couldn't save changes.");
@@ -480,9 +482,16 @@ function EditActivityForm({ task, tracks, onSaved, onCancel }) {
 
   return (
     <form onSubmit={submit} className="activity-edit-form">
-      <input value={title} onChange={(e) => setTitle(e.target.value)} required />
-      <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description / instructions" />
+      <div style={{ fontWeight: 600, fontSize: "14px" }}>{assignment.label}</div>
       <div className="activity-edit-row">
+        <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
+          <option value="">No stage</option>
+          {stages?.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.title}
+            </option>
+          ))}
+        </select>
         <select value={trackId} onChange={(e) => setTrackId(e.target.value)}>
           <option value="">No track</option>
           {tracks?.map((t) => (
@@ -519,8 +528,7 @@ function EditActivityForm({ task, tracks, onSaved, onCancel }) {
 function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) {
   const { user } = useAuth();
   const toast = useToast();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [content, setContent] = useState(null);
   const [stageId, setStageId] = useState(defaultStageId ?? "");
   const [trackId, setTrackId] = useState("");
   const [taskType, setTaskType] = useState("practical");
@@ -530,10 +538,10 @@ function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) 
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!content) return;
     setSaving(true);
-    const { error } = await supabase.from("tasks").insert({
-      title: title.trim(),
-      description: description.trim(),
+    const { error } = await supabase.from("content_assignments").insert({
+      content_item_id: content.id,
       scope: "individual",
       assigned_to_uid: member.id,
       stage_id: stageId || null,
@@ -541,7 +549,6 @@ function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) 
       task_type: taskType,
       xp_reward: Number(xpReward) || 0,
       is_required: isRequired,
-      priority: "medium",
       created_by: user.id,
     });
     setSaving(false);
@@ -549,8 +556,7 @@ function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) 
       toast.error("Couldn't create that activity.");
       return;
     }
-    setTitle("");
-    setDescription("");
+    setContent(null);
     toast.success("Activity assigned to member.");
     onCreated();
   };
@@ -561,8 +567,7 @@ function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) 
         <Icon name="plus" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
         Assign a new activity
       </div>
-      <input placeholder="Activity title" required value={title} onChange={(e) => setTitle(e.target.value)} />
-      <textarea rows={2} placeholder="Description / instructions" value={description} onChange={(e) => setDescription(e.target.value)} />
+      <ContentPicker value={content} onChange={setContent} placeholder="Search or create content for this member…" />
       <div className="activity-edit-row">
         <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
           <option value="">No stage</option>
@@ -593,7 +598,7 @@ function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) 
           Required
         </label>
       </div>
-      <button type="submit" className="btn btn-primary" disabled={saving} style={{ alignSelf: "flex-start" }}>
+      <button type="submit" className="btn btn-primary" disabled={saving || !content} style={{ alignSelf: "flex-start" }}>
         {saving ? "Assigning…" : "Assign activity"}
       </button>
     </form>
@@ -605,24 +610,32 @@ function ActivitiesPanel({ member, stages, tracks, defaultStageId }) {
   const [editingId, setEditingId] = useState(null);
 
   const {
-    data: activities,
+    data: assignments,
     refetch,
   } = useSupabaseQuery(
     () =>
       supabase
-        .from("tasks")
-        .select("*")
+        .from("content_assignments")
+        .select(
+          "id, stage_id, track_id, task_type, xp_reward, is_required, content_item:content_items(id, title, course:courses(title), assignment:assignments(title))",
+        )
+        .eq("scope", "individual")
         .eq("assigned_to_uid", member.id)
         .order("stage_id", { ascending: true }),
     [member.id],
   );
 
+  const activities = (assignments ?? []).map((a) => ({
+    ...a,
+    label: a.content_item?.title ?? a.content_item?.course?.title ?? a.content_item?.assignment?.title ?? "Untitled",
+  }));
+
   const stageTitle = (id) => stages?.find((s) => s.id === id)?.title ?? "No stage";
   const trackLabel = (id) => tracks?.find((t) => t.id === id)?.label ?? "No track";
 
-  const handleDelete = async (task) => {
-    if (!window.confirm(`Remove "${task.title}" from this member's journey?`)) return;
-    const { error } = await supabase.from("tasks").delete().eq("id", task.id);
+  const handleDelete = async (assignment) => {
+    if (!window.confirm(`Remove "${assignment.label}" from this member's journey?`)) return;
+    const { error } = await supabase.from("content_assignments").delete().eq("id", assignment.id);
     if (error) {
       toast.error("Couldn't delete that activity.");
       return;
@@ -638,31 +651,37 @@ function ActivitiesPanel({ member, stages, tracks, defaultStageId }) {
         This member's activities
       </div>
 
-      {(!activities || activities.length === 0) && (
+      {activities.length === 0 && (
         <EmptyState icon={<Icon name="check-square" size={26} />} title="No individual activities assigned yet" />
       )}
 
-      {activities && activities.length > 0 && (
+      {activities.length > 0 && (
         <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px", marginBottom: "18px" }}>
-          {activities.map((task) =>
-            editingId === task.id ? (
-              <li key={task.id}>
-                <EditActivityForm task={task} tracks={tracks} onSaved={() => { setEditingId(null); refetch(); }} onCancel={() => setEditingId(null)} />
+          {activities.map((assignment) =>
+            editingId === assignment.id ? (
+              <li key={assignment.id}>
+                <EditActivityForm
+                  assignment={assignment}
+                  stages={stages}
+                  tracks={tracks}
+                  onSaved={() => { setEditingId(null); refetch(); }}
+                  onCancel={() => setEditingId(null)}
+                />
               </li>
             ) : (
-              <li key={task.id} className="activity-row">
+              <li key={assignment.id} className="activity-row">
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: "14px" }}>{task.title}</div>
+                  <div style={{ fontWeight: 600, fontSize: "14px" }}>{assignment.label}</div>
                   <div style={{ fontSize: "12.5px", color: "var(--slate)" }}>
-                    {stageTitle(task.stage_id)} · {trackLabel(task.track_id)} · {task.task_type?.replace("_", " ")} · {task.xp_reward} XP
-                    {!task.is_required && " · optional"}
+                    {stageTitle(assignment.stage_id)} · {trackLabel(assignment.track_id)} · {assignment.task_type?.replace("_", " ")} · {assignment.xp_reward} XP
+                    {!assignment.is_required && " · optional"}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-                  <button type="button" className="icon-btn" title="Edit" onClick={() => setEditingId(task.id)}>
+                  <button type="button" className="icon-btn" title="Edit" onClick={() => setEditingId(assignment.id)}>
                     <Icon name="pencil" size={15} />
                   </button>
-                  <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(task)}>
+                  <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(assignment)}>
                     <Icon name="trash" size={15} />
                   </button>
                 </div>

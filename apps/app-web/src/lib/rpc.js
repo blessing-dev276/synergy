@@ -48,7 +48,8 @@ export const gradeAssignment = (submissionId, decision, grade, feedback) =>
     p_feedback: feedback,
   });
 
-export const completeTask = (taskId) => call("complete_task", { p_task_id: taskId });
+export const completeContentAssignment = (contentAssignmentId) =>
+  call("complete_content_assignment", { p_content_assignment_id: contentAssignmentId });
 
 export const getJourneyOverview = (uid) => call("get_journey_overview", { p_uid: uid });
 

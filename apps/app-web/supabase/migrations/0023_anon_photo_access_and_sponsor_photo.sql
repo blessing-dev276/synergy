@@ -10,7 +10,13 @@ drop policy if exists profile_photos_read on storage.objects;
 create policy profile_photos_read on storage.objects for select
   using (bucket_id = 'profile-photos');
 
-create or replace function public.search_sponsors(p_query text)
+-- CREATE OR REPLACE can't change a function's return-column set (Postgres
+-- error 42P13, "cannot change return type of existing function... Row type
+-- defined by OUT parameters is different") -- must drop first since this
+-- adds photo_url to the 0019/0022 two-column shape.
+drop function if exists public.search_sponsors(text);
+
+create function public.search_sponsors(p_query text)
 returns table (id uuid, display_name text, photo_url text)
 language sql
 security definer

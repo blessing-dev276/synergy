@@ -151,7 +151,7 @@ export default function Dashboard() {
     error: tasksError,
     data: tasks,
   } = useSupabaseQuery(
-    () => user && supabase.from("tasks").select("*").eq("assigned_to_uid", user.id).order("due_date", { ascending: true }),
+    () => user && supabase.rpc("get_my_content_assignments", { p_uid: user.id }),
     [user?.id],
   );
 
@@ -238,7 +238,9 @@ export default function Dashboard() {
               {tasks.slice(0, 5).map((task) => (
                 <li key={task.id} style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
                   <span>{task.title}</span>
-                  <span className="badge badge-neutral">{task.priority ?? "medium"}</span>
+                  <span className={`badge ${task.isDone ? "badge-success" : "badge-neutral"}`}>
+                    {task.isDone ? "Done" : task.taskType?.replace("_", " ") ?? "task"}
+                  </span>
                 </li>
               ))}
             </ul>
