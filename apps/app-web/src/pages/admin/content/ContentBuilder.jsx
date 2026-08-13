@@ -8,7 +8,7 @@ import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 
-function NewPathForm({ onCreated }) {
+function NewPathForm({ onCreated, onDone }) {
   const { user } = useAuth();
   const toast = useToast();
   const [title, setTitle] = useState("");
@@ -30,23 +30,24 @@ function NewPathForm({ onCreated }) {
       toast.error("Couldn't create that learning path.");
       return;
     }
-    setTitle("");
-    setDescription("");
     toast.success("Learning path created (draft).");
     onCreated?.();
+    onDone?.();
   };
 
   return (
     <form onSubmit={submit} className="card-elevated" style={{ marginBottom: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-      <div className="card-title">
-        <Icon name="plus" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        New Learning Path
-      </div>
-      <input className="inline-edit-field" required placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <div className="card-title">New Learning Path</div>
+      <input className="inline-edit-field" required autoFocus placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
       <textarea className="inline-edit-field" rows={2} placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-      <button type="submit" className="btn btn-primary" disabled={saving} style={{ alignSelf: "flex-start" }}>
-        {saving ? "Creating…" : "Create draft"}
-      </button>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? "Creating…" : "Create draft"}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onDone}>
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }
@@ -71,7 +72,7 @@ function EditPathForm({ path, onSaved, onCancel }) {
   };
 
   return (
-    <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
+    <form onSubmit={submit} onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
       <input className="inline-edit-field" required value={title} onChange={(e) => setTitle(e.target.value)} />
       <textarea className="inline-edit-field" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
       <div style={{ display: "flex", gap: "8px" }}>
@@ -172,21 +173,23 @@ function CourseRow({ course, isFirst, isLast, onReorder, onChanged }) {
   );
 }
 
-function PathBlock({ path, isFirst, isLast, onReorder, onChanged }) {
+function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChanged }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
 
   const { data: courses, refetch } = useSupabaseQuery(
-    () => supabase.from("courses").select("*").eq("path_id", path.id).order("order_index", { ascending: true }),
-    [path.id],
+    () => isOpen && supabase.from("courses").select("*").eq("path_id", path.id).order("order_index", { ascending: true }),
+    [path.id, isOpen],
   );
 
-  const togglePublished = async () => {
+  const togglePublished = async (e) => {
+    e.stopPropagation();
     await supabase.from("learning_paths").update({ published: !path.published }).eq("id", path.id);
     onChanged();
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (e) => {
+    e.stopPropagation();
     if (!window.confirm(`Delete "${path.title}" and every course inside it?`)) return;
     const { error } = await supabase.from("learning_paths").delete().eq("id", path.id);
     if (error) {
@@ -211,9 +214,9 @@ function PathBlock({ path, isFirst, isLast, onReorder, onChanged }) {
   };
 
   return (
-    <div className="card-elevated" style={{ marginBottom: "16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
-        <div className="reorder-controls">
+    <div className="card-elevated" style={{ marginBottom: "12px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+        <div className="reorder-controls" onClick={(e) => e.stopPropagation()}>
           <button type="button" className="icon-btn" disabled={isFirst} onClick={() => onReorder(-1)} title="Move up">
             <Icon name="arrow-up" size={13} />
           </button>
@@ -225,12 +228,18 @@ function PathBlock({ path, isFirst, isLast, onReorder, onChanged }) {
         {editing ? (
           <EditPathForm path={path} onSaved={() => { setEditing(false); onChanged(); }} onCancel={() => setEditing(false)} />
         ) : (
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="card-title" style={{ marginBottom: 0 }}>
-              {path.title}
+          <button type="button" className="accordion-header" onClick={onToggle} style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="card-title" style={{ marginBottom: 0 }}>
+                {path.title}
+              </div>
+              {path.description && <p style={{ color: "var(--slate)", fontSize: "13.5px", marginTop: "6px" }}>{path.description}</p>}
+              {!isOpen && <div className="row-meta" style={{ marginTop: "6px" }}>{path.course_count ?? 0} courses</div>}
             </div>
-            {path.description && <p style={{ color: "var(--slate)", fontSize: "13.5px", marginTop: "6px" }}>{path.description}</p>}
-          </div>
+            <span className="accordion-chevron" style={{ marginLeft: 0 }}>
+              <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={16} />
+            </span>
+          </button>
         )}
 
         {!editing && (
@@ -248,24 +257,29 @@ function PathBlock({ path, isFirst, isLast, onReorder, onChanged }) {
         )}
       </div>
 
-      <div style={{ marginTop: "14px" }}>
-        {courses?.map((course, i) => (
-          <CourseRow
-            key={course.id}
-            course={course}
-            isFirst={i === 0}
-            isLast={i === courses.length - 1}
-            onReorder={(direction) => reorderCourse(i, direction)}
-            onChanged={refetch}
-          />
-        ))}
-      </div>
-      <NewCourseForm pathId={path.id} onCreated={refetch} />
+      {isOpen && (
+        <div className="accordion-body">
+          {courses?.map((course, i) => (
+            <CourseRow
+              key={course.id}
+              course={course}
+              isFirst={i === 0}
+              isLast={i === courses.length - 1}
+              onReorder={(direction) => reorderCourse(i, direction)}
+              onChanged={refetch}
+            />
+          ))}
+          <NewCourseForm pathId={path.id} onCreated={refetch} />
+        </div>
+      )}
     </div>
   );
 }
 
 export default function ContentBuilder() {
+  const [openPathId, setOpenPathId] = useState(null);
+  const [showNewPath, setShowNewPath] = useState(false);
+
   const { loading, data: paths, refetch } = useSupabaseQuery(
     () => supabase.from("learning_paths").select("*").order("order_index", { ascending: true }),
     [],
@@ -288,12 +302,18 @@ export default function ContentBuilder() {
     <div>
       <div className="section-heading">
         <h1>Content Builder</h1>
+        {!showNewPath && (
+          <button type="button" className="btn btn-primary" onClick={() => setShowNewPath(true)}>
+            <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
+            New Learning Path
+          </button>
+        )}
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
-        Learning Path → Course → Module → Lesson → Quiz/Assignment.
+        Learning Path → Course → Module → Lesson → Quiz/Assignment. Click a path to open it — opening another one closes this.
       </p>
 
-      <NewPathForm onCreated={refetch} />
+      {showNewPath && <NewPathForm onCreated={refetch} onDone={() => setShowNewPath(false)} />}
 
       {loading && <Skeleton variant="card" height="140px" />}
       {!loading && (!paths || paths.length === 0) && <EmptyState icon={<Icon name="layers" size={26} />} title="No learning paths yet" />}
@@ -301,6 +321,8 @@ export default function ContentBuilder() {
         <PathBlock
           key={path.id}
           path={path}
+          isOpen={openPathId === path.id}
+          onToggle={() => setOpenPathId((prev) => (prev === path.id ? null : path.id))}
           isFirst={i === 0}
           isLast={i === paths.length - 1}
           onReorder={(direction) => reorderPath(i, direction)}

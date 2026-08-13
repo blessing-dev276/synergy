@@ -14,6 +14,7 @@ const PATHS = {
   "log-out": <><path d="M9 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" /><path d="M15 16l5-4-5-4" /><path d="M20 12H9" /></>,
   "chevron-left": <path d="M15 5l-7 7 7 7" />,
   "chevron-right": <path d="M9 5l7 7-7 7" />,
+  "chevron-down": <path d="M5 9l7 7 7-7" />,
   plus: <path d="M12 5v14M5 12h14" />,
   pencil: <path d="M4 20l1-4L16 5l3 3L8 19l-4 1z" />,
   trash: <><path d="M4 7h16" /><path d="M9 7V4h6v3" /><path d="M6 7l1 13h10l1-13" /></>,

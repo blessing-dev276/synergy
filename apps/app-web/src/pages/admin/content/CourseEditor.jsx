@@ -193,14 +193,14 @@ function LessonRow({ lesson, isFirst, isLast, onReorder, onChanged }) {
   );
 }
 
-function ModuleBlock({ courseId, module, isFirst, isLast, onReorder, onChanged }) {
+function ModuleBlock({ courseId, module, isOpen, onToggle, isFirst, isLast, onReorder, onChanged }) {
   const toast = useToast();
   const [editingTitle, setEditingTitle] = useState(false);
   const [title, setTitle] = useState(module.title);
 
   const { data: lessons, refetch } = useSupabaseQuery(
-    () => supabase.from("lessons").select("*").eq("module_id", module.id).order("order_index", { ascending: true }),
-    [module.id],
+    () => isOpen && supabase.from("lessons").select("*").eq("module_id", module.id).order("order_index", { ascending: true }),
+    [module.id, isOpen],
   );
 
   const saveTitle = async (e) => {
@@ -261,7 +261,13 @@ function ModuleBlock({ courseId, module, isFirst, isLast, onReorder, onChanged }
           </form>
         ) : (
           <>
-            <div className="card-title" style={{ marginBottom: 0, flex: 1 }}>{module.title}</div>
+            <button type="button" className="accordion-header" onClick={onToggle} style={{ flex: 1 }}>
+              <span style={{ flex: 1, fontWeight: 600, fontSize: "16px" }}>{module.title}</span>
+              {!isOpen && <span className="badge badge-neutral">{module.lesson_count ?? 0} lessons</span>}
+              <span className="accordion-chevron">
+                <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={16} />
+              </span>
+            </button>
             <div className="row-actions">
               <button type="button" className="icon-btn" title="Rename" onClick={() => setEditingTitle(true)}>
                 <Icon name="pencil" size={14} />
@@ -274,19 +280,23 @@ function ModuleBlock({ courseId, module, isFirst, isLast, onReorder, onChanged }
         )}
       </div>
 
-      <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px", marginTop: "12px" }}>
-        {lessons?.map((lesson, i) => (
-          <LessonRow
-            key={lesson.id}
-            lesson={lesson}
-            isFirst={i === 0}
-            isLast={i === lessons.length - 1}
-            onReorder={(direction) => reorderLesson(i, direction)}
-            onChanged={refetch}
-          />
-        ))}
-      </ul>
-      <NewLessonForm courseId={courseId} moduleId={module.id} onCreated={refetch} />
+      {isOpen && (
+        <div className="accordion-body">
+          <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
+            {lessons?.map((lesson, i) => (
+              <LessonRow
+                key={lesson.id}
+                lesson={lesson}
+                isFirst={i === 0}
+                isLast={i === lessons.length - 1}
+                onReorder={(direction) => reorderLesson(i, direction)}
+                onChanged={refetch}
+              />
+            ))}
+          </ul>
+          <NewLessonForm courseId={courseId} moduleId={module.id} onCreated={refetch} />
+        </div>
+      )}
     </div>
   );
 }
@@ -336,6 +346,8 @@ export default function CourseEditor() {
   const { courseId } = useParams();
   const toast = useToast();
   const [editingCourse, setEditingCourse] = useState(false);
+  const [openModuleId, setOpenModuleId] = useState(null);
+  const [assignmentsOpen, setAssignmentsOpen] = useState(false);
 
   const { loading: loadingCourse, data: course, refetch: refetchCourse } = useSupabaseQuery(
     () => supabase.from("courses").select("*").eq("id", courseId).single(),
@@ -406,6 +418,8 @@ export default function CourseEditor() {
           key={module.id}
           courseId={courseId}
           module={module}
+          isOpen={openModuleId === module.id}
+          onToggle={() => setOpenModuleId((prev) => (prev === module.id ? null : module.id))}
           isFirst={i === 0}
           isLast={i === modules.length - 1}
           onReorder={(direction) => reorderModule(i, direction)}
@@ -414,11 +428,20 @@ export default function CourseEditor() {
       ))}
 
       <div className="card-elevated" style={{ marginTop: "8px" }}>
-        <div className="card-title">
-          <Icon name="clipboard" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-          Assignments
-        </div>
-        <AssignmentBuilder courseId={courseId} />
+        <button type="button" className="accordion-header" onClick={() => setAssignmentsOpen((v) => !v)}>
+          <span className="card-title" style={{ marginBottom: 0, flex: 1 }}>
+            <Icon name="clipboard" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+            Assignments
+          </span>
+          <span className="accordion-chevron">
+            <Icon name={assignmentsOpen ? "chevron-down" : "chevron-right"} size={16} />
+          </span>
+        </button>
+        {assignmentsOpen && (
+          <div className="accordion-body">
+            <AssignmentBuilder courseId={courseId} />
+          </div>
+        )}
       </div>
     </div>
   );

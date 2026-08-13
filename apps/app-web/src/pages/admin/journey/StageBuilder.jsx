@@ -17,6 +17,8 @@ const TASK_TYPES = [
   "attendance",
   "milestone",
 ];
+const DEFAULT_TASK_TYPE = "practical";
+const DEFAULT_XP = 10;
 
 function slugify(title) {
   return title
@@ -26,7 +28,23 @@ function slugify(title) {
     .replace(/(^-|-$)/g, "");
 }
 
-function NewStageForm({ onCreated }) {
+/* A single-purpose "click to expand" button — used for the nested "add
+   task" form, which (unlike ContentBuilder's plain title+description
+   NewCourseForm) has enough fields that it's worth keeping out of the
+   way until the admin actually wants it. */
+function Disclosure({ label, icon = "plus", children }) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <button type="button" className="btn btn-secondary accordion-toggle-btn" onClick={() => setOpen(true)} style={{ alignSelf: "flex-start" }}>
+        <Icon name={icon} size={14} /> {label}
+      </button>
+    );
+  }
+  return children(() => setOpen(false));
+}
+
+function NewStageForm({ onCreated, onDone }) {
   const { user } = useAuth();
   const toast = useToast();
   const [title, setTitle] = useState("");
@@ -49,23 +67,24 @@ function NewStageForm({ onCreated }) {
       toast.error("Couldn't create that stage.");
       return;
     }
-    setTitle("");
-    setDescription("");
     toast.success("Stage created (draft).");
     onCreated?.();
+    onDone?.();
   };
 
   return (
     <form onSubmit={submit} className="card-elevated" style={{ marginBottom: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-      <div className="card-title">
-        <Icon name="plus" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        New Stage
+      <div className="card-title">New Stage</div>
+      <input className="inline-edit-field" autoFocus required placeholder="e.g. Stage 1 — Foundation" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <textarea className="inline-edit-field" rows={2} placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? "Creating…" : "Create draft"}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onDone}>
+          Cancel
+        </button>
       </div>
-      <input className="inline-edit-field" required placeholder="e.g. Stage 1 — Foundation" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <textarea className="inline-edit-field" rows={2} placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-      <button type="submit" className="btn btn-primary" disabled={saving} style={{ alignSelf: "flex-start" }}>
-        {saving ? "Creating…" : "Create draft"}
-      </button>
     </form>
   );
 }
@@ -105,13 +124,14 @@ function EditStageForm({ stage, onSaved, onCancel }) {
   );
 }
 
-function NewTaskForm({ stageId, trackId, memberUids, onCreated }) {
+function NewTaskForm({ stageId, trackId, memberUids, onCreated, close }) {
   const { user } = useAuth();
   const toast = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [taskType, setTaskType] = useState("practical");
-  const [xpReward, setXpReward] = useState(10);
+  const [showMore, setShowMore] = useState(false);
+  const [taskType, setTaskType] = useState(DEFAULT_TASK_TYPE);
+  const [xpReward, setXpReward] = useState(DEFAULT_XP);
   const [isRequired, setIsRequired] = useState(true);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -149,42 +169,56 @@ function NewTaskForm({ stageId, trackId, memberUids, onCreated }) {
       toast.error("Couldn't create that task.");
       return;
     }
-    setTitle("");
-    setDescription("");
     toast.success(
       memberUids.length > 0 ? `Task created for ${memberUids.length} member(s).` : "Task created (no members in this stage yet).",
     );
     onCreated?.();
+    close();
   };
 
   return (
     <form onSubmit={submit} className="activity-new-form" style={{ marginTop: "12px" }}>
-      <input className="inline-edit-field" placeholder="Task title" required value={title} onChange={(e) => setTitle(e.target.value)} />
-      <textarea className="inline-edit-field" placeholder="Description / instructions" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
-      <div className="activity-edit-row">
-        <select value={taskType} onChange={(e) => setTaskType(e.target.value)}>
-          {TASK_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t.replace("_", " ")}
-            </option>
-          ))}
-        </select>
-        <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
-          XP
-          <input type="number" min={0} value={xpReward} onChange={(e) => setXpReward(e.target.value)} style={{ width: "60px" }} />
-        </label>
-        <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
-          <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} />
-          Required
-        </label>
-        <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
-          <input type="checkbox" checked={requiresApproval} onChange={(e) => setRequiresApproval(e.target.checked)} />
-          Needs mentor approval
-        </label>
+      <input className="inline-edit-field" autoFocus placeholder="Task title" required value={title} onChange={(e) => setTitle(e.target.value)} />
+      <textarea className="inline-edit-field" placeholder="Description / instructions (optional)" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+
+      {!showMore && (
+        <button type="button" className="btn btn-secondary" onClick={() => setShowMore(true)} style={{ alignSelf: "flex-start", fontSize: "12.5px", padding: "6px 12px" }}>
+          More options (type, XP, approval)
+        </button>
+      )}
+
+      {showMore && (
+        <div className="activity-edit-row">
+          <select value={taskType} onChange={(e) => setTaskType(e.target.value)}>
+            {TASK_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t.replace("_", " ")}
+              </option>
+            ))}
+          </select>
+          <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+            XP
+            <input type="number" min={0} value={xpReward} onChange={(e) => setXpReward(e.target.value)} style={{ width: "60px" }} />
+          </label>
+          <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+            <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} />
+            Required
+          </label>
+          <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+            <input type="checkbox" checked={requiresApproval} onChange={(e) => setRequiresApproval(e.target.checked)} />
+            Needs mentor approval
+          </label>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button type="submit" className="btn btn-primary" disabled={saving} style={{ alignSelf: "flex-start" }}>
+          {saving ? "Adding…" : "Add task"}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={close}>
+          Cancel
+        </button>
       </div>
-      <button type="submit" className="btn btn-secondary" disabled={saving} style={{ alignSelf: "flex-start" }}>
-        {saving ? "Adding…" : "Add task"}
-      </button>
     </form>
   );
 }
@@ -235,21 +269,51 @@ function EditTaskForm({ task, onSaved, onCancel }) {
   );
 }
 
-function TrackPanel({ stage, track, attached, memberUids, onToggle }) {
-  const toast = useToast();
-  const [editingTitle, setEditingTitle] = useState(null);
+/* Small pill toggle used both for "which tracks are in this stage" and,
+   below it, "which of those tracks am I looking at right now" — one
+   track's tasks on screen at a time instead of all three stacked. */
+function Chip({ active, onClick, children, tone = "neutral" }) {
+  const activeStyle =
+    tone === "accent"
+      ? { background: "rgba(76,141,255,0.16)", borderColor: "var(--blue)", color: "var(--blue-bright)" }
+      : { background: "var(--line)", borderColor: "var(--line)", color: "var(--navy)" };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        fontSize: "13px",
+        fontWeight: 600,
+        padding: "6px 12px",
+        borderRadius: "100px",
+        border: "1px solid var(--line)",
+        background: "transparent",
+        color: "var(--slate)",
+        cursor: "pointer",
+        ...(active ? activeStyle : {}),
+      }}
+    >
+      {children}
+    </button>
+  );
+}
 
+function TrackTasks({ stage, track, memberUids }) {
   const { data: tasks, refetch } = useSupabaseQuery(
     () =>
-      attached &&
       supabase
         .from("tasks")
         .select("id, title, task_type, xp_reward, is_required, assigned_to_uid, stage_id, track_id")
         .eq("stage_id", stage.id)
         .eq("track_id", track.id)
         .order("title"),
-    [stage.id, track.id, attached],
+    [stage.id, track.id],
   );
+  const toast = useToast();
+  const [editingTitle, setEditingTitle] = useState(null);
 
   // Same title = same task assigned to multiple members; collapse for display.
   const distinctTitles = [...new Map((tasks ?? []).map((t) => [t.title, t])).values()];
@@ -266,62 +330,56 @@ function TrackPanel({ stage, track, attached, memberUids, onToggle }) {
   };
 
   return (
-    <div style={{ border: "1px solid var(--line)", borderRadius: "12px", padding: "14px", marginTop: "10px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
-          <span aria-hidden="true">{track.icon}</span> {track.label}
-        </div>
-        <button type="button" className="btn btn-secondary" onClick={onToggle}>
-          {attached ? "Remove from stage" : "Add to stage"}
-        </button>
-      </div>
-
-      {attached && (
-        <>
-          {distinctTitles.length > 0 && (
-            <ul style={{ listStyle: "none", marginTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
-              {distinctTitles.map((t) =>
-                editingTitle === t.title ? (
-                  <li key={t.title}>
-                    <EditTaskForm task={t} onSaved={() => { setEditingTitle(null); refetch(); }} onCancel={() => setEditingTitle(null)} />
-                  </li>
-                ) : (
-                  <li key={t.title} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13.5px" }}>
-                    <div>
-                      <span>{t.title}</span>{" "}
-                      <span style={{ color: "var(--slate)" }}>
-                        · {t.task_type.replace("_", " ")} · {t.xp_reward} XP{t.is_required ? "" : " · optional"}
-                      </span>
-                    </div>
-                    <div className="row-actions">
-                      <button type="button" className="icon-btn" title="Edit" onClick={() => setEditingTitle(t.title)}>
-                        <Icon name="pencil" size={14} />
-                      </button>
-                      <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(t)}>
-                        <Icon name="trash" size={14} />
-                      </button>
-                    </div>
-                  </li>
-                ),
-              )}
-            </ul>
+    <div style={{ marginTop: "14px" }}>
+      {distinctTitles.length === 0 && <p style={{ fontSize: "13px", color: "var(--slate)" }}>No tasks in this track yet.</p>}
+      {distinctTitles.length > 0 && (
+        <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
+          {distinctTitles.map((t) =>
+            editingTitle === t.title ? (
+              <li key={t.title}>
+                <EditTaskForm task={t} onSaved={() => { setEditingTitle(null); refetch(); }} onCancel={() => setEditingTitle(null)} />
+              </li>
+            ) : (
+              <li key={t.title} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13.5px" }}>
+                <div>
+                  <span>{t.title}</span>{" "}
+                  <span style={{ color: "var(--slate)" }}>
+                    · {t.task_type.replace("_", " ")} · {t.xp_reward} XP{t.is_required ? "" : " · optional"}
+                  </span>
+                </div>
+                <div className="row-actions">
+                  <button type="button" className="icon-btn" title="Edit" onClick={() => setEditingTitle(t.title)}>
+                    <Icon name="pencil" size={14} />
+                  </button>
+                  <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(t)}>
+                    <Icon name="trash" size={14} />
+                  </button>
+                </div>
+              </li>
+            ),
           )}
-          <NewTaskForm stageId={stage.id} trackId={track.id} memberUids={memberUids} onCreated={refetch} />
-        </>
+        </ul>
       )}
+
+      <div style={{ marginTop: "12px" }}>
+        <Disclosure label="Add task" icon="plus">
+          {(close) => <NewTaskForm stageId={stage.id} trackId={track.id} memberUids={memberUids} onCreated={refetch} close={close} />}
+        </Disclosure>
+      </div>
     </div>
   );
 }
 
-function StageBlock({ stage, tracks, memberUids, isFirst, isLast, onChanged, onReorder }) {
-  const toast = useToast();
-  const [editing, setEditing] = useState(false);
-
+function StageTracks({ stage, tracks, memberUids }) {
   const { data: stageTracks, refetch } = useSupabaseQuery(
     () => supabase.from("stage_tracks").select("track_id").eq("stage_id", stage.id),
     [stage.id],
   );
   const attachedTrackIds = new Set((stageTracks ?? []).map((st) => st.track_id));
+  const attachedTracks = tracks.filter((t) => attachedTrackIds.has(t.id));
+
+  const [activeTrackId, setActiveTrackId] = useState(null);
+  const activeTrack = attachedTracks.find((t) => t.id === activeTrackId) ?? attachedTracks[0] ?? null;
 
   const toggleTrack = async (track) => {
     if (attachedTrackIds.has(track.id)) {
@@ -332,12 +390,48 @@ function StageBlock({ stage, tracks, memberUids, isFirst, isLast, onChanged, onR
     refetch();
   };
 
-  const togglePublished = async () => {
+  return (
+    <div style={{ marginTop: "16px" }}>
+      <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        Tracks in this stage
+      </div>
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        {tracks.map((track) => (
+          <Chip key={track.id} active={attachedTrackIds.has(track.id)} tone="neutral" onClick={() => toggleTrack(track)}>
+            <span aria-hidden="true">{track.icon}</span> {track.label}
+            <Icon name={attachedTrackIds.has(track.id) ? "x" : "plus"} size={11} />
+          </Chip>
+        ))}
+      </div>
+
+      {attachedTracks.length > 0 && (
+        <>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "18px" }}>
+            {attachedTracks.map((track) => (
+              <Chip key={track.id} active={activeTrack?.id === track.id} tone="accent" onClick={() => setActiveTrackId(track.id)}>
+                <span aria-hidden="true">{track.icon}</span> {track.label} tasks
+              </Chip>
+            ))}
+          </div>
+          {activeTrack && <TrackTasks stage={stage} track={activeTrack} memberUids={memberUids} />}
+        </>
+      )}
+    </div>
+  );
+}
+
+function StageRow({ stage, tracks, memberUids, isFirst, isLast, onChanged, onReorder, expanded, onToggle }) {
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+
+  const togglePublished = async (e) => {
+    e.stopPropagation();
     await supabase.from("stages").update({ published: !stage.published }).eq("id", stage.id);
     onChanged?.();
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (e) => {
+    e.stopPropagation();
     if (!window.confirm(`Delete stage "${stage.title}"? This also removes its tasks and any members' progress tied to it.`)) return;
     const { error } = await supabase.from("stages").delete().eq("id", stage.id);
     if (error) {
@@ -349,9 +443,9 @@ function StageBlock({ stage, tracks, memberUids, isFirst, isLast, onChanged, onR
   };
 
   return (
-    <div className="card-elevated" style={{ marginBottom: "16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
-        <div className="reorder-controls">
+    <div className="card-elevated" style={{ marginBottom: "12px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+        <div className="reorder-controls" onClick={(e) => e.stopPropagation()}>
           <button type="button" className="icon-btn" disabled={isFirst} onClick={() => onReorder(-1)} title="Move up">
             <Icon name="arrow-up" size={13} />
           </button>
@@ -363,12 +457,18 @@ function StageBlock({ stage, tracks, memberUids, isFirst, isLast, onChanged, onR
         {editing ? (
           <EditStageForm stage={stage} onSaved={() => { setEditing(false); onChanged?.(); }} onCancel={() => setEditing(false)} />
         ) : (
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="card-title" style={{ marginBottom: 0 }}>
-              {stage.title}
+          <button type="button" className="accordion-header" onClick={onToggle} style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="card-title" style={{ marginBottom: 0 }}>
+                {stage.title}
+              </div>
+              {stage.description && <p style={{ color: "var(--slate)", fontSize: "13.5px", marginTop: "6px" }}>{stage.description}</p>}
+              {!expanded && <div className="row-meta" style={{ marginTop: "6px" }}>{tracks.length} tracks available</div>}
             </div>
-            {stage.description && <p style={{ color: "var(--slate)", fontSize: "13.5px", marginTop: "6px" }}>{stage.description}</p>}
-          </div>
+            <span className="accordion-chevron">
+              <Icon name={expanded ? "chevron-down" : "chevron-right"} size={16} />
+            </span>
+          </button>
         )}
 
         {!editing && (
@@ -386,21 +486,18 @@ function StageBlock({ stage, tracks, memberUids, isFirst, isLast, onChanged, onR
         )}
       </div>
 
-      {tracks.map((track) => (
-        <TrackPanel
-          key={track.id}
-          stage={stage}
-          track={track}
-          attached={attachedTrackIds.has(track.id)}
-          memberUids={memberUids}
-          onToggle={() => toggleTrack(track)}
-        />
-      ))}
+      {expanded && !editing && (
+        <div className="accordion-body">
+          <StageTracks stage={stage} tracks={tracks} memberUids={memberUids} />
+        </div>
+      )}
     </div>
   );
 }
 
 export default function StageBuilder() {
+  const [openStageId, setOpenStageId] = useState(null);
+  const [showNewStage, setShowNewStage] = useState(false);
   const { loading, data: stages, refetch } = useSupabaseQuery(
     () => supabase.from("stages").select("*").order("order_index", { ascending: true }),
     [],
@@ -436,19 +533,24 @@ export default function StageBuilder() {
     <div>
       <div className="section-heading">
         <h1>Stage Builder</h1>
+        {!showNewStage && (
+          <button type="button" className="btn btn-primary" onClick={() => setShowNewStage(true)}>
+            <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
+            New Stage
+          </button>
+        )}
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
-        Stage → Skill / Business / Freelancing tracks → tasks. This is the whole journey every member moves through —
-        set each member's current stage from their profile page.
+        Stage → Skill / Business / Freelancing tracks → tasks. Click a stage to open it — opening another one closes this.
       </p>
 
-      <NewStageForm onCreated={refetch} />
+      {showNewStage && <NewStageForm onCreated={refetch} onDone={() => setShowNewStage(false)} />}
 
-      {loading && <Skeleton variant="card" height="160px" />}
+      {loading && <Skeleton variant="card" height="80px" />}
       {!loading && (!stages || stages.length === 0) && <EmptyState icon={<Icon name="compass" size={26} />} title="No stages yet" />}
       {tracks &&
         stages?.map((stage, i) => (
-          <StageBlock
+          <StageRow
             key={stage.id}
             stage={stage}
             tracks={tracks}
@@ -457,6 +559,8 @@ export default function StageBuilder() {
             isLast={i === stages.length - 1}
             onChanged={refetch}
             onReorder={(direction) => reorder(i, direction)}
+            expanded={openStageId === stage.id}
+            onToggle={() => setOpenStageId((prev) => (prev === stage.id ? null : stage.id))}
           />
         ))}
     </div>

@@ -410,3 +410,16 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
   margin-bottom:14px;
 }
 .section-heading h1, .section-heading h2{ margin-bottom:0; }
+
+/* ---------- accordion (Content/Stage builders) ---------- */
+.accordion-header{
+  display:flex; align-items:center; gap:12px; cursor:pointer;
+  background:none; border:none; width:100%; text-align:left; padding:0; font:inherit; color:inherit;
+}
+.accordion-chevron{
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  color:var(--slate); transition:transform .18s ease;
+}
+.accordion-chevron.open{ transform:rotate(180deg); }
+.accordion-body{ margin-top:14px; }
+.accordion-toggle-btn{ margin-bottom:16px; }
