@@ -61,3 +61,15 @@ export const setMemberStatus = (uid, status) => call("set_member_status", { p_ui
 export const getOrientationContent = () => call("get_orientation_content", {});
 
 export const submitOrientation = (answers) => call("submit_orientation", { p_answers: answers });
+
+export const requestStagePromotion = () => call("request_stage_promotion", {});
+
+export const reviewStagePromotion = (requestId, decision, note) =>
+  call("review_stage_promotion", { p_request_id: requestId, p_decision: decision, p_note: note });
+
+export const logEarning = (amount, note) => call("log_earning", { p_amount: amount, p_note: note });
+
+export const reviewEarning = (id, decision, note) =>
+  call("review_earning", { p_id: id, p_decision: decision, p_note: note });
+
+export const getLeaderboards = () => call("get_leaderboards", {});

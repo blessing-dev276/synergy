@@ -8,6 +8,7 @@ const sections = [
     label: "Journey",
     items: [
       { to: "/admin/journey", label: "Stage Builder", icon: "compass" },
+      { to: "/admin/journey/promotions", label: "Stage Promotions", icon: "trophy" },
       { to: "/admin/content", label: "Content Builder", icon: "layers" },
     ],
   },
@@ -26,6 +27,10 @@ const sections = [
       { to: "/admin/network/requests", label: "Sponsor Requests", icon: "folder" },
       { to: "/admin/network/legacy-mentors", label: "Legacy Mentors", icon: "users" },
     ],
+  },
+  {
+    label: "Leaderboard",
+    items: [{ to: "/admin/earnings", label: "Earnings Review", icon: "dollar-sign" }],
   },
   {
     label: "Audit",

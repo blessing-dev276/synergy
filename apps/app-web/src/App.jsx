@@ -27,14 +27,17 @@ import TaskList from "./pages/tasks/TaskList.jsx";
 import NotificationList from "./pages/notifications/NotificationList.jsx";
 import Profile from "./pages/profile/Profile.jsx";
 import NetworkDashboard from "./pages/network/NetworkDashboard.jsx";
+import Leaderboard from "./pages/leaderboard/Leaderboard.jsx";
 
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import ActivityLog from "./pages/admin/ActivityLog.jsx";
 import ReviewQueue from "./pages/admin/ReviewQueue.jsx";
+import EarningsReview from "./pages/admin/EarningsReview.jsx";
 import ContentBuilder from "./pages/admin/content/ContentBuilder.jsx";
 import OrientationBuilder from "./pages/admin/content/OrientationBuilder.jsx";
 import CourseEditor from "./pages/admin/content/CourseEditor.jsx";
 import StageBuilder from "./pages/admin/journey/StageBuilder.jsx";
+import PromotionRequests from "./pages/admin/journey/PromotionRequests.jsx";
 import MemberList from "./pages/admin/members/MemberList.jsx";
 import MemberDetail from "./pages/admin/members/MemberDetail.jsx";
 import NetworkOverview from "./pages/admin/network/NetworkOverview.jsx";
@@ -85,6 +88,7 @@ function App() {
               <Route path="/notifications" element={<NotificationList />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/network" element={<NetworkDashboard />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
             </Route>
           </Route>
 
@@ -92,12 +96,14 @@ function App() {
             <Route element={<AdminLayout />}>
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/journey" element={<StageBuilder />} />
+              <Route path="/admin/journey/promotions" element={<PromotionRequests />} />
               <Route path="/admin/content" element={<ContentBuilder />} />
               <Route path="/admin/content/courses/:courseId" element={<CourseEditor />} />
               <Route path="/admin/orientation" element={<OrientationBuilder />} />
               <Route path="/admin/members" element={<MemberList />} />
               <Route path="/admin/members/:uid" element={<MemberDetail />} />
               <Route path="/admin/reviews" element={<ReviewQueue />} />
+              <Route path="/admin/earnings" element={<EarningsReview />} />
               <Route path="/admin/network" element={<NetworkOverview />} />
               <Route path="/admin/network/requests" element={<SponsorRequests />} />
               <Route path="/admin/network/legacy-mentors" element={<LegacyMentors />} />

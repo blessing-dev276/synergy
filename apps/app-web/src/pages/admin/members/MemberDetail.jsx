@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { assignSponsor, setMemberStage, setMemberStatus } from "../../../lib/rpc.js";
+import { assignSponsor, setMemberStage, setMemberStatus, reviewStagePromotion } from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
@@ -382,6 +382,69 @@ function StagePanel({ member, journey, stages, onChanged }) {
   );
 }
 
+// A member only shows up here once request_stage_promotion (0025) has
+// already re-verified server-side that every track in their current stage
+// is at 100% — this panel is just the approve/decline UI, not the check.
+function PromotionPanel({ member, onChanged }) {
+  const toast = useToast();
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: request, refetch } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("stage_promotion_requests")
+        .select("*, to_stage:stages!stage_promotion_requests_to_stage_id_fkey(title)")
+        .eq("uid", member.id)
+        .eq("status", "pending")
+        .maybeSingle(),
+    [member.id],
+  );
+
+  if (!request) return null;
+
+  const decide = async (decision) => {
+    if (decision === "rejected" && !window.confirm(`Decline this promotion request?`)) return;
+    setSaving(true);
+    try {
+      await reviewStagePromotion(request.id, decision, note.trim());
+      toast.success(decision === "approved" ? "Promotion approved." : "Promotion declined.");
+      setNote("");
+      refetch();
+      onChanged();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't review that request.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card-elevated" style={{ marginBottom: "16px", borderColor: "var(--gold)" }}>
+      <div className="card-title">
+        <Icon name="trophy" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Promotion requested
+      </div>
+      <p style={{ fontSize: "13.5px", marginBottom: "12px" }}>
+        Every track in their current stage is at 100%. They're asking to move up to{" "}
+        <strong style={{ color: "var(--navy)" }}>{request.to_stage?.title}</strong>.
+      </p>
+      <div className="field" style={{ marginBottom: "10px" }}>
+        <label>Note (optional)</label>
+        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Feedback for the member" />
+      </div>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button type="button" className="btn btn-primary" onClick={() => decide("approved")} disabled={saving}>
+          Approve
+        </button>
+        <button type="button" className="btn btn-danger" onClick={() => decide("rejected")} disabled={saving}>
+          Decline
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function EditActivityForm({ task, tracks, onSaved, onCancel }) {
   const toast = useToast();
   const [title, setTitle] = useState(task.title);
@@ -644,6 +707,7 @@ export default function MemberDetail() {
 
       {member.role === "member" && (
         <>
+          <PromotionPanel member={member} onChanged={refetchJourney} />
           <div className="grid grid-2">
             <StagePanel member={member} journey={journey} stages={stages} onChanged={refetchJourney} />
             <SponsorPanel member={member} onChanged={refetchMember} />

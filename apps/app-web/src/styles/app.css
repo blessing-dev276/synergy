@@ -319,6 +319,21 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
 .hero-banner > *{ position:relative; z-index:1; }
 .hero-banner h1{ color:#fff; font-size:28px; margin-bottom:6px; }
 .hero-banner p{ color:rgba(255,255,255,0.72); font-size:14.5px; }
+.hero-banner.gold{ background:var(--gradient-gold); }
+
+.leaderboard-row{
+  display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px;
+}
+.leaderboard-row.self{ background:rgba(76,141,255,0.14); }
+.leaderboard-rank{
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  width:26px; height:26px; border-radius:50%;
+  font-family:'JetBrains Mono', monospace; font-size:12px; font-weight:700;
+  background:var(--surface); color:var(--slate); border:1px solid var(--line);
+}
+.leaderboard-rank.gold{ background:var(--gradient-gold); color:#3A2A08; border-color:transparent; }
+.leaderboard-rank.silver{ background:rgba(255,255,255,0.16); color:var(--navy); border-color:transparent; }
+.leaderboard-rank.bronze{ background:rgba(227,169,74,0.16); color:var(--gold); border-color:transparent; }
 
 .card-elevated{
   background:rgba(255,255,255,0.055); border:1px solid var(--line); border-radius:14px;

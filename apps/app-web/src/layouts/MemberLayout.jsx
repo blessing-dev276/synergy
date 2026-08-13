@@ -20,6 +20,10 @@ const sections = [
     items: [{ to: "/network", label: "My Network", icon: "network" }],
   },
   {
+    label: "Leaderboard",
+    items: [{ to: "/leaderboard", label: "Leaderboard", icon: "trophy" }],
+  },
+  {
     label: "Account",
     items: [
       { to: "/notifications", label: "Notifications", icon: "bell" },

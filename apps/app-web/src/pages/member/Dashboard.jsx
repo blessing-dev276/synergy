@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
+import { requestStagePromotion } from "../../lib/rpc.js";
+import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
@@ -57,8 +60,72 @@ const QUICK_ACTIONS = [
   { to: "/learning", icon: "book", label: "Browse Learning" },
   { to: "/assignments", icon: "clipboard", label: "Assignments" },
   { to: "/tasks", icon: "check-square", label: "Tasks" },
+  { to: "/leaderboard", icon: "trophy", label: "Leaderboard" },
   { to: "/notifications", icon: "bell", label: "Notifications" },
 ];
+
+// Shown once every track in the member's current stage hits 100% — lets
+// them ask an admin to review and move them forward, rather than an admin
+// having to notice on their own (see request_stage_promotion in
+// supabase/migrations/0025_stage_promotion_requests.sql). The server
+// re-verifies 100% completion itself, so this button is just a convenience
+// gate, not the actual check.
+function PromotionCard({ uid, tracks, onRequested }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  const { data: pending, refetch } = useSupabaseQuery(
+    () =>
+      uid &&
+      supabase
+        .from("stage_promotion_requests")
+        .select("*, to_stage:stages!stage_promotion_requests_to_stage_id_fkey(title)")
+        .eq("uid", uid)
+        .eq("status", "pending")
+        .maybeSingle(),
+    [uid],
+  );
+
+  const allComplete = tracks.length > 0 && tracks.every((t) => (t.progressPercent ?? 0) >= 100);
+  if (!pending && !allComplete) return null;
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      await requestStagePromotion();
+      toast.success("Promotion requested — an admin will review it shortly.");
+      refetch();
+      onRequested?.();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't request a promotion right now.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card-elevated" style={{ marginBottom: "24px", borderColor: "var(--gold)" }}>
+      <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <Icon name="trophy" size={16} />
+        {pending ? "Promotion requested" : "Every track complete!"}
+      </div>
+      {pending ? (
+        <p style={{ fontSize: "13.5px", color: "var(--slate)" }}>
+          Waiting on an admin to review your move to <strong style={{ color: "var(--navy)" }}>{pending.to_stage?.title}</strong>.
+        </p>
+      ) : (
+        <>
+          <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
+            You've finished every track in this stage. Ask an admin to review and move you to the next one.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={submit} disabled={busy}>
+            {busy ? "Requesting…" : "Request promotion"}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { user, profile } = useAuth();
@@ -131,6 +198,8 @@ export default function Dashboard() {
           ))}
         </div>
       )}
+
+      {!loadingJourney && <PromotionCard uid={user?.id} tracks={tracks} />}
 
       <div className="grid grid-2" style={{ marginBottom: "24px" }}>
         <div className="card-elevated">
