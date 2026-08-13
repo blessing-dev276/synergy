@@ -13,6 +13,7 @@ export default function Signup() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [sponsor, setSponsor] = useState({ selected: null, claimedName: "" });
   const [showPicker, setShowPicker] = useState(!refUid);
   const [refStatus, setRefStatus] = useState(refUid ? "loading" : "none");
@@ -68,6 +69,7 @@ export default function Signup() {
       options: {
         data: {
           display_name: name.trim(),
+          whatsapp_number: whatsapp.trim(),
           sponsor_uid: sponsor.selected?.id ?? null,
           claimed_sponsor_name: sponsor.selected ? null : sponsor.claimedName,
         },
@@ -137,6 +139,21 @@ export default function Signup() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+        </div>
+        <div className="field field-lg">
+          <label htmlFor="whatsapp">WhatsApp number</label>
+          <input
+            id="whatsapp"
+            type="tel"
+            autoComplete="tel"
+            placeholder="e.g. +234 801 234 5678"
+            required
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+          />
+          <div style={{ fontSize: "12px", color: "var(--slate)", marginTop: "4px" }}>
+            So we can add you to the office WhatsApp group.
+          </div>
         </div>
 
         <div className="field field-lg">

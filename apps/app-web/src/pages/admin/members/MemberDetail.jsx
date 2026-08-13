@@ -133,6 +133,8 @@ function ProfilePanel({ member }) {
       <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", rowGap: "8px", columnGap: "16px", fontSize: "13.5px", marginTop: "16px" }}>
         <dt style={{ color: "var(--slate)" }}>Email</dt>
         <dd>{member.email}</dd>
+        <dt style={{ color: "var(--slate)" }}>WhatsApp</dt>
+        <dd>{member.whatsapp_number || "—"}</dd>
         <dt style={{ color: "var(--slate)" }}>Member since</dt>
         <dd>{member.created_at ? new Date(member.created_at).toLocaleDateString() : "—"}</dd>
         <dt style={{ color: "var(--slate)" }}>Sponsor</dt>
