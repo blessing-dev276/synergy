@@ -41,7 +41,16 @@ function ReferralLinkCard({ uid }) {
           readOnly
           value={link}
           onFocus={(e) => e.target.select()}
-          style={{ flex: 1, minWidth: "220px" }}
+          style={{
+            flex: 1,
+            minWidth: "220px",
+            border: "1px solid var(--line)",
+            borderRadius: "9px",
+            padding: "11px 14px",
+            fontSize: "14.5px",
+            background: "var(--surface)",
+            color: "var(--navy)",
+          }}
         />
         <button type="button" className="btn btn-primary" onClick={handleCopy}>
           Copy link

@@ -167,7 +167,7 @@ export default function Signup() {
           )}
 
           {refStatus !== "loading" && showPicker && (
-            <SponsorPicker value={sponsor} onChange={setSponsor} placeholder="Search by name…" />
+            <SponsorPicker value={sponsor} onChange={setSponsor} placeholder="Search or pick your sponsor…" />
           )}
         </div>
 
