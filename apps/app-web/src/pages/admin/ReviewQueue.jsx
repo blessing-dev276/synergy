@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { supabase } from "../../supabaseClient.js";
-import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { gradeAssignment } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
+import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 
+// Grading is admin-only (see supabase/migrations/0020_retire_mentor_
+// capability.sql — grade_assignment no longer has a mentor branch), so this
+// shows every pending submission across all members, not scoped to a
+// mentor's assignees the way the old mentor Review Queue was.
 function ReviewRow({ submission, onGraded }) {
   const toast = useToast();
   const [feedback, setFeedback] = useState("");
@@ -37,7 +41,7 @@ function ReviewRow({ submission, onGraded }) {
 
   return (
     <div className="card" style={{ marginBottom: "14px" }}>
-      <div className="card-title">Submission from {submission.uid}</div>
+      <div className="card-title">Submission from {submission.member?.display_name || submission.uid}</div>
       <p style={{ margin: "8px 0" }}>{submission.text_response || "(no text response)"}</p>
       {submission.file_urls?.map((path) => (
         <button key={path} type="button" className="badge badge-neutral" style={{ marginRight: "6px" }} onClick={() => openAttachment(path)}>
@@ -65,31 +69,22 @@ function ReviewRow({ submission, onGraded }) {
 }
 
 export default function ReviewQueue() {
-  const { user } = useAuth();
-
-  const { data: mentorAssignments } = useSupabaseQuery(
-    () => user && supabase.from("mentor_assignments").select("*").eq("mentor_uid", user.id).eq("active", true),
-    [user?.id],
-  );
-  const memberUids = (mentorAssignments ?? []).map((a) => a.member_uid);
-
-  const {
-    loading,
-    data: submissions,
-    refetch,
-  } = useSupabaseQuery(
+  const { loading, data: submissions, refetch } = useSupabaseQuery(
     () =>
-      memberUids.length > 0 &&
-      supabase.from("assignment_submissions").select("*").eq("status", "submitted").in("uid", memberUids),
-    [memberUids.join(",")],
+      supabase
+        .from("assignment_submissions")
+        .select("*, member:profiles!assignment_submissions_uid_fkey(display_name)")
+        .eq("status", "submitted")
+        .order("submitted_at", { ascending: true }),
+    [],
   );
 
   return (
     <div>
       <h1>Review Queue</h1>
-      {memberUids.length > 0 && loading && <Skeleton variant="card" height="140px" />}
-      {(memberUids.length === 0 || (!loading && (!submissions || submissions.length === 0))) && (
-        <EmptyState icon="🗂️" title="Nothing pending review" description="Submissions from your members will show up here." />
+      {loading && <Skeleton variant="card" height="140px" />}
+      {!loading && (!submissions || submissions.length === 0) && (
+        <EmptyState icon={<Icon name="folder" size={26} />} title="Nothing pending review" />
       )}
       {submissions?.map((s) => (
         <ReviewRow key={s.id} submission={s} onGraded={refetch} />

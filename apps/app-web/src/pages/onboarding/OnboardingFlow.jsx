@@ -47,7 +47,7 @@ export default function OnboardingFlow() {
       toast.error("Couldn't save that, please try again.");
       return;
     }
-    // Learning-path recommendation/assignment is a mentor/admin action in
+    // Learning-path recommendation/assignment is an admin action in
     // Phase 1 (spec section 4) — not auto-assigned here yet.
     await refreshProfile();
     // OnboardingGate will now redirect on to the dashboard since
@@ -71,7 +71,7 @@ export default function OnboardingFlow() {
             <>
               <h1>Welcome to Synergy 👋</h1>
               <p className="sub">
-                Let's set up your profile so your mentor and learning path fit you from day one.
+                Let's set up your profile so your learning path fits you from day one.
               </p>
               <div className="field field-lg">
                 <label htmlFor="bio">A little about you (optional)</label>

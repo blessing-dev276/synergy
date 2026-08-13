@@ -1,9 +1,9 @@
-// Dev-data seeder — creates demo admin/mentor/member accounts plus sample
-// learning content. Uses the Auth Admin API + service_role client rather
-// than hand-inserting into auth.users directly: Supabase explicitly
-// discourages writing to that table's internals (encrypted_password format,
-// etc. are undocumented and can change), so this is the supported path for
-// both local (`supabase start`) and hosted projects.
+// Dev-data seeder — creates demo admin/member accounts plus sample learning
+// content. Uses the Auth Admin API + service_role client rather than
+// hand-inserting into auth.users directly: Supabase explicitly discourages
+// writing to that table's internals (encrypted_password format, etc. are
+// undocumented and can change), so this is the supported path for both
+// local (`supabase start`) and hosted projects.
 //
 // Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node supabase/seed.mjs
 /* eslint-disable no-console */
@@ -19,7 +19,7 @@ if (!url || !serviceKey) {
 
 const supabase = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
-async function upsertUser({ email, password, displayName, role, invitedByUid }) {
+async function upsertUser({ email, password, displayName, role, sponsorUid, claimedSponsorName }) {
   const { data: existing } = await supabase.auth.admin.listUsers({ page: 1, perPage: 200 });
   let user = existing?.users.find((u) => u.email === email);
 
@@ -28,25 +28,28 @@ async function upsertUser({ email, password, displayName, role, invitedByUid }) 
       email,
       password,
       email_confirm: true,
-      // invited_by_uid is read by the handle_new_user trigger (0012) the
-      // same way the real signup form (Signup.jsx) passes it.
-      user_metadata: { display_name: displayName, invited_by_uid: invitedByUid ?? null },
+      // sponsor_uid/claimed_sponsor_name are read by the handle_new_user
+      // trigger (0019) the same way the real signup form (Signup.jsx via
+      // SponsorPicker) passes them — exactly one of the two is ever set.
+      user_metadata: {
+        display_name: displayName,
+        sponsor_uid: sponsorUid ?? null,
+        claimed_sponsor_name: sponsorUid ? null : (claimedSponsorName ?? null),
+      },
     });
     if (error) throw error;
     user = data.user;
   }
 
-  // handle_new_user already created the profile row on signup; just set role.
+  // handle_new_user already created the profile row (status 'pending', per
+  // the orientation-screening flow) on signup; just set role/status here so
+  // seeded demo accounts are immediately usable without going through
+  // orientation themselves.
   const { error: profileError } = await supabase
     .from("profiles")
-    .update({ role, display_name: displayName, onboarding: { completed: true, interests: [], goals: [] } })
+    .update({ role, status: "active", display_name: displayName, onboarding: { completed: true, interests: [], goals: [] } })
     .eq("id", user.id);
   if (profileError) throw profileError;
-
-  if (role !== "member") {
-    // Custom claims don't exist in this design (role lives in `profiles`,
-    // read live by RLS) — nothing further needed for mentor/admin to work.
-  }
 
   return user.id;
 }
@@ -54,15 +57,24 @@ async function upsertUser({ email, password, displayName, role, invitedByUid }) 
 async function main() {
   console.log("Seeding demo users…");
   const adminUid = await upsertUser({ email: "admin@synergyteamm.com", password: "password123", displayName: "Synergy Admin", role: "admin" });
-  const mentorUid = await upsertUser({ email: "mentor@synergyteamm.com", password: "password123", displayName: "Sample Mentor", role: "mentor", invitedByUid: adminUid });
-  const memberUid = await upsertUser({ email: "member@synergyteamm.com", password: "password123", displayName: "Sample Member", role: "member", invitedByUid: mentorUid });
+  // Pre-sponsor-model account, kept as a "legacy mentor" demo: role is now
+  // plain 'member' (mentor no longer exists as a role), but still has a
+  // mentor_assignments row below so /admin/network/legacy-mentors has
+  // something to show.
+  const legacyMentorUid = await upsertUser({ email: "mentor@synergyteamm.com", password: "password123", displayName: "Sample Mentor", role: "member", sponsorUid: adminUid });
+  const memberUid = await upsertUser({ email: "member@synergyteamm.com", password: "password123", displayName: "Sample Member", role: "member", sponsorUid: legacyMentorUid });
+  // Exercises the "sponsor not found at signup" path (see
+  // supabase/migrations/0019_sponsor_functions.sql + SponsorRequests.jsx) —
+  // claims a sponsor name that matches nobody, so it lands as a pending row
+  // in /admin/network/requests instead of being silently dropped.
+  await upsertUser({ email: "pending-sponsor@synergyteamm.com", password: "password123", displayName: "Pending Sponsor Demo", role: "member", claimedSponsorName: "Michael Ade" });
 
-  console.log("Assigning mentor…");
+  console.log("Recording legacy mentor assignment (historical only, not a sponsor relationship)…");
   await supabase.from("mentor_assignments").upsert(
-    { mentor_uid: mentorUid, member_uid: memberUid, assigned_by: adminUid, active: true },
+    { mentor_uid: legacyMentorUid, member_uid: memberUid, assigned_by: adminUid, active: true },
     { onConflict: "mentor_uid,member_uid" },
   );
-  await supabase.from("profiles").update({ mentor_uid: mentorUid }).eq("id", memberUid);
+  await supabase.from("profiles").update({ mentor_uid: legacyMentorUid }).eq("id", memberUid);
 
   console.log("Seeding learning path/course/module/lessons/quiz…");
   const { data: path } = await supabase
@@ -242,7 +254,7 @@ async function main() {
 
   const { data: skillSubmissionTask } = await supabase.from("tasks").insert({
     title: "Submit your lead follow-up workflow",
-    description: "Build and submit your 3-step follow-up workflow for mentor review.",
+    description: "Build and submit your 3-step follow-up workflow for admin review.",
     scope: "individual",
     course_id: course.id,
     assigned_to_uid: memberUid,
@@ -253,7 +265,7 @@ async function main() {
     task_type: "submission",
     xp_reward: 50,
     is_required: true,
-    requires_mentor_approval: true,
+    requires_admin_approval: true,
     linked_assignment_id: workflowAssignment.id,
   }).select().single();
 
@@ -341,9 +353,10 @@ async function main() {
   );
 
   console.log("\nSeed complete. Log in with:");
-  console.log("  admin@synergyteamm.com  / password123");
-  console.log("  mentor@synergyteamm.com / password123");
-  console.log("  member@synergyteamm.com / password123");
+  console.log("  admin@synergyteamm.com           / password123");
+  console.log("  mentor@synergyteamm.com          / password123  (legacy mentor demo, now a plain member)");
+  console.log("  member@synergyteamm.com          / password123");
+  console.log("  pending-sponsor@synergyteamm.com / password123  (pending sponsor request demo)");
 }
 
 main().catch((err) => {

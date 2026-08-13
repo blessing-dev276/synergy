@@ -46,7 +46,7 @@ export default function ActivityLog() {
         </select>
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
-        Every admin action — role changes, mentor assignments, stage moves, status changes, task completions — in one place.
+        Every admin action — role changes, sponsor assignments, stage moves, status changes, task completions — in one place.
       </p>
 
       {loading && <Skeleton variant="card" height="200px" />}

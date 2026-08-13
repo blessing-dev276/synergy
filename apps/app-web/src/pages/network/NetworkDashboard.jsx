@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
+import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
-import { getNetworkOverview, getPersonallySponsored, getNetwork } from "../../lib/rpc.js";
 import Icon from "../../components/Icon.jsx";
 import NetworkTree from "../../components/NetworkTree.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
@@ -27,14 +27,17 @@ export default function NetworkDashboard() {
   const { user } = useAuth();
 
   const { loading: loadingOverview, data: overview } = useSupabaseQuery(
-    () => user && getNetworkOverview(user.id),
+    () => user && supabase.rpc("get_network_overview", { p_uid: user.id }),
     [user?.id],
   );
   const { loading: loadingSponsored, data: sponsored } = useSupabaseQuery(
-    () => user && getPersonallySponsored(user.id),
+    () => user && supabase.rpc("get_personally_sponsored", { p_uid: user.id }),
     [user?.id],
   );
-  const { loading: loadingTree, data: tree } = useSupabaseQuery(() => user && getNetwork(user.id), [user?.id]);
+  const { loading: loadingTree, data: tree } = useSupabaseQuery(
+    () => user && supabase.rpc("get_network", { p_uid: user.id }),
+    [user?.id],
+  );
 
   return (
     <div>

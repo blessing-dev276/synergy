@@ -33,6 +33,7 @@ const PATHS = {
   activity: <path d="M3 12h4l2-7 4 14 2-7h6" />,
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" /></>,
   award: <><circle cx="12" cy="9" r="5.5" /><path d="M8.5 13.5L7 21l5-2.5L17 21l-1.5-7.5" /></>,
+  network: <><circle cx="12" cy="5" r="2.5" /><circle cx="5" cy="19" r="2.5" /><circle cx="19" cy="19" r="2.5" /><path d="M12 7.5v5M12 12.5L5 17M12 12.5l7 4.5" /></>,
 };
 
 export default function Icon({ name, size = 18, strokeWidth = 1.8, className = "", style }) {

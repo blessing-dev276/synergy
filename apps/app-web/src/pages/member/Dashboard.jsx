@@ -108,7 +108,7 @@ export default function Dashboard() {
           <EmptyState
             icon={<Icon name="compass" size={28} />}
             title="Your journey hasn't started yet"
-            description="Your mentor will get you set up shortly."
+            description="An admin will get you set up shortly."
           />
         </div>
       )}

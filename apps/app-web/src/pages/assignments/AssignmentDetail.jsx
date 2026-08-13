@@ -108,7 +108,7 @@ export default function AssignmentDetail() {
           ))}
           {submission.feedback && (
             <p style={{ marginTop: "12px" }}>
-              <strong>Mentor feedback:</strong> {submission.feedback}
+              <strong>Feedback:</strong> {submission.feedback}
             </p>
           )}
           {typeof submission.grade === "number" && (

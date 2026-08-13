@@ -4,7 +4,6 @@ import Skeleton from "./state/Skeleton.jsx";
 
 const HOME_BY_ROLE = {
   member: "/dashboard",
-  mentor: "/mentor",
   admin: "/admin",
 };
 

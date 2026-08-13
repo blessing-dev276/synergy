@@ -13,7 +13,6 @@ import PendingApproval from "./pages/onboarding/PendingApproval.jsx";
 import BlockedAccount from "./pages/BlockedAccount.jsx";
 
 import MemberLayout from "./layouts/MemberLayout.jsx";
-import MentorLayout from "./layouts/MentorLayout.jsx";
 import AdminLayout from "./layouts/AdminLayout.jsx";
 
 import Dashboard from "./pages/member/Dashboard.jsx";
@@ -27,19 +26,20 @@ import AssignmentDetail from "./pages/assignments/AssignmentDetail.jsx";
 import TaskList from "./pages/tasks/TaskList.jsx";
 import NotificationList from "./pages/notifications/NotificationList.jsx";
 import Profile from "./pages/profile/Profile.jsx";
-
-import MentorDashboard from "./pages/mentor/MentorDashboard.jsx";
-import MemberProgress from "./pages/mentor/MemberProgress.jsx";
-import ReviewQueue from "./pages/mentor/ReviewQueue.jsx";
+import NetworkDashboard from "./pages/network/NetworkDashboard.jsx";
 
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import ActivityLog from "./pages/admin/ActivityLog.jsx";
+import ReviewQueue from "./pages/admin/ReviewQueue.jsx";
 import ContentBuilder from "./pages/admin/content/ContentBuilder.jsx";
 import OrientationBuilder from "./pages/admin/content/OrientationBuilder.jsx";
 import CourseEditor from "./pages/admin/content/CourseEditor.jsx";
 import StageBuilder from "./pages/admin/journey/StageBuilder.jsx";
 import MemberList from "./pages/admin/members/MemberList.jsx";
 import MemberDetail from "./pages/admin/members/MemberDetail.jsx";
+import NetworkOverview from "./pages/admin/network/NetworkOverview.jsx";
+import SponsorRequests from "./pages/admin/network/SponsorRequests.jsx";
+import LegacyMentors from "./pages/admin/network/LegacyMentors.jsx";
 
 import Forbidden from "./pages/Forbidden.jsx";
 import NotFound from "./pages/NotFound.jsx";
@@ -84,14 +84,7 @@ function App() {
               <Route path="/tasks" element={<TaskList />} />
               <Route path="/notifications" element={<NotificationList />} />
               <Route path="/profile" element={<Profile />} />
-            </Route>
-          </Route>
-
-          <Route element={<RoleGuard allow={["mentor"]} />}>
-            <Route element={<MentorLayout />}>
-              <Route path="/mentor" element={<MentorDashboard />} />
-              <Route path="/mentor/members/:memberUid" element={<MemberProgress />} />
-              <Route path="/mentor/reviews" element={<ReviewQueue />} />
+              <Route path="/network" element={<NetworkDashboard />} />
             </Route>
           </Route>
 
@@ -104,6 +97,10 @@ function App() {
               <Route path="/admin/orientation" element={<OrientationBuilder />} />
               <Route path="/admin/members" element={<MemberList />} />
               <Route path="/admin/members/:uid" element={<MemberDetail />} />
+              <Route path="/admin/reviews" element={<ReviewQueue />} />
+              <Route path="/admin/network" element={<NetworkOverview />} />
+              <Route path="/admin/network/requests" element={<SponsorRequests />} />
+              <Route path="/admin/network/legacy-mentors" element={<LegacyMentors />} />
               <Route path="/admin/activity" element={<ActivityLog />} />
             </Route>
           </Route>

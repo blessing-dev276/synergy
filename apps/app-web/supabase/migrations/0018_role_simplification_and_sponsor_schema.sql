@@ -60,9 +60,9 @@ grant select on public.sponsor_relationships to authenticated;
 create policy sponsor_relationships_select on public.sponsor_relationships for select
   using (public.current_role() = 'admin' or sponsor_uid = auth.uid() or member_uid = auth.uid());
 -- No insert/update/delete grant: written only by handle_new_user (trigger,
--- bypasses RLS) and assign_sponsor/resolve_sponsor_request (0017, SECURITY
+-- bypasses RLS) and assign_sponsor/resolve_sponsor_request (0019, SECURITY
 -- DEFINER). This select grant is a same-row/admin fallback, not the
--- network-tree read path — get_network/get_personally_sponsored (0017) are
+-- network-tree read path — get_network/get_personally_sponsored (0019) are
 -- RPCs precisely because a member querying this table directly with an
 -- embedded profiles!... join would get every downline profile stripped to
 -- null by profiles_select's RLS (embeds apply the embedded table's own
@@ -92,4 +92,4 @@ grant select on public.sponsor_requests to authenticated;
 create policy sponsor_requests_select on public.sponsor_requests for select
   using (public.current_role() = 'admin' or member_uid = auth.uid());
 -- No insert/update/delete grant: written by handle_new_user (trigger) and
--- resolve_sponsor_request/reject_sponsor_request (0017, SECURITY DEFINER).
+-- resolve_sponsor_request/reject_sponsor_request (0019, SECURITY DEFINER).

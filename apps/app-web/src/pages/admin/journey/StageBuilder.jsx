@@ -150,7 +150,7 @@ function NewTaskForm({ stageId, trackId, memberUids, onCreated, close }) {
       task_type: taskType,
       xp_reward: Number(xpReward) || 0,
       is_required: isRequired,
-      requires_mentor_approval: requiresApproval,
+      requires_admin_approval: requiresApproval,
     };
 
     // One task row per member currently in this stage — tasks are
@@ -206,7 +206,7 @@ function NewTaskForm({ stageId, trackId, memberUids, onCreated, close }) {
           </label>
           <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
             <input type="checkbox" checked={requiresApproval} onChange={(e) => setRequiresApproval(e.target.checked)} />
-            Needs mentor approval
+            Needs admin approval
           </label>
         </div>
       )}

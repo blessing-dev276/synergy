@@ -16,6 +16,10 @@ const sections = [
     ],
   },
   {
+    label: "Network",
+    items: [{ to: "/network", label: "My Network", icon: "network" }],
+  },
+  {
     label: "Account",
     items: [
       { to: "/notifications", label: "Notifications", icon: "bell" },
@@ -28,6 +32,7 @@ const bottomItems = [
   { to: "/dashboard", label: "Home", icon: "home", end: true },
   { to: "/learning", label: "Learning", icon: "book" },
   { to: "/assignments", label: "Tasks", icon: "check-square" },
+  { to: "/network", label: "Network", icon: "network" },
   { to: "/profile", label: "Profile", icon: "user" },
 ];
 

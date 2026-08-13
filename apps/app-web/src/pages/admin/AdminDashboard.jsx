@@ -36,7 +36,8 @@ function StatCard({ label, value, icon, loading, to }) {
 const QUICK_LINKS = [
   { to: "/admin/journey", icon: "compass", label: "Stage Builder" },
   { to: "/admin/content", icon: "layers", label: "Content Builder" },
-  { to: "/admin/members", icon: "users", label: "Members & Mentors" },
+  { to: "/admin/members", icon: "users", label: "Members" },
+  { to: "/admin/network", icon: "network", label: "Network" },
 ];
 
 export default function AdminDashboard() {
@@ -46,9 +47,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [members, mentors, courses, pendingReviews, pendingApplicants] = await Promise.all([
+      const [members, pendingSponsorRequests, courses, pendingReviews, pendingApplicants] = await Promise.all([
         supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "member"),
-        supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "mentor"),
+        supabase.from("sponsor_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("courses").select("*", { count: "exact", head: true }).eq("published", true),
         supabase.from("assignment_submissions").select("*", { count: "exact", head: true }).eq("status", "submitted"),
         supabase.from("profiles").select("*", { count: "exact", head: true }).eq("status", "pending"),
@@ -56,7 +57,7 @@ export default function AdminDashboard() {
       if (cancelled) return;
       setStats({
         members: members.count ?? 0,
-        mentors: mentors.count ?? 0,
+        pendingSponsorRequests: pendingSponsorRequests.count ?? 0,
         courses: courses.count ?? 0,
         pendingReviews: pendingReviews.count ?? 0,
         pendingApplicants: pendingApplicants.count ?? 0,
@@ -84,10 +85,10 @@ export default function AdminDashboard() {
 
       <div className="grid grid-3" style={{ marginBottom: "24px" }}>
         <StatCard label="Members" value={stats?.members} icon="users" loading={!stats} />
-        <StatCard label="Mentors" value={stats?.mentors} icon="user" loading={!stats} />
         <StatCard label="Published Courses" value={stats?.courses} icon="book" loading={!stats} />
-        <StatCard label="Pending Reviews" value={stats?.pendingReviews} icon="folder" loading={!stats} />
+        <StatCard label="Pending Reviews" value={stats?.pendingReviews} icon="folder" loading={!stats} to="/admin/reviews" />
         <StatCard label="Pending Approvals" value={stats?.pendingApplicants} icon="clock" loading={!stats} to="/admin/members?status=pending" />
+        <StatCard label="Pending Sponsor Requests" value={stats?.pendingSponsorRequests} icon="network" loading={!stats} to="/admin/network/requests" />
       </div>
 
       <div className="quick-actions" style={{ marginTop: 0, marginBottom: "24px" }}>

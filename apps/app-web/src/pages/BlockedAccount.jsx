@@ -6,7 +6,7 @@ import Icon from "../components/Icon.jsx";
 const COPY = {
   suspended: {
     title: "Your account is suspended",
-    description: "An admin has paused your access to training, tasks, and assignments. This isn't permanent — reach out to your mentor or an admin to find out why and get reinstated.",
+    description: "An admin has paused your access to training, tasks, and assignments. This isn't permanent — reach out to your sponsor or an admin to find out why and get reinstated.",
   },
   removed: {
     title: "Your account has been removed",

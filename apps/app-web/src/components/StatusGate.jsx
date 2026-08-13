@@ -6,7 +6,6 @@ import Skeleton from "./state/Skeleton.jsx";
 
 const HOME_BY_ROLE = {
   member: "/dashboard",
-  mentor: "/mentor",
   admin: "/admin",
 };
 
@@ -60,8 +59,8 @@ export default function StatusGate() {
     return <Outlet />;
   }
 
-  // Not pending — an approved member (or mentor/admin) shouldn't be able
-  // to sit on the orientation/waiting screens.
+  // Not pending — an approved member (or admin) shouldn't be able to sit
+  // on the orientation/waiting screens.
   if (location.pathname === "/orientation" || location.pathname === "/pending-approval") {
     return <Navigate to={HOME_BY_ROLE[role] ?? "/dashboard"} replace />;
   }

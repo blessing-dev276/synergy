@@ -33,8 +33,8 @@ function initials(name) {
 }
 
 // Everything a member sees/edits on their own Profile page (photo, bio,
-// interests, goals, invited-by) — the admin side had none of it visible,
-// only the journey/mentor/activity management panels.
+// interests, goals, sponsor) — the admin side had none of it visible,
+// only the journey/sponsor/activity management panels.
 function ProfilePanel({ member }) {
   const [signedPhotoUrl, setSignedPhotoUrl] = useState(null);
 
