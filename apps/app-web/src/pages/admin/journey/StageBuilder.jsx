@@ -432,7 +432,11 @@ function StageRow({ stage, tracks, memberUids, isFirst, isLast, onChanged, onReo
 
   const handleDelete = async (e) => {
     e.stopPropagation();
-    if (!window.confirm(`Delete stage "${stage.title}"? This also removes its tasks and any members' progress tied to it.`)) return;
+    const memberWarning =
+      memberUids.length > 0
+        ? ` ${memberUids.length} member${memberUids.length === 1 ? " is" : "s are"} currently on this stage — they'll lose their place and need to be moved to another stage.`
+        : "";
+    if (!window.confirm(`Delete stage "${stage.title}"? This also deletes its tasks and members' completion records for them.${memberWarning}`)) return;
     const { error } = await supabase.from("stages").delete().eq("id", stage.id);
     if (error) {
       toast.error("Couldn't delete that stage.");

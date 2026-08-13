@@ -42,3 +42,5 @@ export const getJourneyOverview = (uid) => call("get_journey_overview", { p_uid:
 export const getNextBestAction = (uid) => call("get_next_best_action", { p_uid: uid });
 
 export const setMemberStage = (uid, stageId) => call("set_member_stage", { p_uid: uid, p_stage_id: stageId });
+
+export const setMemberStatus = (uid, status) => call("set_member_status", { p_uid: uid, p_status: status });

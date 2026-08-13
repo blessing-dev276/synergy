@@ -27,6 +27,10 @@ const PATHS = {
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   x: <path d="M6 6l12 12M18 6L6 18" />,
   check: <path d="M5 13l4 4L19 7" />,
+  ban: <><circle cx="12" cy="12" r="9" /><path d="M5.5 5.5l13 13" /></>,
+  "user-x": <><circle cx="9" cy="8" r="3.3" /><path d="M2.5 19c0-3.3 3-5 6.5-5s6.5 1.7 6.5 5" /><path d="M16 8l5 5M21 8l-5 5" /></>,
+  "rotate-ccw": <><path d="M4 4v6h6" /><path d="M4.6 15a8 8 0 1 0 2-8.4L4 10" /></>,
+  activity: <path d="M3 12h4l2-7 4 14 2-7h6" />,
 };
 
 export default function Icon({ name, size = 18, strokeWidth = 1.8, className = "", style }) {

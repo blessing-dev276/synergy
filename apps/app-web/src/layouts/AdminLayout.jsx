@@ -15,6 +15,10 @@ const sections = [
     label: "People",
     items: [{ to: "/admin/members", label: "Members & Mentors", icon: "users" }],
   },
+  {
+    label: "Audit",
+    items: [{ to: "/admin/activity", label: "Activity Log", icon: "activity" }],
+  },
 ];
 
 const bottomItems = [

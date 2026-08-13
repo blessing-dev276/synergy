@@ -29,6 +29,7 @@ import MemberProgress from "./pages/mentor/MemberProgress.jsx";
 import ReviewQueue from "./pages/mentor/ReviewQueue.jsx";
 
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
+import ActivityLog from "./pages/admin/ActivityLog.jsx";
 import ContentBuilder from "./pages/admin/content/ContentBuilder.jsx";
 import CourseEditor from "./pages/admin/content/CourseEditor.jsx";
 import StageBuilder from "./pages/admin/journey/StageBuilder.jsx";
@@ -92,6 +93,7 @@ function App() {
               <Route path="/admin/content/courses/:courseId" element={<CourseEditor />} />
               <Route path="/admin/members" element={<MemberList />} />
               <Route path="/admin/members/:uid" element={<MemberDetail />} />
+              <Route path="/admin/activity" element={<ActivityLog />} />
             </Route>
           </Route>
         </Route>

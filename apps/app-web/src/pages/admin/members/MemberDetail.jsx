@@ -1,9 +1,9 @@
 import { useParams } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { assignMentor, unassignMentor, setMemberStage } from "../../../lib/rpc.js";
+import { assignMentor, unassignMentor, setMemberStage, setMemberStatus } from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
@@ -19,6 +19,127 @@ const TASK_TYPES = [
   "attendance",
   "milestone",
 ];
+
+function initials(name) {
+  return (
+    (name ?? "")
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join("") || "?"
+  );
+}
+
+// Everything a member sees/edits on their own Profile page (photo, bio,
+// interests, goals, invited-by) — the admin side had none of it visible,
+// only the journey/mentor/activity management panels.
+function ProfilePanel({ member }) {
+  const [signedPhotoUrl, setSignedPhotoUrl] = useState(null);
+
+  const { data: inviter } = useSupabaseQuery(
+    () => member.invited_by_uid && supabase.from("profiles").select("id, display_name").eq("id", member.invited_by_uid).single(),
+    [member.invited_by_uid],
+  );
+
+  useEffect(() => {
+    if (!member.photo_url) {
+      setSignedPhotoUrl(null);
+      return;
+    }
+    let cancelled = false;
+    supabase.storage
+      .from("profile-photos")
+      .createSignedUrl(member.photo_url, 3600)
+      .then(({ data }) => {
+        if (!cancelled) setSignedPhotoUrl(data?.signedUrl ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [member.photo_url]);
+
+  const interests = member.onboarding?.interests ?? [];
+  const goals = member.onboarding?.goals ?? [];
+  const avatarStyle = {
+    width: 64,
+    height: 64,
+    borderRadius: "50%",
+    objectFit: "cover",
+    background: "var(--gradient-navy)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: "22px",
+    flexShrink: 0,
+  };
+
+  return (
+    <div className="card-elevated" style={{ marginBottom: "16px" }}>
+      <div style={{ display: "flex", gap: "16px" }}>
+        {signedPhotoUrl ? (
+          <img src={signedPhotoUrl} alt="" style={{ ...avatarStyle, background: "var(--line)" }} />
+        ) : (
+          <div style={avatarStyle}>{initials(member.display_name)}</div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="card-title" style={{ marginBottom: "4px" }}>
+            Profile
+          </div>
+          {member.bio ? (
+            <p style={{ fontSize: "13.5px", color: "var(--slate)" }}>{member.bio}</p>
+          ) : (
+            <p style={{ fontSize: "13.5px", color: "var(--slate)", fontStyle: "italic" }}>No bio yet.</p>
+          )}
+        </div>
+      </div>
+
+      {(interests.length > 0 || goals.length > 0) && (
+        <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          {interests.length > 0 && (
+            <div>
+              <div className="row-meta" style={{ marginBottom: "6px" }}>
+                Interested in
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {interests.map((i) => (
+                  <span key={i} className="badge badge-neutral">
+                    {i}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {goals.length > 0 && (
+            <div>
+              <div className="row-meta" style={{ marginBottom: "6px" }}>
+                Goals
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {goals.map((g) => (
+                  <span key={g} className="badge badge-neutral">
+                    {g}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", rowGap: "8px", columnGap: "16px", fontSize: "13.5px", marginTop: "16px" }}>
+        <dt style={{ color: "var(--slate)" }}>Email</dt>
+        <dd>{member.email}</dd>
+        <dt style={{ color: "var(--slate)" }}>Member since</dt>
+        <dd>{member.created_at ? new Date(member.created_at).toLocaleDateString() : "—"}</dd>
+        <dt style={{ color: "var(--slate)" }}>Invited by</dt>
+        <dd>{inviter ? inviter.display_name : "—"}</dd>
+      </dl>
+    </div>
+  );
+}
 
 function MentorPanel({ member, onChanged }) {
   const toast = useToast();
@@ -86,6 +207,67 @@ function MentorPanel({ member, onChanged }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+const STATUS_BADGE = {
+  active: "badge-success",
+  suspended: "badge-warning",
+  removed: "badge-danger",
+};
+
+function StatusPanel({ member, onChanged }) {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+  const status = member.status ?? "active";
+
+  const changeStatus = async (newStatus) => {
+    if (newStatus === "suspended" && !window.confirm(`Suspend ${member.display_name || member.email}? They'll stay logged in but won't be able to take part in any training, tasks, or assignments until reinstated.`)) return;
+    if (newStatus === "removed" && !window.confirm(`Remove ${member.display_name || member.email}? Their profile is archived and hidden from the member list, and they lose access to the program. Their data is kept, not deleted, and this can be undone.`)) return;
+    setSaving(true);
+    try {
+      await setMemberStatus(member.id, newStatus);
+      toast.success(
+        newStatus === "active" ? "Member reinstated." : newStatus === "suspended" ? "Member suspended." : "Member removed (archived).",
+      );
+      onChanged();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't update status.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card-elevated" style={{ marginBottom: "16px" }}>
+      <div className="card-title">
+        <Icon name="ban" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Account status
+      </div>
+      <p style={{ marginBottom: "12px", fontSize: "14px" }}>
+        Currently <span className={`badge ${STATUS_BADGE[status] ?? "badge-neutral"}`}>{status}</span>
+      </p>
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        {status !== "suspended" && (
+          <button type="button" className="btn btn-secondary" onClick={() => changeStatus("suspended")} disabled={saving}>
+            <Icon name="ban" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            Suspend
+          </button>
+        )}
+        {status !== "active" && (
+          <button type="button" className="btn btn-secondary" onClick={() => changeStatus("active")} disabled={saving}>
+            <Icon name="rotate-ccw" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            Reinstate
+          </button>
+        )}
+        {status !== "removed" && (
+          <button type="button" className="btn btn-danger" onClick={() => changeStatus("removed")} disabled={saving}>
+            <Icon name="user-x" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            Remove member
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -391,6 +573,10 @@ export default function MemberDetail() {
         <h1 style={{ marginBottom: 0 }}>{member.display_name || member.email}</h1>
         <span className="badge badge-neutral">{member.role}</span>
       </div>
+
+      <ProfilePanel member={member} />
+
+      {member.role !== "admin" && <StatusPanel member={member} onChanged={refetchMember} />}
 
       {member.role === "member" && (
         <>
