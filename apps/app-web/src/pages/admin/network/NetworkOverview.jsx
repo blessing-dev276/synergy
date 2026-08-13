@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../../supabaseClient.js";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import SponsorPicker from "../../../components/SponsorPicker.jsx";
 import NetworkTree from "../../../components/NetworkTree.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
@@ -26,6 +25,11 @@ function StatCard({ label, value, icon, loading }) {
 
 export default function NetworkOverview() {
   const [picked, setPicked] = useState({ selected: null, claimedName: "" });
+
+  const { data: members } = useSupabaseQuery(
+    () => supabase.from("profiles").select("id, display_name").eq("status", "active").order("display_name"),
+    [],
+  );
 
   const { loading: loadingCounts, data: counts } = useSupabaseQuery(
     () =>
@@ -67,12 +71,28 @@ export default function NetworkOverview() {
       <div className="grid grid-3" style={{ marginBottom: "24px" }}>
         <StatCard label="Active sponsor links" value={counts?.sponsoredCount} icon="network" loading={loadingCounts} />
         <StatCard label="Pending sponsor requests" value={counts?.pendingRequestCount} icon="folder" loading={loadingCounts} />
-        <StatCard label="Members with no sponsor" value={counts?.unsponsoredCount} icon="user-x" loading={loadingCounts} />
+        <Link to="/admin/members?sponsor=none" style={{ color: "inherit", textDecoration: "none" }}>
+          <StatCard label="Members with no sponsor" value={counts?.unsponsoredCount} icon="user-x" loading={loadingCounts} />
+        </Link>
       </div>
 
       <div className="card-elevated">
         <div className="card-title">Explore a member's network</div>
-        <SponsorPicker value={picked} onChange={(v) => setPicked({ selected: v.selected, claimedName: "" })} placeholder="Search for a member…" />
+        <select
+          value={picked.selected?.id ?? ""}
+          onChange={(e) => {
+            const member = (members ?? []).find((m) => m.id === e.target.value) ?? null;
+            setPicked({ selected: member, claimedName: "" });
+          }}
+          style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 12px", minWidth: "260px" }}
+        >
+          <option value="">Select a member…</option>
+          {(members ?? []).map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.display_name}
+            </option>
+          ))}
+        </select>
 
         {picked.selected && (
           <div style={{ marginTop: "20px" }}>
@@ -96,7 +116,7 @@ export default function NetworkOverview() {
 
         {!picked.selected && (
           <div style={{ marginTop: "12px" }}>
-            <EmptyState icon={<Icon name="network" size={26} />} title="Search for a member to view their network" />
+            <EmptyState icon={<Icon name="network" size={26} />} title="Select a member to view their network" />
           </div>
         )}
       </div>

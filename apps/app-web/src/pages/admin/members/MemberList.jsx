@@ -3,7 +3,7 @@ import { useState } from "react";
 import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { setUserRole, setMemberStatus } from "../../../lib/rpc.js";
+import { setUserRole, setMemberStatus, assignSponsor } from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import { ROLES } from "../../../lib/roles.js";
 import Icon from "../../../components/Icon.jsx";
@@ -40,6 +40,7 @@ export default function MemberList() {
   const initialFilter = searchParams.get("status");
   const [busyUid, setBusyUid] = useState(null);
   const [statusFilter, setStatusFilter] = useState(validFilters.has(initialFilter) ? initialFilter : "not_removed");
+  const [sponsorFilter, setSponsorFilter] = useState(searchParams.get("sponsor") === "none" ? "none" : "all");
   const [selected, setSelected] = useState(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
@@ -48,7 +49,27 @@ export default function MemberList() {
     [],
   );
 
-  const visibleUsers = (users ?? []).filter((u) => matchesFilter(u.status ?? "active", statusFilter));
+  const isUnsponsored = (u) => u.role === "member" && !u.sponsor_uid;
+  const membersById = new Map((users ?? []).map((u) => [u.id, u]));
+  const sponsorOptions = (users ?? []).filter((u) => (u.status ?? "active") === "active");
+
+  const visibleUsers = (users ?? []).filter(
+    (u) => matchesFilter(u.status ?? "active", statusFilter) && (sponsorFilter !== "none" || isUnsponsored(u)),
+  );
+
+  const assignMemberSponsor = async (memberUid, sponsorUid) => {
+    if (!sponsorUid) return;
+    setBusyUid(memberUid);
+    try {
+      await assignSponsor(memberUid, sponsorUid);
+      toast.success("Sponsor assigned.");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't assign sponsor.");
+    } finally {
+      setBusyUid(null);
+    }
+  };
 
   const changeRole = async (uid, role) => {
     setBusyUid(uid);
@@ -120,17 +141,27 @@ export default function MemberList() {
     <div>
       <div className="section-heading">
         <h1>Members</h1>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 12px" }}
-        >
-          {STATUS_FILTERS.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.label}
-            </option>
-          ))}
-        </select>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <select
+            value={sponsorFilter}
+            onChange={(e) => setSponsorFilter(e.target.value)}
+            style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 12px" }}
+          >
+            <option value="all">All members</option>
+            <option value="none">No sponsor</option>
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 12px" }}
+          >
+            {STATUS_FILTERS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {selected.size > 0 && (
@@ -167,6 +198,7 @@ export default function MemberList() {
                 <th>Name</th>
                 <th>Role</th>
                 <th>Status</th>
+                <th>Sponsor</th>
                 <th>Change role</th>
                 <th></th>
               </tr>
@@ -197,6 +229,29 @@ export default function MemberList() {
                     </td>
                     <td>
                       <span className={`badge ${STATUS_BADGE[status] ?? "badge-neutral"}`}>{status}</span>
+                    </td>
+                    <td>
+                      {u.role !== "member" ? (
+                        "—"
+                      ) : u.sponsor_uid ? (
+                        membersById.get(u.sponsor_uid)?.display_name || membersById.get(u.sponsor_uid)?.email || "—"
+                      ) : (
+                        <select
+                          value=""
+                          disabled={busyUid === u.id}
+                          onChange={(e) => assignMemberSponsor(u.id, e.target.value)}
+                          style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "6px 10px" }}
+                        >
+                          <option value="">Assign sponsor…</option>
+                          {sponsorOptions
+                            .filter((s) => s.id !== u.id)
+                            .map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.display_name || s.email}
+                              </option>
+                            ))}
+                        </select>
+                      )}
                     </td>
                     <td>
                       <select

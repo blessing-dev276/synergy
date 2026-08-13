@@ -2,10 +2,54 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
+import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
 import NetworkTree from "../../components/NetworkTree.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
+
+// Anyone who signs up through this link has their sponsor set automatically
+// (Signup.jsx resolves the ?ref=<uid> via get_sponsor_by_id, see
+// supabase/migrations/0021_sponsor_by_id.sql) — no need to search by name,
+// which is the whole point: search was reported as the stressful part.
+function ReferralLinkCard({ uid }) {
+  const toast = useToast();
+  const link = `${window.location.origin}/signup?ref=${uid}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Referral link copied.");
+    } catch {
+      toast.error("Couldn't copy the link — you can select and copy it manually.");
+    }
+  };
+
+  return (
+    <div className="card-elevated" style={{ marginBottom: "24px" }}>
+      <div className="card-title">
+        <Icon name="network" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Your referral link
+      </div>
+      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "12px" }}>
+        Share this link instead of asking people to search for your name — anyone who joins through it is
+        connected to you as their sponsor automatically.
+      </p>
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        <input
+          type="text"
+          readOnly
+          value={link}
+          onFocus={(e) => e.target.select()}
+          style={{ flex: 1, minWidth: "220px" }}
+        />
+        <button type="button" className="btn btn-primary" onClick={handleCopy}>
+          Copy link
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function StatCard({ label, value, icon, loading }) {
   return (
@@ -45,6 +89,8 @@ export default function NetworkDashboard() {
         <h1>My Network</h1>
         <p>Sponsor is a relationship, not a rank — anyone you bring into Synergy becomes part of your network.</p>
       </div>
+
+      {user && <ReferralLinkCard uid={user.id} />}
 
       <div className="grid grid-3" style={{ marginBottom: "24px" }}>
         <StatCard label="Personally sponsored" value={overview?.personallySponsoredCount ?? 0} icon="users" loading={loadingOverview} />
