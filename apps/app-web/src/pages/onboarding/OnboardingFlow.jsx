@@ -4,7 +4,6 @@ import { useAuth } from "../../lib/AuthContext.jsx";
 import { useToast } from "../../components/state/Toast.jsx";
 import { INTERESTS, GOALS, toggleOption } from "../../lib/onboardingOptions.js";
 import logoIcon from "../../assets/images/logo-icon.png";
-import logoWordmark from "../../assets/images/logo-wordmark.png";
 
 function Stepper({ step, total }) {
   return (
@@ -59,8 +58,7 @@ export default function OnboardingFlow() {
     <div className="onboarding-shell">
       <div className="onboarding-topbar">
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <img src={logoIcon} alt="" style={{ height: "26px" }} />
-          <img src={logoWordmark} alt="Synergy" style={{ height: "18px" }} />
+          <img src={logoIcon} alt="Synergy" style={{ height: "26px" }} />
         </div>
         <Stepper step={step} total={totalSteps} />
       </div>

@@ -1,5 +1,4 @@
 import logoIcon from "../assets/images/logo-icon.png";
-import logoWordmark from "../assets/images/logo-wordmark.png";
 
 const POINTS = [
   { icon: "🎓", text: "Structured learning paths in real digital skills, not generic courses" },
@@ -12,8 +11,7 @@ export default function AuthLayout({ children }) {
     <div className="auth-shell">
       <aside className="auth-brand-panel">
         <div className="auth-brand-logo">
-          <img src={logoIcon} alt="" style={{ height: "30px" }} />
-          <span className="auth-brand-wordmark">Synergy</span>
+          <img src={logoIcon} alt="Synergy" style={{ height: "30px" }} />
         </div>
 
         <div className="auth-brand-copy">
@@ -41,8 +39,7 @@ export default function AuthLayout({ children }) {
       <div className="auth-form-panel">
         <div className="auth-form-inner">
           <div className="mobile-brand">
-            <img src={logoIcon} alt="" style={{ height: "28px" }} />
-            <img src={logoWordmark} alt="Synergy" style={{ height: "20px" }} />
+            <img src={logoIcon} alt="Synergy" style={{ height: "28px" }} />
           </div>
           {children}
         </div>

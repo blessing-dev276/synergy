@@ -2,7 +2,6 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import logoIcon from "../assets/images/logo-icon.png";
-import logoWordmark from "../assets/images/logo-wordmark.png";
 
 export default function Sidebar({ sections, footer }) {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sidebarCollapsed") === "true");
@@ -18,8 +17,7 @@ export default function Sidebar({ sections, footer }) {
   return (
     <aside className={`app-sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="brand">
-        <img src={logoIcon} alt={collapsed ? "Synergy" : ""} />
-        {!collapsed && <img src={logoWordmark} alt="Synergy" className="brand-wordmark" />}
+        <img src={logoIcon} alt="Synergy" />
       </div>
 
       <nav className="app-nav">

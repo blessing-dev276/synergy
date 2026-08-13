@@ -6,6 +6,8 @@ import { useToast } from "../../../components/state/Toast.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
+import QuizBuilder from "./QuizBuilder.jsx";
+import AssignmentBuilder from "./AssignmentBuilder.jsx";
 
 function EditCourseForm({ course, onSaved, onCancel }) {
   const toast = useToast();
@@ -138,6 +140,7 @@ function EditLessonForm({ lesson, onSaved, onCancel }) {
 function LessonRow({ lesson, isFirst, isLast, onReorder, onChanged }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
+  const [quizOpen, setQuizOpen] = useState(false);
 
   const handleDelete = async () => {
     if (!window.confirm(`Delete lesson "${lesson.title}"?`)) return;
@@ -159,25 +162,33 @@ function LessonRow({ lesson, isFirst, isLast, onReorder, onChanged }) {
   }
 
   return (
-    <li style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-      <div className="reorder-controls">
-        <button type="button" className="icon-btn" disabled={isFirst} onClick={() => onReorder(-1)} title="Move up">
-          <Icon name="arrow-up" size={11} />
-        </button>
-        <button type="button" className="icon-btn" disabled={isLast} onClick={() => onReorder(1)} title="Move down">
-          <Icon name="arrow-down" size={11} />
-        </button>
+    <li>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div className="reorder-controls">
+          <button type="button" className="icon-btn" disabled={isFirst} onClick={() => onReorder(-1)} title="Move up">
+            <Icon name="arrow-up" size={11} />
+          </button>
+          <button type="button" className="icon-btn" disabled={isLast} onClick={() => onReorder(1)} title="Move down">
+            <Icon name="arrow-down" size={11} />
+          </button>
+        </div>
+        <span style={{ flex: 1 }}>{lesson.title}</span>
+        <span className="badge badge-neutral">{lesson.content_type}</span>
+        {lesson.completion_rule === "quiz_pass" && (
+          <button type="button" className="btn btn-secondary" onClick={() => setQuizOpen((v) => !v)}>
+            {quizOpen ? "Hide quiz" : "Manage quiz"}
+          </button>
+        )}
+        <div className="row-actions">
+          <button type="button" className="icon-btn" title="Edit" onClick={() => setEditing(true)}>
+            <Icon name="pencil" size={13} />
+          </button>
+          <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={handleDelete}>
+            <Icon name="trash" size={13} />
+          </button>
+        </div>
       </div>
-      <span style={{ flex: 1 }}>{lesson.title}</span>
-      <span className="badge badge-neutral">{lesson.content_type}</span>
-      <div className="row-actions">
-        <button type="button" className="icon-btn" title="Edit" onClick={() => setEditing(true)}>
-          <Icon name="pencil" size={13} />
-        </button>
-        <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={handleDelete}>
-          <Icon name="trash" size={13} />
-        </button>
-      </div>
+      {quizOpen && lesson.completion_rule === "quiz_pass" && <QuizBuilder lessonId={lesson.id} />}
     </li>
   );
 }
@@ -401,6 +412,14 @@ export default function CourseEditor() {
           onChanged={refetchModules}
         />
       ))}
+
+      <div className="card-elevated" style={{ marginTop: "8px" }}>
+        <div className="card-title">
+          <Icon name="clipboard" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+          Assignments
+        </div>
+        <AssignmentBuilder courseId={courseId} />
+      </div>
     </div>
   );
 }
