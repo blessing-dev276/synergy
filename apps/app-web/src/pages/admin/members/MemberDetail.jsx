@@ -824,7 +824,7 @@ export default function MemberDetail() {
       {member.role === "member" && (
         <>
           <PromotionPanel member={member} onChanged={refetchJourney} />
-          <div className="grid grid-2">
+          <div className="grid grid-2" style={{ alignItems: "start" }}>
             <StagePanel member={member} journey={journey} stages={stages} ranks={ranks} onChanged={refetchJourney} />
             <SponsorPanel member={member} onChanged={refetchMember} />
           </div>
