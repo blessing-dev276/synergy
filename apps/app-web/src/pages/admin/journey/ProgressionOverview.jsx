@@ -54,8 +54,8 @@ export default function ProgressionOverview() {
         </select>
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
-        Every active member's development progress in one place. Official Rank stays blank until the compensation plan
-        is configured — it's never inferred from this data.
+        Every active member's development progress in one place. Official Rank is set by hand from each member's real
+        NeoLife back office status — it's never computed or inferred from this data.
       </p>
 
       {loading && <Skeleton variant="card" height="200px" />}
@@ -120,7 +120,9 @@ export default function ProgressionOverview() {
                     )}
                   </td>
                   <td>{row.sponsoredCount}</td>
-                  <td style={{ color: "var(--slate)", fontSize: "12.5px" }}>— pending plan</td>
+                  <td style={{ fontSize: "12.5px" }}>
+                    {row.officialRank ?? <span style={{ color: "var(--slate)" }}>Not set</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -85,3 +85,6 @@ export const awardMilestoneManual = (uid, milestoneId, note) =>
   call("award_milestone_manual", { p_uid: uid, p_milestone_id: milestoneId, p_note: note });
 
 export const getAdminProgressionOverview = () => call("get_admin_progression_overview", {});
+
+export const setMemberOfficialRank = (uid, rankId, note) =>
+  call("set_member_official_rank", { p_uid: uid, p_rank_id: rankId, p_note: note });

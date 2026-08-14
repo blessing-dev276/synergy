@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { assignSponsor, setMemberStage, setMemberStatus, reviewStagePromotion } from "../../../lib/rpc.js";
+import { assignSponsor, setMemberStage, setMemberStatus, reviewStagePromotion, setMemberOfficialRank } from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
@@ -390,6 +390,75 @@ function StagePanel({ member, journey, stages, levels, onChanged }) {
   );
 }
 
+// Official Rank is deliberately independent of Journey Stage above --
+// modeled on NeoLife's real compensation plan (supabase/migrations/0035_
+// compensation_ranks.sql), but Synergy has no product/order/PV data to
+// compute qualification from, so an admin sets it by hand after checking
+// the member's actual status in the NeoLife back office. qualification_note
+// is shown as a lookup aid only, never evaluated here.
+function OfficialRankPanel({ member, ranks, onChanged }) {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+
+  const { data: status, refetch } = useSupabaseQuery(
+    () => supabase.from("member_rank_status").select("*").eq("uid", member.id).maybeSingle(),
+    [member.id],
+  );
+  const [selectedRankId, setSelectedRankId] = useState("");
+  const [note, setNote] = useState("");
+
+  const currentRank = ranks?.find((r) => r.id === status?.rank_id);
+  const pendingRank = ranks?.find((r) => r.id === selectedRankId);
+
+  const handleSet = async () => {
+    setSaving(true);
+    try {
+      await setMemberOfficialRank(member.id, selectedRankId || null, note.trim());
+      toast.success("Official rank updated.");
+      setNote("");
+      refetch();
+      onChanged?.();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't update official rank.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card-elevated">
+      <div className="card-title">
+        <Icon name="award" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Official Rank
+      </div>
+      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
+        Currently: <strong style={{ color: "var(--navy)" }}>{currentRank?.label ?? "Not set"}</strong>
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <select
+          value={selectedRankId}
+          onChange={(e) => setSelectedRankId(e.target.value)}
+          style={{ border: "1px solid var(--line)", borderRadius: "10px", padding: "9px 12px" }}
+        >
+          <option value="">Not set / cleared</option>
+          {ranks?.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+        {pendingRank?.qualification_note && (
+          <p style={{ fontSize: "12px", color: "var(--slate)" }}>{pendingRank.qualification_note}</p>
+        )}
+        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (e.g. back-office snapshot date)" />
+        <button type="button" className="btn btn-primary" onClick={handleSet} disabled={saving} style={{ alignSelf: "flex-start" }}>
+          {saving ? "Saving…" : "Set rank"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // A member only shows up here once request_stage_promotion (0025) has
 // already re-verified server-side that every track in their current stage
 // is at 100% — this panel is just the approve/decline UI, not the check.
@@ -717,6 +786,7 @@ export default function MemberDetail() {
   const { data: stages } = useSupabaseQuery(() => supabase.from("stages").select("*").order("order_index"), []);
   const { data: tracks } = useSupabaseQuery(() => supabase.from("tracks").select("*").order("key"), []);
   const { data: levels } = useSupabaseQuery(() => supabase.from("levels").select("*").order("order_index"), []);
+  const { data: ranks } = useSupabaseQuery(() => supabase.from("compensation_ranks").select("*").order("order_index"), []);
 
   if (loading) return <Skeleton variant="card" height="200px" />;
   if (!member) return null;
@@ -738,6 +808,7 @@ export default function MemberDetail() {
           <div className="grid grid-2">
             <StagePanel member={member} journey={journey} stages={stages} levels={levels} onChanged={refetchJourney} />
             <SponsorPanel member={member} onChanged={refetchMember} />
+            <OfficialRankPanel member={member} ranks={ranks} onChanged={refetchMember} />
           </div>
           <ActivitiesPanel member={member} stages={stages} tracks={tracks} defaultStageId={journey?.current_stage_id} />
         </>

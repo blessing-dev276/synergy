@@ -210,6 +210,7 @@ export default function Dashboard() {
   const level = journey?.level;
   const levelProgressPercent = journey?.levelProgressPercent ?? 0;
   const nextLevel = journey?.nextLevel;
+  const officialRank = journey?.officialRank;
   const firstName = profile?.display_name?.split(" ")[0] ?? "there";
 
   return (
@@ -221,16 +222,28 @@ export default function Dashboard() {
         <p>{stage ? `Your Synergy Journey — ${stage.title}` : "You're making progress. Keep going."}</p>
       </div>
 
-      {level && (
+      {(level || officialRank) && (
         <div className="card-elevated" style={{ marginTop: "24px", borderColor: "var(--gold)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
-            <div>
-              <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Development Level
-              </div>
-              <div style={{ fontSize: "26px", fontWeight: 700, color: "var(--gold)", marginTop: "4px" }}>{level.label}</div>
+            <div style={{ display: "flex", gap: "28px", flexWrap: "wrap" }}>
+              {level && (
+                <div>
+                  <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    Development Level
+                  </div>
+                  <div style={{ fontSize: "26px", fontWeight: 700, color: "var(--gold)", marginTop: "4px" }}>{level.label}</div>
+                </div>
+              )}
+              {officialRank && (
+                <div>
+                  <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    Official Rank
+                  </div>
+                  <div style={{ fontSize: "26px", fontWeight: 700, color: "var(--navy)", marginTop: "4px" }}>{officialRank.label}</div>
+                </div>
+              )}
             </div>
-            {nextLevel && (
+            {level && nextLevel && (
               <div style={{ minWidth: "200px", flex: 1, maxWidth: "320px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12.5px", color: "var(--slate)", marginBottom: "6px" }}>
                   <span>{levelProgressPercent}% to {nextLevel.label}</span>
@@ -241,7 +254,7 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          {level.purpose && <p style={{ fontSize: "13.5px", color: "var(--slate)", marginTop: "14px" }}>{level.purpose}</p>}
+          {level?.purpose && <p style={{ fontSize: "13.5px", color: "var(--slate)", marginTop: "14px" }}>{level.purpose}</p>}
         </div>
       )}
 
