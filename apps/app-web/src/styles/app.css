@@ -172,6 +172,20 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
   .toast{ max-width:none; }
 }
 
+/* ---------- modal ---------- */
+.modal-backdrop{
+  position:fixed; inset:0; z-index:200;
+  background:rgba(0,0,0,0.55);
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+}
+.modal-card{
+  background:var(--bg-raised); border:1px solid var(--line); border-radius:16px;
+  padding:22px; width:100%; max-width:460px; max-height:85vh; overflow-y:auto;
+  box-shadow:0 24px 60px -20px rgba(0,0,0,0.7);
+}
+.modal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+
 /* ---------- auth pages ---------- */
 /* Fallback single-column shell (used standalone, e.g. inside ErrorBoundary) */
 .auth-screen{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:var(--bg); }

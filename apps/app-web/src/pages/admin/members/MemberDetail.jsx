@@ -10,6 +10,7 @@ import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 import SponsorPicker from "../../../components/SponsorPicker.jsx";
 import ContentPicker from "../../../components/ContentPicker.jsx";
+import Modal from "../../../components/Modal.jsx";
 
 const TASK_TYPES = [
   "learning",
@@ -154,13 +155,19 @@ function ProfilePanel({ member }) {
 // audit trail nobody reads day-to-day.
 function SponsorPanel({ member, onChanged }) {
   const toast = useToast();
+  const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState({ selected: null, claimedName: "" });
   const [saving, setSaving] = useState(false);
 
-  const { data: currentSponsor } = useSupabaseQuery(
+  const { data: currentSponsor, refetch: refetchCurrentSponsor } = useSupabaseQuery(
     () => member?.sponsor_uid && supabase.from("profiles").select("*").eq("id", member.sponsor_uid).single(),
     [member?.sponsor_uid],
   );
+
+  const openModal = () => {
+    setPicked({ selected: null, claimedName: "" });
+    setOpen(true);
+  };
 
   const handleAssign = async () => {
     if (!picked.selected) return;
@@ -168,7 +175,8 @@ function SponsorPanel({ member, onChanged }) {
     try {
       await assignSponsor(member.id, picked.selected.id);
       toast.success("Sponsor updated.");
-      setPicked({ selected: null, claimedName: "" });
+      setOpen(false);
+      refetchCurrentSponsor();
       onChanged();
     } catch (err) {
       toast.error(err.message ?? "Couldn't update sponsor.");
@@ -183,21 +191,31 @@ function SponsorPanel({ member, onChanged }) {
         <Icon name="network" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
         Sponsor
       </div>
-      {currentSponsor && (
-        <p style={{ marginBottom: "12px", fontSize: "14px" }}>
-          Currently sponsored by <strong>{currentSponsor.display_name}</strong>.
-        </p>
-      )}
-      <p style={{ fontSize: "12.5px", color: "var(--slate)", marginBottom: "10px" }}>
-        {currentSponsor ? "Reassigning" : "Assigning"} a sponsor is logged and can affect downline calculations
-        once a compensation plan is configured.
+      <p style={{ marginBottom: "14px", fontSize: "14px" }}>
+        {currentSponsor ? (
+          <>
+            Currently sponsored by <strong>{currentSponsor.display_name}</strong>.
+          </>
+        ) : (
+          <span style={{ color: "var(--slate)" }}>No sponsor assigned yet.</span>
+        )}
       </p>
-      <SponsorPicker value={picked} onChange={(v) => setPicked({ selected: v.selected, claimedName: "" })} />
-      {picked.selected && (
-        <button type="button" className="btn btn-primary" onClick={handleAssign} disabled={saving} style={{ marginTop: "10px" }}>
-          {saving ? "Saving…" : currentSponsor ? "Reassign sponsor" : "Assign sponsor"}
-        </button>
-      )}
+      <button type="button" className="btn btn-secondary" onClick={openModal}>
+        {currentSponsor ? "Change sponsor" : "Assign sponsor"}
+      </button>
+
+      <Modal open={open} onClose={() => setOpen(false)} title={currentSponsor ? "Change sponsor" : "Assign sponsor"}>
+        <p style={{ fontSize: "12.5px", color: "var(--slate)", marginBottom: "12px" }}>
+          {currentSponsor ? "Reassigning" : "Assigning"} a sponsor is logged and can affect downline calculations
+          once a compensation plan is configured.
+        </p>
+        <SponsorPicker value={picked} onChange={(v) => setPicked({ selected: v.selected, claimedName: "" })} />
+        {picked.selected && (
+          <button type="button" className="btn btn-primary" onClick={handleAssign} disabled={saving} style={{ marginTop: "14px" }}>
+            {saving ? "Saving…" : currentSponsor ? "Reassign sponsor" : "Assign sponsor"}
+          </button>
+        )}
+      </Modal>
     </div>
   );
 }

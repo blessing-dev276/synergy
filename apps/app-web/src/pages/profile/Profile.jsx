@@ -4,9 +4,12 @@ import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
-import { INTERESTS, GOALS, toggleOption } from "../../lib/onboardingOptions.js";
+import { INTERESTS, toggleOption } from "../../lib/onboardingOptions.js";
 import { ROLE_LABEL } from "../../lib/roles.js";
+import { computeProfileHealth } from "../../lib/profileHealth.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
+import Icon from "../../components/Icon.jsx";
+import TagListInput from "../../components/TagListInput.jsx";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
@@ -49,7 +52,6 @@ export default function Profile() {
   const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [interests, setInterests] = useState(profile?.onboarding?.interests ?? []);
-  const [goals, setGoals] = useState(profile?.onboarding?.goals ?? []);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [signedPhotoUrl, setSignedPhotoUrl] = useState(null);
@@ -65,8 +67,83 @@ export default function Profile() {
     setDisplayName(profile?.display_name ?? "");
     setBio(profile?.bio ?? "");
     setInterests(profile?.onboarding?.interests ?? []);
-    setGoals(profile?.onboarding?.goals ?? []);
   }, [profile]);
+
+  // ---------- Why's for joining (member_whys, see 0039) ----------
+  const {
+    data: whys,
+    refetch: refetchWhys,
+  } = useSupabaseQuery(
+    () => user && supabase.from("member_whys").select("*").eq("uid", user.id).order("order_index"),
+    [user?.id],
+  );
+  const [addingWhy, setAddingWhy] = useState(false);
+
+  const addWhy = async (text) => {
+    setAddingWhy(true);
+    const { error } = await supabase
+      .from("member_whys")
+      .insert({ uid: user.id, text, order_index: whys?.length ?? 0 });
+    setAddingWhy(false);
+    if (error) {
+      toast.error(error.message ?? "Couldn't add that.");
+      return;
+    }
+    refetchWhys();
+  };
+
+  const removeWhy = async (index) => {
+    const row = whys?.[index];
+    if (!row) return;
+    const { error } = await supabase.from("member_whys").delete().eq("id", row.id);
+    if (error) {
+      toast.error("Couldn't remove that.");
+      return;
+    }
+    refetchWhys();
+  };
+
+  // ---------- This month's goals (member_goals, see 0039) ----------
+  const { data: ranks } = useSupabaseQuery(() => supabase.from("ranks").select("id, label").order("order_index"), []);
+  const {
+    data: goalsRow,
+    refetch: refetchGoals,
+  } = useSupabaseQuery(() => user && supabase.from("member_goals").select("*").eq("uid", user.id).maybeSingle(), [user?.id]);
+
+  const [monthlyIncomeGoal, setMonthlyIncomeGoal] = useState("");
+  const [teamSizeGoal, setTeamSizeGoal] = useState("");
+  const [rewardTools, setRewardTools] = useState([]);
+  const [targetRankId, setTargetRankId] = useState("");
+  const [savingGoals, setSavingGoals] = useState(false);
+
+  useEffect(() => {
+    setMonthlyIncomeGoal(goalsRow?.monthly_income_goal ?? "");
+    setTeamSizeGoal(goalsRow?.team_size_goal ?? "");
+    setRewardTools(goalsRow?.reward_tools ?? []);
+    setTargetRankId(goalsRow?.target_rank_id ?? "");
+  }, [goalsRow]);
+
+  const handleSaveGoals = async (e) => {
+    e.preventDefault();
+    setSavingGoals(true);
+    const { error } = await supabase.from("member_goals").upsert({
+      uid: user.id,
+      monthly_income_goal: monthlyIncomeGoal === "" ? null : Number(monthlyIncomeGoal),
+      team_size_goal: teamSizeGoal === "" ? null : Number(teamSizeGoal),
+      reward_tools: rewardTools,
+      target_rank_id: targetRankId || null,
+      updated_at: new Date().toISOString(),
+    });
+    setSavingGoals(false);
+    if (error) {
+      toast.error("Couldn't save your goals.");
+      return;
+    }
+    toast.success("Goals updated.");
+    refetchGoals();
+  };
+
+  const health = computeProfileHealth({ profile, whysCount: whys?.length, goals: goalsRow });
 
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +221,7 @@ export default function Profile() {
       .update({
         display_name: displayName.trim(),
         bio: bio.trim(),
-        onboarding: { ...(profile?.onboarding ?? {}), interests, goals },
+        onboarding: { ...(profile?.onboarding ?? {}), interests },
         last_active_at: new Date().toISOString(),
       })
       .eq("id", user.id);
@@ -190,6 +267,23 @@ export default function Profile() {
   return (
     <div>
       <h1>Profile</h1>
+
+      {!health.complete && (
+        <div className="card-elevated" style={{ maxWidth: "640px", marginTop: "20px", borderColor: "var(--blue)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+            <div className="card-title" style={{ marginBottom: 0 }}>Finish setting up your profile</div>
+            <span className="badge badge-neutral">{health.percent}%</span>
+          </div>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
+            {health.items.map((item) => (
+              <li key={item.key} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13.5px", color: item.done ? "var(--slate)" : "var(--navy)" }}>
+                <Icon name={item.done ? "check-square" : "clipboard"} size={15} style={{ color: item.done ? "var(--success)" : "var(--slate)" }} />
+                <span style={{ textDecoration: item.done ? "line-through" : "none" }}>{item.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="card" style={{ maxWidth: "640px", marginTop: "20px", marginBottom: "20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
@@ -245,29 +339,75 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="field">
-          <label>What do you want to achieve?</label>
-          <div className="option-grid">
-            {GOALS.map((goal) => {
-              const selected = goals.includes(goal.label);
-              return (
-                <button
-                  key={goal.label}
-                  type="button"
-                  className={`option-card ${selected ? "selected" : ""}`}
-                  onClick={() => setGoals((prev) => toggleOption(prev, goal.label))}
-                >
-                  <span aria-hidden="true">{goal.icon}</span>
-                  <span style={{ flex: 1 }}>{goal.label}</span>
-                  <span className="option-check">✓</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         <button type="submit" className="btn btn-primary" disabled={saving}>
           {saving ? "Saving…" : "Save changes"}
+        </button>
+      </form>
+
+      <div className="card" style={{ maxWidth: "640px", marginBottom: "20px" }}>
+        <div className="card-title">
+          <Icon name="compass" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+          Your Why's for joining
+        </div>
+        <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
+          The reasons you joined — add up to 20. Revisit these whenever you need a reminder of why you started.
+        </p>
+        <TagListInput
+          items={(whys ?? []).map((w) => w.text)}
+          onAdd={addWhy}
+          onRemove={removeWhy}
+          max={20}
+          placeholder="e.g. Financial freedom for my family"
+          disabled={addingWhy}
+        />
+      </div>
+
+      <form onSubmit={handleSaveGoals} className="card" style={{ maxWidth: "640px", marginBottom: "20px" }}>
+        <div className="card-title">
+          <Icon name="target" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+          Your Goals this month
+        </div>
+        <div className="field">
+          <label htmlFor="monthlyIncomeGoal">Amount you want to earn ($)</label>
+          <input
+            id="monthlyIncomeGoal"
+            type="number"
+            min="0"
+            step="0.01"
+            value={monthlyIncomeGoal}
+            onChange={(e) => setMonthlyIncomeGoal(e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="teamSizeGoal">Team size you want to reach</label>
+          <input
+            id="teamSizeGoal"
+            type="number"
+            min="0"
+            step="1"
+            value={teamSizeGoal}
+            onChange={(e) => setTeamSizeGoal(e.target.value)}
+            placeholder="0"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="targetRank">Rank you want to end the month with</label>
+          <select id="targetRank" value={targetRankId} onChange={(e) => setTargetRankId(e.target.value)}>
+            <option value="">Not set</option>
+            {ranks?.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>Tools you'll reward yourself with</label>
+          <TagListInput items={rewardTools} onAdd={(t) => setRewardTools((prev) => [...prev, t])} onRemove={(i) => setRewardTools((prev) => prev.filter((_, idx) => idx !== i))} placeholder="e.g. New laptop" />
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={savingGoals}>
+          {savingGoals ? "Saving…" : "Save goals"}
         </button>
       </form>
 

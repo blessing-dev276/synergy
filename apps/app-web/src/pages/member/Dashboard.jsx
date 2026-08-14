@@ -4,6 +4,7 @@ import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { requestStagePromotion, setMemberSpecialization } from "../../lib/rpc.js";
+import { computeProfileHealth } from "../../lib/profileHealth.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
@@ -288,6 +289,16 @@ export default function Dashboard() {
     [user?.id],
   );
 
+  const { data: whys } = useSupabaseQuery(
+    () => user && supabase.from("member_whys").select("id").eq("uid", user.id),
+    [user?.id],
+  );
+  const { data: goalsRow } = useSupabaseQuery(
+    () => user && supabase.from("member_goals").select("*").eq("uid", user.id).maybeSingle(),
+    [user?.id],
+  );
+  const health = computeProfileHealth({ profile, whysCount: whys?.length, goals: goalsRow });
+
   const stage = journey?.stage;
   const tracks = journey?.tracks ?? [];
   const rank = journey?.rank;
@@ -303,6 +314,27 @@ export default function Dashboard() {
         </h1>
         <p>{stage ? `Your Synergy Journey — ${stage.title}` : "You're making progress. Keep going."}</p>
       </div>
+
+      {!health.complete && (
+        <div className="card-elevated" style={{ marginTop: "24px", borderColor: "var(--blue)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <div>
+              <div className="card-title" style={{ marginBottom: "4px" }}>
+                Finish setting up your profile
+              </div>
+              <p style={{ fontSize: "13.5px", color: "var(--slate)" }}>
+                {health.items
+                  .filter((i) => !i.done)
+                  .map((i) => i.label)
+                  .join(" · ")}
+              </p>
+            </div>
+            <Link to="/profile" className="btn btn-primary">
+              Complete profile
+            </Link>
+          </div>
+        </div>
+      )}
 
       {rank && (
         <div className="card-elevated" style={{ marginTop: "24px", borderColor: "var(--gold)" }}>

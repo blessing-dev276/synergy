@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useToast } from "../../components/state/Toast.jsx";
-import { INTERESTS, GOALS, toggleOption } from "../../lib/onboardingOptions.js";
+import { INTERESTS, toggleOption } from "../../lib/onboardingOptions.js";
 import logoIcon from "../../assets/images/logo-icon.png";
 
 function Stepper({ step, total }) {
@@ -27,10 +27,9 @@ export default function OnboardingFlow() {
   const [step, setStep] = useState(1);
   const [bio, setBio] = useState("");
   const [interests, setInterests] = useState([]);
-  const [goals, setGoals] = useState([]);
   const [saving, setSaving] = useState(false);
 
-  const totalSteps = 3;
+  const totalSteps = 2;
 
   const finish = async () => {
     setSaving(true);
@@ -38,7 +37,7 @@ export default function OnboardingFlow() {
       .from("profiles")
       .update({
         bio: bio.trim(),
-        onboarding: { completed: true, interests, goals, completedAt: new Date().toISOString() },
+        onboarding: { completed: true, interests, completedAt: new Date().toISOString() },
       })
       .eq("id", user.id);
     setSaving(false);
@@ -48,7 +47,10 @@ export default function OnboardingFlow() {
       return;
     }
     // Learning-path recommendation/assignment is an admin action in
-    // Phase 1 (spec section 4) — not auto-assigned here yet.
+    // Phase 1 (spec section 4) — not auto-assigned here yet. Why's/Goals
+    // (member_whys/member_goals) are filled in later from Profile.jsx --
+    // deliberately not part of this signup-blocking flow, see
+    // src/lib/profileHealth.js.
     await refreshProfile();
     // OnboardingGate will now redirect on to the dashboard since
     // profile.onboarding.completed is true.
@@ -114,38 +116,6 @@ export default function OnboardingFlow() {
               </div>
               <div className="onboarding-actions">
                 <button type="button" className="btn btn-secondary btn-lg" onClick={() => setStep(1)}>
-                  Back
-                </button>
-                <button type="button" className="btn btn-primary btn-lg" onClick={() => setStep(3)}>
-                  Continue
-                </button>
-              </div>
-            </>
-          )}
-
-          {step === 3 && (
-            <>
-              <h1>What do you want to achieve?</h1>
-              <p className="sub">We'll use this to point you toward the right next step.</p>
-              <div className="option-grid">
-                {GOALS.map((goal) => {
-                  const selected = goals.includes(goal.label);
-                  return (
-                    <button
-                      key={goal.label}
-                      type="button"
-                      className={`option-card ${selected ? "selected" : ""}`}
-                      onClick={() => setGoals((prev) => toggleOption(prev, goal.label))}
-                    >
-                      <span aria-hidden="true">{goal.icon}</span>
-                      <span style={{ flex: 1 }}>{goal.label}</span>
-                      <span className="option-check">✓</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="onboarding-actions">
-                <button type="button" className="btn btn-secondary btn-lg" onClick={() => setStep(2)}>
                   Back
                 </button>
                 <button type="button" className="btn btn-primary btn-lg" onClick={finish} disabled={saving}>

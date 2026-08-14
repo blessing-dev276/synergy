@@ -13,16 +13,6 @@ export const INTERESTS = [
   { label: "Business Development", icon: "🚀" },
 ];
 
-export const GOALS = [
-  { label: "Learn a digital skill", icon: "🎓" },
-  { label: "Start freelancing", icon: "🧑‍💻" },
-  { label: "Get my first client", icon: "🥇" },
-  { label: "Build a portfolio", icon: "🗂️" },
-  { label: "Develop business skills", icon: "📊" },
-  { label: "Build a team", icon: "👥" },
-  { label: "Become a leader", icon: "🧭" },
-];
-
 export function toggleOption(list, value) {
   return list.includes(value)
     ? list.filter((v) => v !== value)
