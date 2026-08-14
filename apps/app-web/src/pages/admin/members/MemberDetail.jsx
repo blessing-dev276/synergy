@@ -35,14 +35,23 @@ function initials(name) {
 }
 
 // Everything a member sees/edits on their own Profile page (photo, bio,
-// interests, goals, sponsor) — the admin side had none of it visible,
-// only the journey/sponsor/activity management panels.
+// interests, why's, goals, sponsor) — the admin side had none of it
+// visible, only the journey/sponsor/activity management panels.
 function ProfilePanel({ member }) {
   const [signedPhotoUrl, setSignedPhotoUrl] = useState(null);
 
   const { data: sponsor } = useSupabaseQuery(
     () => member.sponsor_uid && supabase.from("profiles").select("id, display_name").eq("id", member.sponsor_uid).single(),
     [member.sponsor_uid],
+  );
+
+  const { data: whys } = useSupabaseQuery(
+    () => supabase.from("member_whys").select("*").eq("uid", member.id).order("order_index"),
+    [member.id],
+  );
+  const { data: goals } = useSupabaseQuery(
+    () => supabase.from("member_goals").select("*, target_rank:ranks(label)").eq("uid", member.id).maybeSingle(),
+    [member.id],
   );
 
   useEffect(() => {
@@ -63,7 +72,6 @@ function ProfilePanel({ member }) {
   }, [member.photo_url]);
 
   const interests = member.onboarding?.interests ?? [];
-  const goals = member.onboarding?.goals ?? [];
   const avatarStyle = {
     width: 64,
     height: 64,
@@ -99,36 +107,65 @@ function ProfilePanel({ member }) {
         </div>
       </div>
 
-      {(interests.length > 0 || goals.length > 0) && (
-        <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
-          {interests.length > 0 && (
-            <div>
-              <div className="row-meta" style={{ marginBottom: "6px" }}>
-                Interested in
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {interests.map((i) => (
-                  <span key={i} className="badge badge-neutral">
-                    {i}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {goals.length > 0 && (
-            <div>
-              <div className="row-meta" style={{ marginBottom: "6px" }}>
-                Goals
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {goals.map((g) => (
-                  <span key={g} className="badge badge-neutral">
-                    {g}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+      {interests.length > 0 && (
+        <div style={{ marginTop: "16px" }}>
+          <div className="row-meta" style={{ marginBottom: "6px" }}>
+            Interested in
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {interests.map((i) => (
+              <span key={i} className="badge badge-neutral">
+                {i}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {whys?.length > 0 && (
+        <div style={{ marginTop: "16px" }}>
+          <div className="row-meta" style={{ marginBottom: "6px" }}>
+            Why's for joining ({whys.length})
+          </div>
+          <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "13.5px", display: "flex", flexDirection: "column", gap: "3px" }}>
+            {whys.map((w) => (
+              <li key={w.id}>{w.text}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {goals && (goals.monthly_income_goal || goals.team_size_goal || goals.target_rank || goals.reward_tools?.length > 0) && (
+        <div style={{ marginTop: "16px" }}>
+          <div className="row-meta" style={{ marginBottom: "6px" }}>
+            This month's goals
+          </div>
+          <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", rowGap: "6px", columnGap: "16px", fontSize: "13.5px" }}>
+            {goals.monthly_income_goal != null && (
+              <>
+                <dt style={{ color: "var(--slate)" }}>Income target</dt>
+                <dd>${goals.monthly_income_goal}</dd>
+              </>
+            )}
+            {goals.team_size_goal != null && (
+              <>
+                <dt style={{ color: "var(--slate)" }}>Team size target</dt>
+                <dd>{goals.team_size_goal}</dd>
+              </>
+            )}
+            {goals.target_rank && (
+              <>
+                <dt style={{ color: "var(--slate)" }}>Target rank</dt>
+                <dd>{goals.target_rank.label}</dd>
+              </>
+            )}
+            {goals.reward_tools?.length > 0 && (
+              <>
+                <dt style={{ color: "var(--slate)" }}>Reward tools</dt>
+                <dd>{goals.reward_tools.join(", ")}</dd>
+              </>
+            )}
+          </dl>
         </div>
       )}
 
