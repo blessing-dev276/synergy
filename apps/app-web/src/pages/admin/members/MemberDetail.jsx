@@ -3,7 +3,15 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { assignSponsor, setMemberStage, setMemberStatus, reviewStagePromotion, adminSetMemberSpecialization } from "../../../lib/rpc.js";
+import {
+  assignSponsor,
+  setMemberStage,
+  setMemberStatus,
+  reviewStagePromotion,
+  adminSetMemberSpecialization,
+  adminSetParticipationPath,
+  reviewParticipationPathRequest,
+} from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
@@ -439,6 +447,107 @@ function StagePanel({ member, journey, stages, ranks, onChanged }) {
         </select>
         <button type="button" className="btn btn-primary" onClick={handleSet} disabled={saving || selectedStage === (journey?.current_stage_id ?? "")}>
           {saving ? "Saving…" : "Set stage"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const PATH_LABEL = {
+  full: "Skill + Freelancing + Network Marketing",
+  network_marketing_only: "Network Marketing only",
+};
+
+// Participation path is admin-controlled by product decision (a member can
+// ask, but only an admin's decision actually hides Skill/Freelancing content
+// -- see supabase/migrations/0043_participation_path.sql) -- this panel is
+// both the "set it directly" control and the pending-request review UI.
+function ParticipationPathPanel({ member, onChanged }) {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+
+  const { data: request, refetch } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("participation_path_requests")
+        .select("*")
+        .eq("uid", member.id)
+        .eq("status", "pending")
+        .maybeSingle(),
+    [member.id],
+  );
+
+  const setPath = async (path) => {
+    if (path === member.participation_path) return;
+    setSaving(true);
+    try {
+      await adminSetParticipationPath(member.id, path);
+      toast.success("Participation path updated.");
+      onChanged();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't update participation path.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const decide = async (decision) => {
+    setSaving(true);
+    try {
+      await reviewParticipationPathRequest(request.id, decision, "");
+      toast.success(decision === "approved" ? "Request approved." : "Request declined.");
+      refetch();
+      onChanged();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't review that request.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card-elevated">
+      <div className="card-title">
+        <Icon name="target" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Participation Path
+      </div>
+      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
+        Currently: <strong style={{ color: "var(--navy)" }}>{PATH_LABEL[member.participation_path] ?? "Full"}</strong>
+      </p>
+
+      {request && (
+        <div style={{ padding: "12px", borderRadius: "10px", background: "var(--surface)", border: "1px solid var(--line)", marginBottom: "12px" }}>
+          <p style={{ fontSize: "13px", marginBottom: request.reason ? "6px" : "10px" }}>
+            Asked to switch to <strong>{PATH_LABEL[request.requested_path]}</strong>.
+          </p>
+          {request.reason && <p style={{ fontSize: "12.5px", color: "var(--slate)", marginBottom: "10px" }}>"{request.reason}"</p>}
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button type="button" className="btn btn-primary" onClick={() => decide("approved")} disabled={saving}>
+              Approve
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={() => decide("rejected")} disabled={saving}>
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setPath("full")}
+          disabled={saving || member.participation_path === "full"}
+        >
+          Set: Full program
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setPath("network_marketing_only")}
+          disabled={saving || member.participation_path === "network_marketing_only"}
+        >
+          Set: Network Marketing only
         </button>
       </div>
     </div>
@@ -883,7 +992,10 @@ export default function MemberDetail() {
             <StagePanel member={member} journey={journey} stages={stages} ranks={ranks} onChanged={refetchJourney} />
             <SponsorPanel member={member} onChanged={refetchMember} />
           </div>
-          <SpecializationPanel member={member} />
+          <div className="grid grid-2" style={{ alignItems: "start", marginTop: "16px" }}>
+            <ParticipationPathPanel member={member} onChanged={refetchMember} />
+            <SpecializationPanel member={member} />
+          </div>
           <ActivitiesPanel member={member} stages={stages} tracks={tracks} defaultStageId={journey?.current_stage_id} />
         </>
       )}

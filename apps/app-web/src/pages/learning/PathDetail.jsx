@@ -13,19 +13,27 @@ export default function PathDetail() {
     [pathId],
   );
 
+  // get_learning_paths (0047) is the source of truth for lock state (mirrors
+  // the Dashboard/PathList gate) -- fetched here too so a locked path can't
+  // be opened by going straight to its URL even though PathList no longer
+  // links to it.
+  const { data: paths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths"), []);
+  const locked = paths?.find((p) => p.id === pathId)?.locked ?? false;
+
   const {
     loading: loadingCourses,
     error,
     data: courses,
   } = useSupabaseQuery(
     () =>
+      !locked &&
       supabase
         .from("courses")
         .select("*")
         .eq("path_id", pathId)
         .eq("published", true)
         .order("order_index", { ascending: true }),
-    [pathId],
+    [pathId, locked],
   );
 
   return (
@@ -38,12 +46,15 @@ export default function PathDetail() {
         </>
       )}
 
-      {loadingCourses && <Skeleton variant="card" height="100px" />}
-      {error && <ErrorState description="Couldn't load courses." />}
-      {!loadingCourses && !error && (!courses || courses.length === 0) && (
+      {locked && (
+        <EmptyState icon="🔒" title="This skill is locked" description="This isn't your chosen skill — ask an admin if you'd like it changed." />
+      )}
+      {!locked && loadingCourses && <Skeleton variant="card" height="100px" />}
+      {!locked && error && <ErrorState description="Couldn't load courses." />}
+      {!locked && !loadingCourses && !error && (!courses || courses.length === 0) && (
         <EmptyState icon="📘" title="No courses published in this path yet" />
       )}
-      {courses && courses.length > 0 && (
+      {!locked && courses && courses.length > 0 && (
         <div className="grid grid-2">
           {courses.map((course) => (
             <Link key={course.id} to={`/learning/${pathId}/${course.id}`} className="card">

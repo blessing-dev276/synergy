@@ -7,11 +7,88 @@ import { useToast } from "../../components/state/Toast.jsx";
 import { INTERESTS, toggleOption } from "../../lib/onboardingOptions.js";
 import { ROLE_LABEL } from "../../lib/roles.js";
 import { computeProfileHealth } from "../../lib/profileHealth.js";
+import { requestParticipationPath } from "../../lib/rpc.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import Icon from "../../components/Icon.jsx";
 import TagListInput from "../../components/TagListInput.jsx";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+const PATH_LABEL = {
+  full: "Skill + Freelancing + Network Marketing",
+  network_marketing_only: "Network Marketing only",
+};
+
+// Participation path is admin-controlled by product decision -- a member
+// already earning enough elsewhere can ask to focus on Network Marketing
+// only, but only an admin's approval actually hides Skill/Freelancing
+// content (see supabase/migrations/0043_participation_path.sql). This card
+// is the "ask" side; MemberDetail.jsx has the admin's approve/decline side.
+function ParticipationPathCard({ profile, uid }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: pendingRequest, refetch } = useSupabaseQuery(
+    () => uid && supabase.from("participation_path_requests").select("*").eq("uid", uid).eq("status", "pending").maybeSingle(),
+    [uid],
+  );
+
+  const otherPath = profile?.participation_path === "network_marketing_only" ? "full" : "network_marketing_only";
+
+  const submit = async () => {
+    setSaving(true);
+    try {
+      await requestParticipationPath(otherPath, reason.trim());
+      toast.success("Request sent — an admin will review it.");
+      setOpen(false);
+      setReason("");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't send that request.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card" style={{ maxWidth: "640px", marginBottom: "20px" }}>
+      <div className="card-title">
+        <Icon name="target" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        My focus
+      </div>
+      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "12px" }}>
+        Currently: <strong style={{ color: "var(--navy)" }}>{PATH_LABEL[profile?.participation_path] ?? "Full program"}</strong>
+      </p>
+
+      {pendingRequest ? (
+        <p style={{ fontSize: "13px", color: "var(--slate)" }}>
+          Your request to switch to <strong>{PATH_LABEL[pendingRequest.requested_path]}</strong> is waiting on admin review.
+        </p>
+      ) : open ? (
+        <div>
+          <div className="field">
+            <label>Why are you asking to switch to {PATH_LABEL[otherPath]}?</label>
+            <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Optional, but helps your admin decide" />
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button type="button" className="btn btn-primary" onClick={submit} disabled={saving}>
+              {saving ? "Sending…" : "Send request"}
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="btn btn-secondary" onClick={() => setOpen(true)}>
+          Request: {PATH_LABEL[otherPath]}
+        </button>
+      )}
+    </div>
+  );
+}
 
 function initials(name) {
   return (name ?? "")
@@ -439,6 +516,8 @@ export default function Profile() {
           {changingPassword ? "Updating…" : "Update password"}
         </button>
       </form>
+
+      <ParticipationPathCard profile={profile} uid={user?.id} />
 
       <div className="card" style={{ maxWidth: "640px" }}>
         <div className="card-title">Account</div>

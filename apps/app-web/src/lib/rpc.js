@@ -91,3 +91,62 @@ export const setMemberSpecialization = (trackId, specializationId) =>
 
 export const adminSetMemberSpecialization = (uid, trackId, specializationId) =>
   call("admin_set_member_specialization", { p_uid: uid, p_track_id: trackId, p_specialization_id: specializationId });
+
+// ---------- participation path ----------
+export const requestParticipationPath = (requestedPath, reason) =>
+  call("request_participation_path", { p_requested_path: requestedPath, p_reason: reason });
+
+export const adminSetParticipationPath = (uid, path) =>
+  call("admin_set_participation_path", { p_uid: uid, p_path: path });
+
+export const reviewParticipationPathRequest = (requestId, decision, note) =>
+  call("review_participation_path_request", { p_request_id: requestId, p_decision: decision, p_note: note });
+
+// ---------- daily tasks ----------
+// Reads go through supabase.rpc directly inside useSupabaseQuery (this
+// wrapper's {data,error}-unwrapping `call()` shape doesn't fit that hook) --
+// this export is for imperative (non-list) callers only. Omits p_date
+// entirely when unset so Postgres' `default current_date` applies -- passing
+// an explicit null would defeat the default.
+export const getDailyTasks = (uid, date) => call("get_or_generate_daily_tasks", date ? { p_uid: uid, p_date: date } : { p_uid: uid });
+
+// ---------- monthly goals ----------
+export const saveMyGoals = (period, goals) => call("save_my_goals", { p_period: period, p_goals: goals });
+
+export const submitMyGoals = (period) => call("submit_my_goals", { p_period: period });
+
+export const updateGoalProgress = (period, category, index, progress, done) =>
+  call("update_goal_progress", { p_period: period, p_category: category, p_index: index, p_progress: progress, p_done: done });
+
+export const reviewMemberGoals = (uid, period, decision, comment) =>
+  call("review_member_goals", { p_uid: uid, p_period: period, p_decision: decision, p_comment: comment });
+
+export const getAdminGoalOverview = (period) => call("get_admin_goal_overview", { p_period: period });
+
+// ---------- prospecting / follow-up CRM ----------
+export const addProspect = (name, phone, whatsapp, source, notes) =>
+  call("add_prospect", { p_name: name, p_phone: phone, p_whatsapp: whatsapp, p_source: source, p_notes: notes });
+
+export const updateProspect = (id, name, phone, whatsapp, source, notes, nextFollowUpAt) =>
+  call("update_prospect", {
+    p_id: id,
+    p_name: name,
+    p_phone: phone,
+    p_whatsapp: whatsapp,
+    p_source: source,
+    p_notes: notes,
+    p_next_follow_up_at: nextFollowUpAt,
+  });
+
+export const setProspectStatus = (id, status, nextFollowUpAt, note) =>
+  call("set_prospect_status", { p_id: id, p_status: status, p_next_follow_up_at: nextFollowUpAt, p_note: note });
+
+export const logProspectActivity = (prospectId, activityType, note, nextFollowUpAt) =>
+  call("log_prospect_activity", {
+    p_prospect_id: prospectId,
+    p_activity_type: activityType,
+    p_note: note,
+    p_next_follow_up_at: nextFollowUpAt,
+  });
+
+export const getAdminProspectingOverview = () => call("get_admin_prospecting_overview", {});

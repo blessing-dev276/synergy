@@ -80,15 +80,28 @@ export default function TaskList() {
   const { user } = useAuth();
   const toast = useToast();
   const [openTaskId, setOpenTaskId] = useState(null);
+  const [view, setView] = useState("today");
 
   // get_my_content_assignments: current stage's stage-wide content plus
   // this member's own individual assignments, each with isDone already
   // resolved server-side (see supabase/migrations/0028_content_model_functions.sql)
   // — replaces the old direct `tasks`/`task_completions` table queries.
-  const { loading, error, data: tasks, refetch } = useSupabaseQuery(
-    () => user && supabase.rpc("get_my_content_assignments", { p_uid: user.id }),
-    [user?.id],
+  const { loading: loadingAll, error: errorAll, data: allTasks, refetch: refetchAll } = useSupabaseQuery(
+    () => user && view === "all" && supabase.rpc("get_my_content_assignments", { p_uid: user.id }),
+    [user?.id, view],
   );
+
+  // Today's fixed daily selection (see supabase/migrations/0044_daily_tasks.sql)
+  // — same row shape as get_my_content_assignments, so it reuses TaskStatus/EvidenceForm as-is.
+  const { loading: loadingToday, error: errorToday, data: todayTasks, refetch: refetchToday } = useSupabaseQuery(
+    () => user && view === "today" && supabase.rpc("get_or_generate_daily_tasks", { p_uid: user.id }),
+    [user?.id, view],
+  );
+
+  const loading = view === "today" ? loadingToday : loadingAll;
+  const error = view === "today" ? errorToday : errorAll;
+  const tasks = view === "today" ? todayTasks : allTasks;
+  const refetch = view === "today" ? refetchToday : refetchAll;
 
   // One-way, same as lesson completion (LessonViewer.jsx) — always goes
   // through the complete_content_assignment RPC so dependency/linked-course/
@@ -105,9 +118,19 @@ export default function TaskList() {
   return (
     <div>
       <h1>Tasks</h1>
+      <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+        <button type="button" className={`btn ${view === "today" ? "btn-primary" : "btn-secondary"}`} onClick={() => setView("today")}>
+          Today
+        </button>
+        <button type="button" className={`btn ${view === "all" ? "btn-primary" : "btn-secondary"}`} onClick={() => setView("all")}>
+          All tasks
+        </button>
+      </div>
       {loading && <Skeleton variant="card" height="100px" />}
       {error && <ErrorState description="Couldn't load your tasks." />}
-      {!loading && !error && (!tasks || tasks.length === 0) && <EmptyState icon="✅" title="No tasks assigned" />}
+      {!loading && !error && (!tasks || tasks.length === 0) && (
+        <EmptyState icon="✅" title={view === "today" ? "Nothing assigned for today" : "No tasks assigned"} />
+      )}
       {tasks && tasks.length > 0 && (
         <div className="card">
           <table className="data-table">

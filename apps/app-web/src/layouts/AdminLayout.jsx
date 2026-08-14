@@ -7,7 +7,7 @@ const sections = [
   {
     label: "Journey",
     items: [
-      { to: "/admin/journey", label: "Stage Builder", icon: "compass" },
+      { to: "/admin/journey", label: "Stage Builder", icon: "compass", end: true },
       { to: "/admin/journey/progression", label: "Progression", icon: "bar-chart" },
       { to: "/admin/journey/promotions", label: "Stage Promotions", icon: "trophy" },
       { to: "/admin/journey/milestones", label: "Milestones", icon: "award" },
@@ -19,6 +19,7 @@ const sections = [
     items: [
       { to: "/admin/members", label: "Members", icon: "users" },
       { to: "/admin/reviews", label: "Review Queue", icon: "folder" },
+      { to: "/admin/goals", label: "Goal Reviews", icon: "target" },
       { to: "/admin/orientation", label: "Orientation Builder", icon: "clock" },
     ],
   },
@@ -26,6 +27,7 @@ const sections = [
     label: "Network",
     items: [
       { to: "/admin/network", label: "Overview", icon: "network", end: true },
+      { to: "/admin/network/prospecting", label: "Prospecting", icon: "network" },
       { to: "/admin/network/requests", label: "Sponsor Requests", icon: "folder" },
       { to: "/admin/network/legacy-mentors", label: "Legacy Mentors", icon: "users" },
     ],

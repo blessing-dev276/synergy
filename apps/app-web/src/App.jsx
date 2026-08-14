@@ -27,6 +27,8 @@ import TaskList from "./pages/tasks/TaskList.jsx";
 import NotificationList from "./pages/notifications/NotificationList.jsx";
 import Profile from "./pages/profile/Profile.jsx";
 import NetworkDashboard from "./pages/network/NetworkDashboard.jsx";
+import Prospects from "./pages/network/Prospects.jsx";
+import Goals from "./pages/goals/Goals.jsx";
 import Leaderboard from "./pages/leaderboard/Leaderboard.jsx";
 
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
@@ -43,8 +45,10 @@ import ProgressionOverview from "./pages/admin/journey/ProgressionOverview.jsx";
 import MemberList from "./pages/admin/members/MemberList.jsx";
 import MemberDetail from "./pages/admin/members/MemberDetail.jsx";
 import NetworkOverview from "./pages/admin/network/NetworkOverview.jsx";
+import ProspectingOverview from "./pages/admin/network/ProspectingOverview.jsx";
 import SponsorRequests from "./pages/admin/network/SponsorRequests.jsx";
 import LegacyMentors from "./pages/admin/network/LegacyMentors.jsx";
+import GoalReview from "./pages/admin/goals/GoalReview.jsx";
 
 import Forbidden from "./pages/Forbidden.jsx";
 import NotFound from "./pages/NotFound.jsx";
@@ -90,6 +94,8 @@ function App() {
               <Route path="/notifications" element={<NotificationList />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/network" element={<NetworkDashboard />} />
+              <Route path="/network/prospects" element={<Prospects />} />
+              <Route path="/goals" element={<Goals />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
             </Route>
           </Route>
@@ -107,8 +113,10 @@ function App() {
               <Route path="/admin/members" element={<MemberList />} />
               <Route path="/admin/members/:uid" element={<MemberDetail />} />
               <Route path="/admin/reviews" element={<ReviewQueue />} />
+              <Route path="/admin/goals" element={<GoalReview />} />
               <Route path="/admin/earnings" element={<EarningsReview />} />
               <Route path="/admin/network" element={<NetworkOverview />} />
+              <Route path="/admin/network/prospecting" element={<ProspectingOverview />} />
               <Route path="/admin/network/requests" element={<SponsorRequests />} />
               <Route path="/admin/network/legacy-mentors" element={<LegacyMentors />} />
               <Route path="/admin/activity" element={<ActivityLog />} />

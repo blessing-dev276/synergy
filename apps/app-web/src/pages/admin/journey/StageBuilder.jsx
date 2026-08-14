@@ -611,6 +611,126 @@ function RanksPanel({ ranks, onChanged }) {
   );
 }
 
+// Bare content_items (tasks/projects with no linked course or assignment) —
+// created here so they're reusable across stage/track placements from day
+// one, same as a course or assignment. The per-stage "Add content" flow
+// (NewPlacementForm above) can also create one inline via ContentPicker on
+// the spot; this section is the browse-everything/manage view, kept next
+// to Stage Builder rather than Content Builder since it's tasks/projects
+// admins place into stages, not learning content (see supabase/migrations/
+// 0027_content_model_schema.sql for why content is a separate reusable
+// layer from where/when it's placed).
+function NewBareContentForm({ onCreated, onDone }) {
+  const toast = useToast();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    const { error } = await supabase.from("content_items").insert({
+      content_type: "bare",
+      title: title.trim(),
+      description: description.trim(),
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Couldn't create that content.");
+      return;
+    }
+    toast.success("Content created.");
+    onCreated?.();
+    onDone?.();
+  };
+
+  return (
+    <form onSubmit={submit} className="card-elevated" style={{ marginBottom: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div className="card-title">New Task / Project</div>
+      <input className="inline-edit-field" required autoFocus placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <textarea className="inline-edit-field" rows={2} placeholder="Description / instructions (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? "Creating…" : "Create"}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onDone}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function BareContentSection() {
+  const toast = useToast();
+  const [showNew, setShowNew] = useState(false);
+
+  const { loading, data: items, refetch } = useSupabaseQuery(
+    () => supabase.from("content_items").select("*").eq("content_type", "bare").order("created_at", { ascending: false }),
+    [],
+  );
+
+  const handleDelete = async (item) => {
+    if (!window.confirm(`Delete "${item.title}"? This removes it from every stage/track/member it's currently placed in.`)) return;
+    const { error } = await supabase.from("content_items").delete().eq("id", item.id);
+    if (error) {
+      toast.error("Couldn't delete that content — check it isn't still placed somewhere.");
+      return;
+    }
+    toast.success("Content deleted.");
+    refetch();
+  };
+
+  return (
+    <div style={{ marginTop: "32px" }}>
+      <div className="section-heading">
+        <h2 style={{ fontSize: "18px" }}>Tasks &amp; Projects</h2>
+        {!showNew && (
+          <button type="button" className="btn btn-secondary" onClick={() => setShowNew(true)}>
+            <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
+            New Task / Project
+          </button>
+        )}
+      </div>
+      <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "16px" }}>
+        Reusable, self-attested content with no linked course or assignment — place it into any stage/track above,
+        or assign it to one member from their profile.
+      </p>
+
+      {showNew && <NewBareContentForm onCreated={refetch} onDone={() => setShowNew(false)} />}
+
+      {loading && <Skeleton variant="card" height="80px" />}
+      {!loading && (!items || items.length === 0) && <EmptyState icon={<Icon name="check-square" size={26} />} title="No tasks/projects yet" />}
+      {items && items.length > 0 && (
+        <div className="card-elevated" style={{ padding: 0 }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Description</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td style={{ fontWeight: 600 }}>{item.title}</td>
+                  <td style={{ fontSize: "13px", color: "var(--slate)" }}>{item.description || "—"}</td>
+                  <td>
+                    <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(item)}>
+                      <Icon name="trash" size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function StageBuilder() {
   const [openStageId, setOpenStageId] = useState(null);
   const [showNewStage, setShowNewStage] = useState(false);
@@ -689,6 +809,8 @@ export default function StageBuilder() {
             onToggle={() => setOpenStageId((prev) => (prev === stage.id ? null : stage.id))}
           />
         ))}
+
+      <BareContentSection />
     </div>
   );
 }

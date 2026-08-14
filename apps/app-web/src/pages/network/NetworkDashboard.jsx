@@ -76,6 +76,34 @@ function StatCard({ label, value, icon, loading }) {
   );
 }
 
+function ProspectingSummaryCard({ uid }) {
+  const { data: prospects } = useSupabaseQuery(
+    () => uid && supabase.from("prospects").select("id, status, next_follow_up_at").eq("owner_uid", uid),
+    [uid],
+  );
+
+  const today = new Date().toISOString().slice(0, 10);
+  const list = prospects ?? [];
+  const newCount = list.filter((p) => p.status === "new").length;
+  const dueToday = list.filter((p) => p.next_follow_up_at === today && !["joined", "not_interested"].includes(p.status)).length;
+  const overdue = list.filter((p) => p.next_follow_up_at && p.next_follow_up_at < today && !["joined", "not_interested"].includes(p.status)).length;
+
+  return (
+    <div className="card-elevated" style={{ marginBottom: "24px" }}>
+      <div className="card-title">
+        <Icon name="network" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        My Prospects
+      </div>
+      <p style={{ fontSize: "13.5px", marginBottom: "14px" }}>
+        {newCount} new · {dueToday} due today · {overdue} overdue
+      </p>
+      <Link to="/network/prospects" className="btn btn-secondary">
+        Manage prospects
+      </Link>
+    </div>
+  );
+}
+
 export default function NetworkDashboard() {
   const { user } = useAuth();
 
@@ -100,6 +128,7 @@ export default function NetworkDashboard() {
       </div>
 
       {user && <ReferralLinkCard uid={user.id} />}
+      {user && <ProspectingSummaryCard uid={user.id} />}
 
       <div className="grid grid-3" style={{ marginBottom: "24px" }}>
         <StatCard label="Personally sponsored" value={overview?.personallySponsoredCount ?? 0} icon="users" loading={loadingOverview} />

@@ -17,7 +17,14 @@ const sections = [
   },
   {
     label: "Network",
-    items: [{ to: "/network", label: "My Network", icon: "network" }],
+    items: [
+      { to: "/network", label: "My Network", icon: "network" },
+      { to: "/network/prospects", label: "Prospects", icon: "network" },
+    ],
+  },
+  {
+    label: "Goals",
+    items: [{ to: "/goals", label: "Monthly Goals", icon: "target" }],
   },
   {
     label: "Leaderboard",

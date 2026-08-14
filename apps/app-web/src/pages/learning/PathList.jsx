@@ -4,12 +4,14 @@ import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
+import Icon from "../../components/Icon.jsx";
 
 export default function PathList() {
-  const { loading, error, data: paths } = useSupabaseQuery(
-    () => supabase.from("learning_paths").select("*").eq("published", true).order("order_index", { ascending: true }),
-    [],
-  );
+  // get_learning_paths (0047) computes `locked` server-side off the same
+  // is_specialization_unlocked gate the Dashboard's track cards use (0038)
+  // -- a member only has their chosen skill (+ Graphics Design while
+  // Newbie) unlocked here too, instead of every path being browsable.
+  const { loading, error, data: paths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths"), []);
 
   return (
     <div>
@@ -30,13 +32,24 @@ export default function PathList() {
       )}
       {paths && paths.length > 0 && (
         <div className="grid grid-2">
-          {paths.map((path) => (
-            <Link key={path.id} to={`/learning/${path.id}`} className="card">
-              <div className="card-title">{path.title}</div>
-              <div className="card-subtitle">{path.description}</div>
-              <span className="badge badge-neutral">{path.course_count ?? 0} courses</span>
-            </Link>
-          ))}
+          {paths.map((path) =>
+            path.locked ? (
+              <div key={path.id} className="card" style={{ opacity: 0.55, cursor: "not-allowed" }} title="Locked — this isn't your chosen skill">
+                <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {path.title}
+                  <Icon name="lock" size={14} />
+                </div>
+                <div className="card-subtitle">{path.description}</div>
+                <span className="badge badge-neutral">Locked</span>
+              </div>
+            ) : (
+              <Link key={path.id} to={`/learning/${path.id}`} className="card">
+                <div className="card-title">{path.title}</div>
+                <div className="card-subtitle">{path.description}</div>
+                <span className="badge badge-neutral">{path.courseCount ?? 0} courses</span>
+              </Link>
+            ),
+          )}
         </div>
       )}
     </div>

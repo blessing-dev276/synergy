@@ -30,6 +30,26 @@ function TrackIcon({ track, size = 18 }) {
   return <span aria-hidden="true">{track.icon}</span>;
 }
 
+// Groups the flat daily-task list (get_or_generate_daily_tasks) by track so
+// it reads like the spec's worked example (Skill Development / Freelancing /
+// Network Marketing sections) instead of one undifferentiated list.
+// Individually-assigned tasks (no track) land in their own "Assigned to you" group.
+function groupDailyTasks(tasks) {
+  const groups = new Map();
+  for (const t of tasks ?? []) {
+    const key = t.trackKey ?? "_individual";
+    if (!groups.has(key)) {
+      groups.set(key, { key, label: t.trackLabel ?? "Assigned to you", icon: TRACK_ICONS[t.trackKey] ?? "check-square", items: [] });
+    }
+    groups.get(key).items.push(t);
+  }
+  return [...groups.values()];
+}
+
+function currentPeriod() {
+  return new Date().toISOString().slice(0, 7);
+}
+
 function ProgressRing({ percent, size = 76, stroke = 7 }) {
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -61,6 +81,8 @@ const QUICK_ACTIONS = [
   { to: "/learning", icon: "book", label: "Browse Learning" },
   { to: "/assignments", icon: "clipboard", label: "Assignments" },
   { to: "/tasks", icon: "check-square", label: "Tasks" },
+  { to: "/goals", icon: "target", label: "Monthly Goals" },
+  { to: "/network/prospects", icon: "network", label: "Prospects" },
   { to: "/leaderboard", icon: "trophy", label: "Leaderboard" },
   { to: "/notifications", icon: "bell", label: "Notifications" },
 ];
@@ -260,6 +282,75 @@ function SpecializationPicker({ track, onChanged }) {
   );
 }
 
+// Nudges toward the categorized Skill/Freelancing/NM/Personal monthly goals
+// flow (submit -> admin review, see supabase/migrations/0045_monthly_goals.sql)
+// -- distinct from the always-editable income/team-size targets on Profile.
+function GoalsNudgeCard({ uid }) {
+  const period = currentPeriod();
+  const { data: row } = useSupabaseQuery(
+    () => uid && supabase.from("monthly_goals").select("status").eq("uid", uid).eq("period", period).maybeSingle(),
+    [uid, period],
+  );
+
+  if (row && (row.status === "submitted" || row.status === "approved")) return null;
+
+  const monthLabel = new Date(`${period}-01T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+  return (
+    <div className="card-elevated">
+      <div className="card-title">
+        <Icon name="target" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Monthly Goals
+      </div>
+      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
+        {row?.status === "needs_revision"
+          ? "An admin asked for changes to your goals — take another look."
+          : `Set what you're working toward for ${monthLabel} across Skill, Freelancing, Network Marketing, and Personal.`}
+      </p>
+      <Link to="/goals" className="btn btn-primary">
+        {row ? "Review your goals" : "Set your goals"}
+      </Link>
+    </div>
+  );
+}
+
+// Follow-up-due count from the prospecting CRM (supabase/migrations/0046_prospecting_crm.sql).
+function ProspectFollowUpCard({ uid }) {
+  const { data: dueProspects } = useSupabaseQuery(
+    () =>
+      uid &&
+      supabase
+        .from("prospects")
+        .select("id, next_follow_up_at")
+        .eq("owner_uid", uid)
+        .not("status", "in", "(joined,not_interested)")
+        .not("next_follow_up_at", "is", null)
+        .lte("next_follow_up_at", new Date().toISOString().slice(0, 10)),
+    [uid],
+  );
+
+  const dueCount = dueProspects?.length ?? 0;
+
+  return (
+    <div className="card-elevated">
+      <div className="card-title">
+        <Icon name="network" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Prospecting
+      </div>
+      {dueCount > 0 ? (
+        <p style={{ fontSize: "13.5px", marginBottom: "14px" }}>
+          <strong style={{ color: "var(--navy)" }}>{dueCount}</strong> follow-up{dueCount === 1 ? "" : "s"} due today or overdue.
+        </p>
+      ) : (
+        <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>No follow-ups due right now.</p>
+      )}
+      <Link to="/network/prospects" className="btn btn-secondary">
+        View prospects
+      </Link>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user, profile } = useAuth();
 
@@ -280,14 +371,14 @@ export default function Dashboard() {
     data: nextAction,
   } = useSupabaseQuery(() => user && supabase.rpc("get_next_best_action", { p_uid: user.id }), [user?.id]);
 
+  // Today's list is generated once per calendar day and then stays fixed
+  // (see get_or_generate_daily_tasks, supabase/migrations/0044_daily_tasks.sql)
+  // -- completion status (isDone) still reflects reality live.
   const {
-    loading: loadingTasks,
-    error: tasksError,
-    data: tasks,
-  } = useSupabaseQuery(
-    () => user && supabase.rpc("get_my_content_assignments", { p_uid: user.id }),
-    [user?.id],
-  );
+    loading: loadingDailyTasks,
+    error: dailyTasksError,
+    data: dailyTasks,
+  } = useSupabaseQuery(() => user && supabase.rpc("get_or_generate_daily_tasks", { p_uid: user.id }), [user?.id]);
 
   const { data: whys } = useSupabaseQuery(
     () => user && supabase.from("member_whys").select("id").eq("uid", user.id),
@@ -421,22 +512,44 @@ export default function Dashboard() {
 
         <div className="card-elevated">
           <div className="card-title">Today's Tasks</div>
-          {loadingTasks && <Skeleton variant="card" height="80px" />}
-          {tasksError && <ErrorState description="Couldn't load your tasks." />}
-          {!loadingTasks && !tasksError && (!tasks || tasks.length === 0) && (
-            <EmptyState icon={<Icon name="check-square" size={28} />} title="Nothing assigned right now" />
+          {loadingDailyTasks && <Skeleton variant="card" height="80px" />}
+          {dailyTasksError && <ErrorState description="Couldn't load today's tasks." />}
+          {!loadingDailyTasks && !dailyTasksError && (!dailyTasks || dailyTasks.length === 0) && (
+            <EmptyState icon={<Icon name="check-square" size={28} />} title="Nothing assigned for today" />
           )}
-          {tasks && tasks.length > 0 && (
-            <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "10px" }}>
-              {tasks.slice(0, 5).map((task) => (
-                <li key={task.id} style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
-                  <span>{task.title}</span>
-                  <span className={`badge ${task.isDone ? "badge-success" : "badge-neutral"}`}>
-                    {task.isDone ? "Done" : task.taskType?.replace("_", " ") ?? "task"}
-                  </span>
-                </li>
+          {dailyTasks && dailyTasks.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {groupDailyTasks(dailyTasks).map((group) => (
+                <div key={group.key}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontSize: "11.5px",
+                      fontWeight: 600,
+                      color: "var(--slate)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <Icon name={group.icon} size={13} />
+                    {group.label}
+                  </div>
+                  <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {group.items.map((task) => (
+                      <li key={task.id} style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                        <span>{task.title}</span>
+                        <span className={`badge ${task.isDone ? "badge-success" : "badge-neutral"}`}>
+                          {task.isDone ? "Done" : task.taskType?.replace("_", " ") ?? "task"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
           <div style={{ marginTop: "14px" }}>
             <Link to="/tasks" className="btn btn-secondary">
@@ -444,6 +557,11 @@ export default function Dashboard() {
             </Link>
           </div>
         </div>
+      </div>
+
+      <div className="grid grid-2" style={{ marginBottom: "24px" }}>
+        <GoalsNudgeCard uid={user?.id} />
+        <ProspectFollowUpCard uid={user?.id} />
       </div>
 
       <MilestonesCard uid={user?.id} />
