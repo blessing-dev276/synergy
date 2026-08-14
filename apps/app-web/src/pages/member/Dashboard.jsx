@@ -207,10 +207,9 @@ export default function Dashboard() {
 
   const stage = journey?.stage;
   const tracks = journey?.tracks ?? [];
-  const level = journey?.level;
-  const levelProgressPercent = journey?.levelProgressPercent ?? 0;
-  const nextLevel = journey?.nextLevel;
-  const officialRank = journey?.officialRank;
+  const rank = journey?.rank;
+  const rankProgressPercent = journey?.rankProgressPercent ?? 0;
+  const nextRank = journey?.nextRank;
   const firstName = profile?.display_name?.split(" ")[0] ?? "there";
 
   return (
@@ -222,39 +221,27 @@ export default function Dashboard() {
         <p>{stage ? `Your Synergy Journey — ${stage.title}` : "You're making progress. Keep going."}</p>
       </div>
 
-      {(level || officialRank) && (
+      {rank && (
         <div className="card-elevated" style={{ marginTop: "24px", borderColor: "var(--gold)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
-            <div style={{ display: "flex", gap: "28px", flexWrap: "wrap" }}>
-              {level && (
-                <div>
-                  <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    Development Level
-                  </div>
-                  <div style={{ fontSize: "26px", fontWeight: 700, color: "var(--gold)", marginTop: "4px" }}>{level.label}</div>
-                </div>
-              )}
-              {officialRank && (
-                <div>
-                  <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    Official Rank
-                  </div>
-                  <div style={{ fontSize: "26px", fontWeight: 700, color: "var(--navy)", marginTop: "4px" }}>{officialRank.label}</div>
-                </div>
-              )}
+            <div>
+              <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Rank
+              </div>
+              <div style={{ fontSize: "26px", fontWeight: 700, color: "var(--gold)", marginTop: "4px" }}>{rank.label}</div>
             </div>
-            {level && nextLevel && (
+            {nextRank && (
               <div style={{ minWidth: "200px", flex: 1, maxWidth: "320px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12.5px", color: "var(--slate)", marginBottom: "6px" }}>
-                  <span>{levelProgressPercent}% to {nextLevel.label}</span>
+                  <span>{rankProgressPercent}% to {nextRank.label}</span>
                 </div>
                 <div style={{ height: "8px", borderRadius: "100px", background: "var(--line)", overflow: "hidden" }}>
-                  <div style={{ width: `${Math.min(levelProgressPercent, 100)}%`, height: "100%", borderRadius: "100px", background: "var(--gold)" }} />
+                  <div style={{ width: `${Math.min(rankProgressPercent, 100)}%`, height: "100%", borderRadius: "100px", background: "var(--gold)" }} />
                 </div>
               </div>
             )}
           </div>
-          {level?.purpose && <p style={{ fontSize: "13.5px", color: "var(--slate)", marginTop: "14px" }}>{level.purpose}</p>}
+          {rank.purpose && <p style={{ fontSize: "13.5px", color: "var(--slate)", marginTop: "14px" }}>{rank.purpose}</p>}
         </div>
       )}
 

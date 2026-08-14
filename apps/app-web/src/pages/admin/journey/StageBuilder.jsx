@@ -90,11 +90,11 @@ function NewStageForm({ onCreated, onDone }) {
   );
 }
 
-function EditStageForm({ stage, levels, onSaved, onCancel }) {
+function EditStageForm({ stage, ranks, onSaved, onCancel }) {
   const toast = useToast();
   const [title, setTitle] = useState(stage.title);
   const [description, setDescription] = useState(stage.description ?? "");
-  const [levelId, setLevelId] = useState(stage.level_id ?? "");
+  const [rankId, setRankId] = useState(stage.rank_id ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
@@ -102,7 +102,7 @@ function EditStageForm({ stage, levels, onSaved, onCancel }) {
     setSaving(true);
     const { error } = await supabase
       .from("stages")
-      .update({ title: title.trim(), description: description.trim(), level_id: levelId || null, updated_at: new Date().toISOString() })
+      .update({ title: title.trim(), description: description.trim(), rank_id: rankId || null, updated_at: new Date().toISOString() })
       .eq("id", stage.id);
     setSaving(false);
     if (error) {
@@ -117,11 +117,11 @@ function EditStageForm({ stage, levels, onSaved, onCancel }) {
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
       <input className="inline-edit-field" required value={title} onChange={(e) => setTitle(e.target.value)} />
       <textarea className="inline-edit-field" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
-      <select className="inline-edit-field" value={levelId} onChange={(e) => setLevelId(e.target.value)}>
-        <option value="">No level (unassigned)</option>
-        {levels?.map((l) => (
-          <option key={l.id} value={l.id}>
-            {l.label}
+      <select className="inline-edit-field" value={rankId} onChange={(e) => setRankId(e.target.value)}>
+        <option value="">No rank (unassigned)</option>
+        {ranks?.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.label}
           </option>
         ))}
       </select>
@@ -428,7 +428,7 @@ function StageTracks({ stage, tracks }) {
   );
 }
 
-function StageRow({ stage, tracks, levels, levelLabel, memberUids, isFirst, isLast, onChanged, onReorder, expanded, onToggle }) {
+function StageRow({ stage, tracks, ranks, rankLabel, memberUids, isFirst, isLast, onChanged, onReorder, expanded, onToggle }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
 
@@ -467,14 +467,14 @@ function StageRow({ stage, tracks, levels, levelLabel, memberUids, isFirst, isLa
         </div>
 
         {editing ? (
-          <EditStageForm stage={stage} levels={levels} onSaved={() => { setEditing(false); onChanged?.(); }} onCancel={() => setEditing(false)} />
+          <EditStageForm stage={stage} ranks={ranks} onSaved={() => { setEditing(false); onChanged?.(); }} onCancel={() => setEditing(false)} />
         ) : (
           <button type="button" className="accordion-header" onClick={onToggle} style={{ flex: 1, minWidth: 0 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="card-title" style={{ marginBottom: 0, display: "flex", alignItems: "center", gap: "8px" }}>
                 {stage.title}
-                <span className={`badge ${levelLabel ? "badge-neutral" : "badge-warning"}`} style={{ fontWeight: 500 }}>
-                  {levelLabel ?? "No level"}
+                <span className={`badge ${rankLabel ? "badge-neutral" : "badge-warning"}`} style={{ fontWeight: 500 }}>
+                  {rankLabel ?? "No rank"}
                 </span>
               </div>
               {stage.description && <p style={{ color: "var(--slate)", fontSize: "13.5px", marginTop: "6px" }}>{stage.description}</p>}
@@ -510,30 +510,34 @@ function StageRow({ stage, tracks, levels, levelLabel, memberUids, isFirst, isLa
   );
 }
 
-// The 7 Development Levels are fixed rows (no add/remove — see
-// supabase/migrations/0032_development_levels.sql) that Stages nest under
-// via stages.level_id. Admins can edit the label/purpose/outcome copy shown
-// on the member dashboard, but not the set of levels itself.
-function EditLevelForm({ level, onSaved, onCancel }) {
+// The 7 Ranks are fixed rows (no add/remove — see supabase/migrations/
+// 0032_development_levels.sql / 0037_merge_levels_and_ranks.sql) that
+// Stages nest under via stages.rank_id. This merges what used to be two
+// separate fields (a training-driven "Development Level" and a hand-set
+// "Official Rank") into the one thing that both categorizes members and
+// drives which training/tasks they get. Admins can edit the label/purpose/
+// outcome copy shown on the member dashboard, but not the set of ranks
+// itself.
+function EditRankForm({ rank, onSaved, onCancel }) {
   const toast = useToast();
-  const [label, setLabel] = useState(level.label);
-  const [purpose, setPurpose] = useState(level.purpose ?? "");
-  const [outcome, setOutcome] = useState(level.outcome ?? "");
+  const [label, setLabel] = useState(rank.label);
+  const [purpose, setPurpose] = useState(rank.purpose ?? "");
+  const [outcome, setOutcome] = useState(rank.outcome ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     const { error } = await supabase
-      .from("levels")
+      .from("ranks")
       .update({ label: label.trim(), purpose: purpose.trim(), outcome: outcome.trim(), updated_at: new Date().toISOString() })
-      .eq("id", level.id);
+      .eq("id", rank.id);
     setSaving(false);
     if (error) {
       toast.error("Couldn't save changes.");
       return;
     }
-    toast.success("Level updated.");
+    toast.success("Rank updated.");
     onSaved();
   };
 
@@ -554,7 +558,7 @@ function EditLevelForm({ level, onSaved, onCancel }) {
   );
 }
 
-function LevelsPanel({ levels, onChanged }) {
+function RanksPanel({ ranks, onChanged }) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
@@ -567,7 +571,7 @@ function LevelsPanel({ levels, onChanged }) {
         style={{ width: "100%" }}
       >
         <div className="card-title" style={{ marginBottom: 0 }}>
-          Development Levels
+          Ranks
         </div>
         <span className="accordion-chevron">
           <Icon name={open ? "chevron-down" : "chevron-right"} size={16} />
@@ -575,26 +579,26 @@ function LevelsPanel({ levels, onChanged }) {
       </button>
       {!open && (
         <p style={{ color: "var(--slate)", fontSize: "13px", marginTop: "6px" }}>
-          The 7 fixed levels members progress through. Stages nest under one below.
+          The 7 fixed ranks members progress through. Stages nest under one below.
         </p>
       )}
       {open && (
         <div className="accordion-body">
           <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "10px" }}>
-            {levels?.map((level) =>
-              editingId === level.id ? (
-                <li key={level.id}>
-                  <EditLevelForm level={level} onSaved={() => { setEditingId(null); onChanged?.(); }} onCancel={() => setEditingId(null)} />
+            {ranks?.map((rank) =>
+              editingId === rank.id ? (
+                <li key={rank.id}>
+                  <EditRankForm rank={rank} onSaved={() => { setEditingId(null); onChanged?.(); }} onCancel={() => setEditingId(null)} />
                 </li>
               ) : (
-                <li key={level.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                <li key={rank.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: "13.5px" }}>
-                      {level.order_index}. {level.label}
+                      {rank.order_index}. {rank.label}
                     </div>
-                    {level.purpose && <div style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "2px" }}>{level.purpose}</div>}
+                    {rank.purpose && <div style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "2px" }}>{rank.purpose}</div>}
                   </div>
-                  <button type="button" className="icon-btn" title="Edit level" onClick={() => setEditingId(level.id)}>
+                  <button type="button" className="icon-btn" title="Edit rank" onClick={() => setEditingId(rank.id)}>
                     <Icon name="pencil" size={14} />
                   </button>
                 </li>
@@ -615,11 +619,11 @@ export default function StageBuilder() {
     [],
   );
   const { data: tracks } = useSupabaseQuery(() => supabase.from("tracks").select("*").order("key"), []);
-  const { data: levels, refetch: refetchLevels } = useSupabaseQuery(
-    () => supabase.from("levels").select("*").order("order_index"),
+  const { data: ranks, refetch: refetchRanks } = useSupabaseQuery(
+    () => supabase.from("ranks").select("*").order("order_index"),
     [],
   );
-  const levelById = new Map((levels ?? []).map((l) => [l.id, l]));
+  const rankById = new Map((ranks ?? []).map((r) => [r.id, r]));
 
   // Members currently in each stage — used only for the delete-stage
   // warning now; placing content no longer needs to know who's in a stage
@@ -662,7 +666,7 @@ export default function StageBuilder() {
         Stage → Skill / Business / Freelancing tracks → content. Click a stage to open it — opening another one closes this.
       </p>
 
-      <LevelsPanel levels={levels} onChanged={refetchLevels} />
+      <RanksPanel ranks={ranks} onChanged={refetchRanks} />
 
       {showNewStage && <NewStageForm onCreated={refetch} onDone={() => setShowNewStage(false)} />}
 
@@ -674,8 +678,8 @@ export default function StageBuilder() {
             key={stage.id}
             stage={stage}
             tracks={tracks}
-            levels={levels}
-            levelLabel={levelById.get(stage.level_id)?.label}
+            ranks={ranks}
+            rankLabel={rankById.get(stage.rank_id)?.label}
             memberUids={membersByStage.get(stage.id) ?? []}
             isFirst={i === 0}
             isLast={i === stages.length - 1}

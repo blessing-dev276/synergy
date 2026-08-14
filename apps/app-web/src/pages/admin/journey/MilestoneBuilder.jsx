@@ -11,7 +11,7 @@ const TRIGGER_TYPES = [
   { value: "manual", label: "Manual — admin awards it by hand" },
   { value: "content_assignment_completed", label: "A specific task is completed" },
   { value: "stage_completed", label: "Every required task in a stage is done" },
-  { value: "level_completed", label: "A development level reaches 100%" },
+  { value: "rank_completed", label: "A rank reaches 100%" },
 ];
 
 function slugify(title) {
@@ -23,9 +23,10 @@ function slugify(title) {
 }
 
 // trigger_ref_id's meaning depends on trigger_type (content_assignments.id /
-// stages.id / levels.id / unused for manual) — see supabase/migrations/
-// 0033_milestones_and_evidence_review.sql. This picks the right option list.
-function TriggerRefPicker({ triggerType, value, onChange, placements, stages, levels }) {
+// stages.id / ranks.id / unused for manual) — see supabase/migrations/
+// 0033_milestones_and_evidence_review.sql / 0037_merge_levels_and_ranks.sql.
+// This picks the right option list.
+function TriggerRefPicker({ triggerType, value, onChange, placements, stages, ranks }) {
   if (triggerType === "manual") return null;
   if (triggerType === "content_assignment_completed") {
     return (
@@ -53,23 +54,23 @@ function TriggerRefPicker({ triggerType, value, onChange, placements, stages, le
   }
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)} required>
-      <option value="">Pick a level…</option>
-      {levels?.map((l) => (
-        <option key={l.id} value={l.id}>
-          {l.label}
+      <option value="">Pick a rank…</option>
+      {ranks?.map((r) => (
+        <option key={r.id} value={r.id}>
+          {r.label}
         </option>
       ))}
     </select>
   );
 }
 
-function MilestoneForm({ milestone, placements, stages, levels, onSaved, onCancel }) {
+function MilestoneForm({ milestone, placements, stages, ranks, onSaved, onCancel }) {
   const { user } = useAuth();
   const toast = useToast();
   const [title, setTitle] = useState(milestone?.title ?? "");
   const [description, setDescription] = useState(milestone?.description ?? "");
   const [icon, setIcon] = useState(milestone?.icon ?? "🏆");
-  const [levelId, setLevelId] = useState(milestone?.level_id ?? "");
+  const [rankId, setRankId] = useState(milestone?.rank_id ?? "");
   const [triggerType, setTriggerType] = useState(milestone?.trigger_type ?? "manual");
   const [triggerRefId, setTriggerRefId] = useState(milestone?.trigger_ref_id ?? "");
   const [saving, setSaving] = useState(false);
@@ -81,7 +82,7 @@ function MilestoneForm({ milestone, placements, stages, levels, onSaved, onCance
       title: title.trim(),
       description: description.trim(),
       icon: icon.trim(),
-      level_id: levelId || null,
+      rank_id: rankId || null,
       trigger_type: triggerType,
       trigger_ref_id: triggerType === "manual" ? null : triggerRefId || null,
     };
@@ -105,11 +106,11 @@ function MilestoneForm({ milestone, placements, stages, levels, onSaved, onCance
         <input className="inline-edit-field" style={{ flex: 1 }} required placeholder="e.g. First Sponsored Member" value={title} onChange={(e) => setTitle(e.target.value)} />
       </div>
       <textarea className="inline-edit-field" rows={2} placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
-      <select className="inline-edit-field" value={levelId} onChange={(e) => setLevelId(e.target.value)}>
-        <option value="">Not tied to a specific level</option>
-        {levels?.map((l) => (
-          <option key={l.id} value={l.id}>
-            {l.label}
+      <select className="inline-edit-field" value={rankId} onChange={(e) => setRankId(e.target.value)}>
+        <option value="">Not tied to a specific rank</option>
+        {ranks?.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.label}
           </option>
         ))}
       </select>
@@ -127,7 +128,7 @@ function MilestoneForm({ milestone, placements, stages, levels, onSaved, onCance
           </option>
         ))}
       </select>
-      <TriggerRefPicker triggerType={triggerType} value={triggerRefId} onChange={setTriggerRefId} placements={placements} stages={stages} levels={levels} />
+      <TriggerRefPicker triggerType={triggerType} value={triggerRefId} onChange={setTriggerRefId} placements={placements} stages={stages} ranks={ranks} />
       <div style={{ display: "flex", gap: "8px" }}>
         <button type="submit" className="btn btn-primary" disabled={saving}>
           {saving ? "Saving…" : "Save"}
@@ -140,7 +141,7 @@ function MilestoneForm({ milestone, placements, stages, levels, onSaved, onCance
   );
 }
 
-function MilestoneRow({ milestone, levelLabel, placements, stages, levels, onChanged }) {
+function MilestoneRow({ milestone, rankLabel, placements, stages, ranks, onChanged }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
 
@@ -166,7 +167,7 @@ function MilestoneRow({ milestone, levelLabel, placements, stages, levels, onCha
         milestone={milestone}
         placements={placements}
         stages={stages}
-        levels={levels}
+        ranks={ranks}
         onSaved={() => { setEditing(false); onChanged(); }}
         onCancel={() => setEditing(false)}
       />
@@ -180,7 +181,7 @@ function MilestoneRow({ milestone, levelLabel, placements, stages, levels, onCha
         <div style={{ fontWeight: 600, fontSize: "14px" }}>{milestone.title}</div>
         <div style={{ fontSize: "12.5px", color: "var(--slate)" }}>
           {TRIGGER_TYPES.find((t) => t.value === milestone.trigger_type)?.label}
-          {levelLabel && ` · ${levelLabel}`}
+          {rankLabel && ` · ${rankLabel}`}
         </div>
       </div>
       <button type="button" className={`badge ${milestone.published ? "badge-success" : "badge-warning"}`} onClick={togglePublished}>
@@ -202,7 +203,7 @@ export default function MilestoneBuilder() {
     () => supabase.from("milestones").select("*").order("order_index"),
     [],
   );
-  const { data: levels } = useSupabaseQuery(() => supabase.from("levels").select("*").order("order_index"), []);
+  const { data: ranks } = useSupabaseQuery(() => supabase.from("ranks").select("*").order("order_index"), []);
   const { data: stages } = useSupabaseQuery(() => supabase.from("stages").select("*").order("order_index"), []);
 
   // Flattened "stage · track · content" options for the content_assignment_
@@ -225,7 +226,7 @@ export default function MilestoneBuilder() {
     label: p.content_item?.title ?? p.content_item?.course?.title ?? p.content_item?.assignment?.title ?? "Untitled",
   }));
 
-  const levelById = new Map((levels ?? []).map((l) => [l.id, l]));
+  const rankById = new Map((ranks ?? []).map((r) => [r.id, r]));
 
   return (
     <div>
@@ -239,12 +240,12 @@ export default function MilestoneBuilder() {
         )}
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
-        Achievements members earn along the way. Auto-awarded ones are checked whenever the underlying task/stage/level
+        Achievements members earn along the way. Auto-awarded ones are checked whenever the underlying task/stage/rank
         changes; manual ones are awarded from a member's profile.
       </p>
 
       {showNew && (
-        <MilestoneForm placements={placements} stages={stages} levels={levels} onSaved={() => { setShowNew(false); refetch(); }} onCancel={() => setShowNew(false)} />
+        <MilestoneForm placements={placements} stages={stages} ranks={ranks} onSaved={() => { setShowNew(false); refetch(); }} onCancel={() => setShowNew(false)} />
       )}
 
       {loading && <Skeleton variant="card" height="80px" />}
@@ -255,10 +256,10 @@ export default function MilestoneBuilder() {
         <MilestoneRow
           key={m.id}
           milestone={m}
-          levelLabel={levelById.get(m.level_id)?.label}
+          rankLabel={rankById.get(m.rank_id)?.label}
           placements={placements}
           stages={stages}
-          levels={levels}
+          ranks={ranks}
           onChanged={refetch}
         />
       ))}

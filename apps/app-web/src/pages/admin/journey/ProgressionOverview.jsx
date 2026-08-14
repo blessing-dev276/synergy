@@ -54,8 +54,7 @@ export default function ProgressionOverview() {
         </select>
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
-        Every active member's development progress in one place. Official Rank is set by hand from each member's real
-        NeoLife back office status — it's never computed or inferred from this data.
+        Every active member's progress in one place — Rank categorizes members and determines which training they get.
       </p>
 
       {loading && <Skeleton variant="card" height="200px" />}
@@ -67,13 +66,12 @@ export default function ProgressionOverview() {
             <thead>
               <tr>
                 <th>Member</th>
-                <th>Level</th>
+                <th>Rank</th>
                 <th>Tracks (Skill / Business / Freelancing)</th>
                 <th>Stage</th>
                 <th>Overdue</th>
                 <th>Pending review</th>
                 <th>Sponsored</th>
-                <th>Official rank</th>
               </tr>
             </thead>
             <tbody>
@@ -85,10 +83,10 @@ export default function ProgressionOverview() {
                     </Link>
                   </td>
                   <td>
-                    {row.level ? (
+                    {row.rank ? (
                       <>
-                        {row.level.label}{" "}
-                        <span style={{ fontSize: "12px", color: "var(--slate)" }}>{row.levelProgressPercent}%</span>
+                        {row.rank.label}{" "}
+                        <span style={{ fontSize: "12px", color: "var(--slate)" }}>{row.rankProgressPercent}%</span>
                       </>
                     ) : (
                       <span style={{ color: "var(--slate)" }}>—</span>
@@ -120,9 +118,6 @@ export default function ProgressionOverview() {
                     )}
                   </td>
                   <td>{row.sponsoredCount}</td>
-                  <td style={{ fontSize: "12.5px" }}>
-                    {row.officialRank ?? <span style={{ color: "var(--slate)" }}>Not set</span>}
-                  </td>
                 </tr>
               ))}
             </tbody>
