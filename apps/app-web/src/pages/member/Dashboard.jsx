@@ -127,56 +127,6 @@ function PromotionCard({ uid, tracks, onRequested }) {
   );
 }
 
-// Milestones the member has earned, plus the next few unearned published
-// ones as a preview — mirrors the ✓ / ○ checklist from the architecture
-// proposal. Read directly off milestones/member_milestones (both readable
-// by any authenticated member via RLS, see 0033) rather than an RPC, same
-// pattern as other simple read-only lists in this app.
-function MilestonesCard({ uid }) {
-  const { data: milestones } = useSupabaseQuery(() => supabase.from("milestones").select("*").eq("published", true).order("order_index"), []);
-  const { data: earned } = useSupabaseQuery(
-    () => uid && supabase.from("member_milestones").select("milestone_id, achieved_at").eq("uid", uid),
-    [uid],
-  );
-
-  if (!milestones || milestones.length === 0) return null;
-
-  const earnedIds = new Set((earned ?? []).map((e) => e.milestone_id));
-  const rows = [...milestones].sort((a, b) => (earnedIds.has(b.id) ? 1 : 0) - (earnedIds.has(a.id) ? 1 : 0));
-
-  return (
-    <div className="card-elevated" style={{ marginBottom: "24px" }}>
-      <div className="card-title">Milestones</div>
-      <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
-        {rows.map((m) => {
-          const done = earnedIds.has(m.id);
-          return (
-            <li key={m.id} style={{ display: "flex", alignItems: "center", gap: "10px", opacity: done ? 1 : 0.6 }}>
-              <span
-                style={{
-                  width: "22px",
-                  height: "22px",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "12px",
-                  background: done ? "var(--gold-soft)" : "transparent",
-                  color: done ? "var(--gold)" : "var(--slate)",
-                  border: done ? "none" : "1px solid var(--line)",
-                }}
-              >
-                {done ? "✓" : "○"}
-              </span>
-              <span style={{ fontSize: "13.5px" }}>{m.title}</span>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
 export default function Dashboard() {
   const { user, profile } = useAuth();
 
@@ -201,16 +151,12 @@ export default function Dashboard() {
     error: tasksError,
     data: tasks,
   } = useSupabaseQuery(
-    () => user && supabase.rpc("get_my_content_assignments", { p_uid: user.id }),
+    () => user && supabase.from("tasks").select("*").eq("assigned_to_uid", user.id).order("due_date", { ascending: true }),
     [user?.id],
   );
 
   const stage = journey?.stage;
   const tracks = journey?.tracks ?? [];
-  const level = journey?.level;
-  const levelProgressPercent = journey?.levelProgressPercent ?? 0;
-  const nextLevel = journey?.nextLevel;
-  const officialRank = journey?.officialRank;
   const firstName = profile?.display_name?.split(" ")[0] ?? "there";
 
   return (
@@ -221,42 +167,6 @@ export default function Dashboard() {
         </h1>
         <p>{stage ? `Your Synergy Journey — ${stage.title}` : "You're making progress. Keep going."}</p>
       </div>
-
-      {(level || officialRank) && (
-        <div className="card-elevated" style={{ marginTop: "24px", borderColor: "var(--gold)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
-            <div style={{ display: "flex", gap: "28px", flexWrap: "wrap" }}>
-              {level && (
-                <div>
-                  <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    Development Level
-                  </div>
-                  <div style={{ fontSize: "26px", fontWeight: 700, color: "var(--gold)", marginTop: "4px" }}>{level.label}</div>
-                </div>
-              )}
-              {officialRank && (
-                <div>
-                  <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    Official Rank
-                  </div>
-                  <div style={{ fontSize: "26px", fontWeight: 700, color: "var(--navy)", marginTop: "4px" }}>{officialRank.label}</div>
-                </div>
-              )}
-            </div>
-            {level && nextLevel && (
-              <div style={{ minWidth: "200px", flex: 1, maxWidth: "320px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12.5px", color: "var(--slate)", marginBottom: "6px" }}>
-                  <span>{levelProgressPercent}% to {nextLevel.label}</span>
-                </div>
-                <div style={{ height: "8px", borderRadius: "100px", background: "var(--line)", overflow: "hidden" }}>
-                  <div style={{ width: `${Math.min(levelProgressPercent, 100)}%`, height: "100%", borderRadius: "100px", background: "var(--gold)" }} />
-                </div>
-              </div>
-            )}
-          </div>
-          {level?.purpose && <p style={{ fontSize: "13.5px", color: "var(--slate)", marginTop: "14px" }}>{level.purpose}</p>}
-        </div>
-      )}
 
       {loadingJourney && <Skeleton variant="card" height="100px" style={{ marginTop: "24px" }} />}
       {journeyError && <ErrorState description="Couldn't load your journey." />}
@@ -328,9 +238,7 @@ export default function Dashboard() {
               {tasks.slice(0, 5).map((task) => (
                 <li key={task.id} style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
                   <span>{task.title}</span>
-                  <span className={`badge ${task.isDone ? "badge-success" : "badge-neutral"}`}>
-                    {task.isDone ? "Done" : task.taskType?.replace("_", " ") ?? "task"}
-                  </span>
+                  <span className="badge badge-neutral">{task.priority ?? "medium"}</span>
                 </li>
               ))}
             </ul>
@@ -342,8 +250,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      <MilestonesCard uid={user?.id} />
 
       <div className="quick-actions">
         {QUICK_ACTIONS.map((qa) => (

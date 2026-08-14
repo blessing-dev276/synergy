@@ -48,8 +48,7 @@ export const gradeAssignment = (submissionId, decision, grade, feedback) =>
     p_feedback: feedback,
   });
 
-export const completeContentAssignment = (contentAssignmentId) =>
-  call("complete_content_assignment", { p_content_assignment_id: contentAssignmentId });
+export const completeTask = (taskId) => call("complete_task", { p_task_id: taskId });
 
 export const getJourneyOverview = (uid) => call("get_journey_overview", { p_uid: uid });
 
@@ -74,17 +73,3 @@ export const reviewEarning = (id, decision, note) =>
   call("review_earning", { p_id: id, p_decision: decision, p_note: note });
 
 export const getLeaderboards = () => call("get_leaderboards", {});
-
-export const submitContentEvidence = (contentAssignmentId, textResponse, fileUrls) =>
-  call("submit_content_evidence", { p_content_assignment_id: contentAssignmentId, p_text_response: textResponse, p_file_urls: fileUrls });
-
-export const reviewContentEvidence = (submissionId, decision, feedback) =>
-  call("review_content_evidence", { p_submission_id: submissionId, p_decision: decision, p_feedback: feedback });
-
-export const awardMilestoneManual = (uid, milestoneId, note) =>
-  call("award_milestone_manual", { p_uid: uid, p_milestone_id: milestoneId, p_note: note });
-
-export const getAdminProgressionOverview = () => call("get_admin_progression_overview", {});
-
-export const setMemberOfficialRank = (uid, rankId, note) =>
-  call("set_member_official_rank", { p_uid: uid, p_rank_id: rankId, p_note: note });

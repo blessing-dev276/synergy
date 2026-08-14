@@ -3,13 +3,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { assignSponsor, setMemberStage, setMemberStatus, reviewStagePromotion, setMemberOfficialRank } from "../../../lib/rpc.js";
+import { assignSponsor, setMemberStage, setMemberStatus, reviewStagePromotion } from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 import SponsorPicker from "../../../components/SponsorPicker.jsx";
-import ContentPicker from "../../../components/ContentPicker.jsx";
 
 const TASK_TYPES = [
   "learning",
@@ -337,13 +336,12 @@ function StatusPanel({ member, onChanged }) {
   );
 }
 
-function StagePanel({ member, journey, stages, levels, onChanged }) {
+function StagePanel({ member, journey, stages, onChanged }) {
   const toast = useToast();
   const [selectedStage, setSelectedStage] = useState(journey?.current_stage_id ?? "");
   const [saving, setSaving] = useState(false);
 
   const currentStage = stages?.find((s) => s.id === journey?.current_stage_id);
-  const currentLevel = levels?.find((l) => l.id === currentStage?.level_id);
 
   const handleSet = async () => {
     setSaving(true);
@@ -366,12 +364,6 @@ function StagePanel({ member, journey, stages, levels, onChanged }) {
       </div>
       <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
         Currently: <strong style={{ color: "var(--navy)" }}>{currentStage?.title ?? "Not started"}</strong>
-        {currentLevel && (
-          <>
-            {" "}
-            · <span className="badge badge-neutral">{currentLevel.label}</span>
-          </>
-        )}
       </p>
       <div style={{ display: "flex", gap: "8px" }}>
         <select value={selectedStage} onChange={(e) => setSelectedStage(e.target.value)} style={{ flex: 1, border: "1px solid var(--line)", borderRadius: "10px", padding: "9px 12px" }}>
@@ -384,75 +376,6 @@ function StagePanel({ member, journey, stages, levels, onChanged }) {
         </select>
         <button type="button" className="btn btn-primary" onClick={handleSet} disabled={saving || selectedStage === (journey?.current_stage_id ?? "")}>
           {saving ? "Saving…" : "Set stage"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// Official Rank is deliberately independent of Journey Stage above --
-// modeled on NeoLife's real compensation plan (supabase/migrations/0035_
-// compensation_ranks.sql), but Synergy has no product/order/PV data to
-// compute qualification from, so an admin sets it by hand after checking
-// the member's actual status in the NeoLife back office. qualification_note
-// is shown as a lookup aid only, never evaluated here.
-function OfficialRankPanel({ member, ranks, onChanged }) {
-  const toast = useToast();
-  const [saving, setSaving] = useState(false);
-
-  const { data: status, refetch } = useSupabaseQuery(
-    () => supabase.from("member_rank_status").select("*").eq("uid", member.id).maybeSingle(),
-    [member.id],
-  );
-  const [selectedRankId, setSelectedRankId] = useState("");
-  const [note, setNote] = useState("");
-
-  const currentRank = ranks?.find((r) => r.id === status?.rank_id);
-  const pendingRank = ranks?.find((r) => r.id === selectedRankId);
-
-  const handleSet = async () => {
-    setSaving(true);
-    try {
-      await setMemberOfficialRank(member.id, selectedRankId || null, note.trim());
-      toast.success("Official rank updated.");
-      setNote("");
-      refetch();
-      onChanged?.();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't update official rank.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="card-elevated">
-      <div className="card-title">
-        <Icon name="award" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        Official Rank
-      </div>
-      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
-        Currently: <strong style={{ color: "var(--navy)" }}>{currentRank?.label ?? "Not set"}</strong>
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        <select
-          value={selectedRankId}
-          onChange={(e) => setSelectedRankId(e.target.value)}
-          style={{ border: "1px solid var(--line)", borderRadius: "10px", padding: "9px 12px" }}
-        >
-          <option value="">Not set / cleared</option>
-          {ranks?.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.label}
-            </option>
-          ))}
-        </select>
-        {pendingRank?.qualification_note && (
-          <p style={{ fontSize: "12px", color: "var(--slate)" }}>{pendingRank.qualification_note}</p>
-        )}
-        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (e.g. back-office snapshot date)" />
-        <button type="button" className="btn btn-primary" onClick={handleSet} disabled={saving} style={{ alignSelf: "flex-start" }}>
-          {saving ? "Saving…" : "Set rank"}
         </button>
       </div>
     </div>
@@ -522,31 +445,30 @@ function PromotionPanel({ member, onChanged }) {
   );
 }
 
-// Edits placement-specific settings only (stage/track/type/xp/required) —
-// the content's own title/description live on content_items and are shared
-// across every place it's used, so they're not editable from here.
-function EditActivityForm({ assignment, stages, tracks, onSaved, onCancel }) {
+function EditActivityForm({ task, tracks, onSaved, onCancel }) {
   const toast = useToast();
-  const [stageId, setStageId] = useState(assignment.stage_id ?? "");
-  const [trackId, setTrackId] = useState(assignment.track_id ?? "");
-  const [taskType, setTaskType] = useState(assignment.task_type ?? "practical");
-  const [xpReward, setXpReward] = useState(assignment.xp_reward ?? 0);
-  const [isRequired, setIsRequired] = useState(assignment.is_required ?? true);
+  const [title, setTitle] = useState(task.title);
+  const [description, setDescription] = useState(task.description ?? "");
+  const [trackId, setTrackId] = useState(task.track_id ?? "");
+  const [taskType, setTaskType] = useState(task.task_type ?? "practical");
+  const [xpReward, setXpReward] = useState(task.xp_reward ?? 0);
+  const [isRequired, setIsRequired] = useState(task.is_required ?? true);
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     const { error } = await supabase
-      .from("content_assignments")
+      .from("tasks")
       .update({
-        stage_id: stageId || null,
+        title: title.trim(),
+        description: description.trim(),
         track_id: trackId || null,
         task_type: taskType,
         xp_reward: Number(xpReward) || 0,
         is_required: isRequired,
       })
-      .eq("id", assignment.id);
+      .eq("id", task.id);
     setSaving(false);
     if (error) {
       toast.error("Couldn't save changes.");
@@ -558,16 +480,9 @@ function EditActivityForm({ assignment, stages, tracks, onSaved, onCancel }) {
 
   return (
     <form onSubmit={submit} className="activity-edit-form">
-      <div style={{ fontWeight: 600, fontSize: "14px" }}>{assignment.label}</div>
+      <input value={title} onChange={(e) => setTitle(e.target.value)} required />
+      <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description / instructions" />
       <div className="activity-edit-row">
-        <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
-          <option value="">No stage</option>
-          {stages?.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.title}
-            </option>
-          ))}
-        </select>
         <select value={trackId} onChange={(e) => setTrackId(e.target.value)}>
           <option value="">No track</option>
           {tracks?.map((t) => (
@@ -604,7 +519,8 @@ function EditActivityForm({ assignment, stages, tracks, onSaved, onCancel }) {
 function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) {
   const { user } = useAuth();
   const toast = useToast();
-  const [content, setContent] = useState(null);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [stageId, setStageId] = useState(defaultStageId ?? "");
   const [trackId, setTrackId] = useState("");
   const [taskType, setTaskType] = useState("practical");
@@ -614,10 +530,10 @@ function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) 
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!content) return;
     setSaving(true);
-    const { error } = await supabase.from("content_assignments").insert({
-      content_item_id: content.id,
+    const { error } = await supabase.from("tasks").insert({
+      title: title.trim(),
+      description: description.trim(),
       scope: "individual",
       assigned_to_uid: member.id,
       stage_id: stageId || null,
@@ -625,6 +541,7 @@ function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) 
       task_type: taskType,
       xp_reward: Number(xpReward) || 0,
       is_required: isRequired,
+      priority: "medium",
       created_by: user.id,
     });
     setSaving(false);
@@ -632,7 +549,8 @@ function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) 
       toast.error("Couldn't create that activity.");
       return;
     }
-    setContent(null);
+    setTitle("");
+    setDescription("");
     toast.success("Activity assigned to member.");
     onCreated();
   };
@@ -643,7 +561,8 @@ function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) 
         <Icon name="plus" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
         Assign a new activity
       </div>
-      <ContentPicker value={content} onChange={setContent} placeholder="Search or create content for this member…" />
+      <input placeholder="Activity title" required value={title} onChange={(e) => setTitle(e.target.value)} />
+      <textarea rows={2} placeholder="Description / instructions" value={description} onChange={(e) => setDescription(e.target.value)} />
       <div className="activity-edit-row">
         <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
           <option value="">No stage</option>
@@ -674,7 +593,7 @@ function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) 
           Required
         </label>
       </div>
-      <button type="submit" className="btn btn-primary" disabled={saving || !content} style={{ alignSelf: "flex-start" }}>
+      <button type="submit" className="btn btn-primary" disabled={saving} style={{ alignSelf: "flex-start" }}>
         {saving ? "Assigning…" : "Assign activity"}
       </button>
     </form>
@@ -686,32 +605,24 @@ function ActivitiesPanel({ member, stages, tracks, defaultStageId }) {
   const [editingId, setEditingId] = useState(null);
 
   const {
-    data: assignments,
+    data: activities,
     refetch,
   } = useSupabaseQuery(
     () =>
       supabase
-        .from("content_assignments")
-        .select(
-          "id, stage_id, track_id, task_type, xp_reward, is_required, content_item:content_items(id, title, course:courses(title), assignment:assignments(title))",
-        )
-        .eq("scope", "individual")
+        .from("tasks")
+        .select("*")
         .eq("assigned_to_uid", member.id)
         .order("stage_id", { ascending: true }),
     [member.id],
   );
 
-  const activities = (assignments ?? []).map((a) => ({
-    ...a,
-    label: a.content_item?.title ?? a.content_item?.course?.title ?? a.content_item?.assignment?.title ?? "Untitled",
-  }));
-
   const stageTitle = (id) => stages?.find((s) => s.id === id)?.title ?? "No stage";
   const trackLabel = (id) => tracks?.find((t) => t.id === id)?.label ?? "No track";
 
-  const handleDelete = async (assignment) => {
-    if (!window.confirm(`Remove "${assignment.label}" from this member's journey?`)) return;
-    const { error } = await supabase.from("content_assignments").delete().eq("id", assignment.id);
+  const handleDelete = async (task) => {
+    if (!window.confirm(`Remove "${task.title}" from this member's journey?`)) return;
+    const { error } = await supabase.from("tasks").delete().eq("id", task.id);
     if (error) {
       toast.error("Couldn't delete that activity.");
       return;
@@ -727,37 +638,31 @@ function ActivitiesPanel({ member, stages, tracks, defaultStageId }) {
         This member's activities
       </div>
 
-      {activities.length === 0 && (
+      {(!activities || activities.length === 0) && (
         <EmptyState icon={<Icon name="check-square" size={26} />} title="No individual activities assigned yet" />
       )}
 
-      {activities.length > 0 && (
+      {activities && activities.length > 0 && (
         <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px", marginBottom: "18px" }}>
-          {activities.map((assignment) =>
-            editingId === assignment.id ? (
-              <li key={assignment.id}>
-                <EditActivityForm
-                  assignment={assignment}
-                  stages={stages}
-                  tracks={tracks}
-                  onSaved={() => { setEditingId(null); refetch(); }}
-                  onCancel={() => setEditingId(null)}
-                />
+          {activities.map((task) =>
+            editingId === task.id ? (
+              <li key={task.id}>
+                <EditActivityForm task={task} tracks={tracks} onSaved={() => { setEditingId(null); refetch(); }} onCancel={() => setEditingId(null)} />
               </li>
             ) : (
-              <li key={assignment.id} className="activity-row">
+              <li key={task.id} className="activity-row">
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: "14px" }}>{assignment.label}</div>
+                  <div style={{ fontWeight: 600, fontSize: "14px" }}>{task.title}</div>
                   <div style={{ fontSize: "12.5px", color: "var(--slate)" }}>
-                    {stageTitle(assignment.stage_id)} · {trackLabel(assignment.track_id)} · {assignment.task_type?.replace("_", " ")} · {assignment.xp_reward} XP
-                    {!assignment.is_required && " · optional"}
+                    {stageTitle(task.stage_id)} · {trackLabel(task.track_id)} · {task.task_type?.replace("_", " ")} · {task.xp_reward} XP
+                    {!task.is_required && " · optional"}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-                  <button type="button" className="icon-btn" title="Edit" onClick={() => setEditingId(assignment.id)}>
+                  <button type="button" className="icon-btn" title="Edit" onClick={() => setEditingId(task.id)}>
                     <Icon name="pencil" size={15} />
                   </button>
-                  <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(assignment)}>
+                  <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(task)}>
                     <Icon name="trash" size={15} />
                   </button>
                 </div>
@@ -785,8 +690,6 @@ export default function MemberDetail() {
   );
   const { data: stages } = useSupabaseQuery(() => supabase.from("stages").select("*").order("order_index"), []);
   const { data: tracks } = useSupabaseQuery(() => supabase.from("tracks").select("*").order("key"), []);
-  const { data: levels } = useSupabaseQuery(() => supabase.from("levels").select("*").order("order_index"), []);
-  const { data: ranks } = useSupabaseQuery(() => supabase.from("compensation_ranks").select("*").order("order_index"), []);
 
   if (loading) return <Skeleton variant="card" height="200px" />;
   if (!member) return null;
@@ -806,9 +709,8 @@ export default function MemberDetail() {
         <>
           <PromotionPanel member={member} onChanged={refetchJourney} />
           <div className="grid grid-2">
-            <StagePanel member={member} journey={journey} stages={stages} levels={levels} onChanged={refetchJourney} />
+            <StagePanel member={member} journey={journey} stages={stages} onChanged={refetchJourney} />
             <SponsorPanel member={member} onChanged={refetchMember} />
-            <OfficialRankPanel member={member} ranks={ranks} onChanged={refetchMember} />
           </div>
           <ActivitiesPanel member={member} stages={stages} tracks={tracks} defaultStageId={journey?.current_stage_id} />
         </>

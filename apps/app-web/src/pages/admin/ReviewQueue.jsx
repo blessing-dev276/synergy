@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../../supabaseClient.js";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
-import { gradeAssignment, reviewContentEvidence } from "../../lib/rpc.js";
+import { gradeAssignment } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
@@ -68,70 +68,6 @@ function ReviewRow({ submission, onGraded }) {
   );
 }
 
-// Evidence submitted for a bare content_assignment flagged
-// requires_admin_approval (see supabase/migrations/0033_milestones_and_
-// evidence_review.sql) — a sibling queue to course-assignment grading
-// above, not merged into it: different backing table, same review shape.
-function EvidenceReviewRow({ submission, onReviewed }) {
-  const toast = useToast();
-  const [feedback, setFeedback] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const decide = async (decision) => {
-    setSubmitting(true);
-    try {
-      await reviewContentEvidence(submission.id, decision, feedback.trim());
-      toast.success(decision === "approved" ? "Approved." : "Sent back for revision.");
-      onReviewed();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't submit that review.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const openAttachment = async (path) => {
-    const { data, error } = await supabase.storage.from("assignment-submissions").createSignedUrl(path, 60);
-    if (error || !data) {
-      toast.error("Couldn't open that attachment.");
-      return;
-    }
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
-  };
-
-  const title =
-    submission.content_assignment?.content_item?.title ??
-    submission.content_assignment?.content_item?.course?.title ??
-    submission.content_assignment?.content_item?.assignment?.title ??
-    "Task";
-
-  return (
-    <div className="card" style={{ marginBottom: "14px" }}>
-      <div className="card-title">
-        {title} — {submission.member?.display_name || submission.uid}
-      </div>
-      <p style={{ margin: "8px 0" }}>{submission.text_response || "(no text response)"}</p>
-      {submission.file_urls?.map((path) => (
-        <button key={path} type="button" className="badge badge-neutral" style={{ marginRight: "6px" }} onClick={() => openAttachment(path)}>
-          Attachment
-        </button>
-      ))}
-      <div className="field" style={{ marginTop: "14px" }}>
-        <label>Feedback</label>
-        <textarea rows={2} value={feedback} onChange={(e) => setFeedback(e.target.value)} />
-      </div>
-      <div style={{ display: "flex", gap: "10px" }}>
-        <button type="button" className="btn btn-primary" onClick={() => decide("approved")} disabled={submitting}>
-          Approve
-        </button>
-        <button type="button" className="btn btn-danger" onClick={() => decide("needs_revision")} disabled={submitting}>
-          Needs Revision
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export default function ReviewQueue() {
   const { loading, data: submissions, refetch } = useSupabaseQuery(
     () =>
@@ -143,38 +79,15 @@ export default function ReviewQueue() {
     [],
   );
 
-  const { loading: loadingEvidence, data: evidence, refetch: refetchEvidence } = useSupabaseQuery(
-    () =>
-      supabase
-        .from("content_evidence_submissions")
-        .select(
-          "*, member:profiles!content_evidence_submissions_uid_fkey(display_name), content_assignment:content_assignments(content_item:content_items(title, course:courses(title), assignment:assignments(title)))",
-        )
-        .eq("status", "submitted")
-        .order("submitted_at", { ascending: true }),
-    [],
-  );
-
   return (
     <div>
       <h1>Review Queue</h1>
-
-      <div className="card-title" style={{ marginTop: "8px" }}>Course assignments</div>
       {loading && <Skeleton variant="card" height="140px" />}
       {!loading && (!submissions || submissions.length === 0) && (
         <EmptyState icon={<Icon name="folder" size={26} />} title="Nothing pending review" />
       )}
       {submissions?.map((s) => (
         <ReviewRow key={s.id} submission={s} onGraded={refetch} />
-      ))}
-
-      <div className="card-title" style={{ marginTop: "24px" }}>Task evidence</div>
-      {loadingEvidence && <Skeleton variant="card" height="140px" />}
-      {!loadingEvidence && (!evidence || evidence.length === 0) && (
-        <EmptyState icon={<Icon name="check-square" size={26} />} title="Nothing pending review" />
-      )}
-      {evidence?.map((s) => (
-        <EvidenceReviewRow key={s.id} submission={s} onReviewed={refetchEvidence} />
       ))}
     </div>
   );
