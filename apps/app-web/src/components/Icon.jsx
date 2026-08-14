@@ -36,6 +36,7 @@ const PATHS = {
   network: <><circle cx="12" cy="5" r="2.5" /><circle cx="5" cy="19" r="2.5" /><circle cx="19" cy="19" r="2.5" /><path d="M12 7.5v5M12 12.5L5 17M12 12.5l7 4.5" /></>,
   trophy: <><path d="M7 4h10v4a5 5 0 0 1-10 0V4z" /><path d="M7 5H4a3 3 0 0 0 3 5" /><path d="M17 5h3a3 3 0 0 1-3 5" /><path d="M12 13v4" /><path d="M8 20h8" /></>,
   "dollar-sign": <><path d="M12 3v18" /><path d="M16.5 7.2c0-1.8-2-3.2-4.5-3.2s-4.5 1.4-4.5 3.2 2 2.6 4.5 3.2 4.5 1.4 4.5 3.2-2 3.2-4.5 3.2-4.5-1.4-4.5-3.2" /></>,
+  lock: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
 };
 
 export default function Icon({ name, size = 18, strokeWidth = 1.8, className = "", style }) {

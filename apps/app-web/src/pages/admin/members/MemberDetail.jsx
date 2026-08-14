@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { assignSponsor, setMemberStage, setMemberStatus, reviewStagePromotion } from "../../../lib/rpc.js";
+import { assignSponsor, setMemberStage, setMemberStatus, reviewStagePromotion, adminSetMemberSpecialization } from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
@@ -390,6 +390,95 @@ function StagePanel({ member, journey, stages, ranks, onChanged }) {
   );
 }
 
+// Members lock in their own skill specialization once (see
+// set_member_specialization, supabase/migrations/0038_specialization_lock.sql)
+// — this is the only way to change it after the fact. Grouped by track since
+// only the 'skill' track has specializations seeded today, but any track
+// with published rows here will show a picker.
+function SpecializationPanel({ member }) {
+  const toast = useToast();
+  const [saving, setSaving] = useState(null);
+
+  const { data: specializations } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("track_specializations")
+        .select("*, tracks(label)")
+        .eq("published", true)
+        .order("order_index"),
+    [],
+  );
+  const { data: chosen, refetch: refetchChosen } = useSupabaseQuery(
+    () => supabase.from("member_track_specializations").select("*").eq("uid", member.id),
+    [member.id],
+  );
+
+  if (!specializations || specializations.length === 0) return null;
+
+  const byTrack = {};
+  for (const spec of specializations) {
+    (byTrack[spec.track_id] ??= []).push(spec);
+  }
+
+  const choose = async (spec) => {
+    setSaving(spec.id);
+    try {
+      await adminSetMemberSpecialization(member.id, spec.track_id, spec.id);
+      toast.success(`${spec.label} set as this member's skill.`);
+      refetchChosen();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't set that skill.");
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  return (
+    <div className="card-elevated">
+      <div className="card-title">
+        <Icon name="target" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Skill Specialization
+      </div>
+      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
+        Members choose one skill themselves and can't change it — use this to reassign it.
+      </p>
+      {Object.entries(byTrack).map(([trackId, specs]) => {
+        const selectedId = chosen?.find((c) => c.track_id === trackId)?.specialization_id;
+        return (
+          <div key={trackId} style={{ marginBottom: "12px" }}>
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate)", marginBottom: "6px" }}>{specs[0].tracks?.label}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              {specs.map((spec) => {
+                const isChosen = spec.id === selectedId;
+                return (
+                  <button
+                    key={spec.id}
+                    type="button"
+                    className={`badge ${isChosen ? "badge-success" : "badge-neutral"}`}
+                    onClick={() => choose(spec)}
+                    disabled={isChosen || saving === spec.id}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      border: "none",
+                      cursor: isChosen ? "default" : "pointer",
+                    }}
+                  >
+                    <span aria-hidden="true">{spec.icon}</span>
+                    {spec.label}
+                    {isChosen && <Icon name="check" size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // A member only shows up here once request_stage_promotion (0025) has
 // already re-verified server-side that every track in their current stage
 // is at 100% — this panel is just the approve/decline UI, not the check.
@@ -739,6 +828,7 @@ export default function MemberDetail() {
             <StagePanel member={member} journey={journey} stages={stages} ranks={ranks} onChanged={refetchJourney} />
             <SponsorPanel member={member} onChanged={refetchMember} />
           </div>
+          <SpecializationPanel member={member} />
           <ActivitiesPanel member={member} stages={stages} tracks={tracks} defaultStageId={journey?.current_stage_id} />
         </>
       )}

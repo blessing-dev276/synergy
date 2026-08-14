@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
-import { requestStagePromotion } from "../../lib/rpc.js";
+import { requestStagePromotion, setMemberSpecialization } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
@@ -177,6 +177,88 @@ function MilestonesCard({ uid }) {
   );
 }
 
+// One skill, chosen once (server-enforced in set_member_specialization —
+// see supabase/migrations/0038_specialization_lock.sql). Graphics Design
+// stays unlocked during the newbie stage for everyone regardless of pick
+// (server marks it `locked: false`); the rest show a lock icon until an
+// admin reassigns the member's choice.
+function SpecializationPicker({ track, onChanged }) {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+  const specializations = track.specializations ?? [];
+  const selectedId = track.selectedSpecializationId;
+
+  if (specializations.length === 0) return null;
+
+  const choose = async (spec) => {
+    if (selectedId || saving) return;
+    setSaving(true);
+    try {
+      await setMemberSpecialization(track.trackId, spec.id);
+      toast.success(`${spec.label} is now your skill.`);
+      onChanged();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't set your skill.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: "14px", paddingTop: "14px", borderTop: "1px solid var(--line)" }}>
+      <div
+        style={{
+          fontSize: "11.5px",
+          fontWeight: 600,
+          color: "var(--slate)",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          marginBottom: "8px",
+        }}
+      >
+        {selectedId ? "Your skill" : "Choose your one skill"}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+        {specializations.map((spec) => {
+          const isChosen = spec.id === selectedId;
+          const disabled = saving || Boolean(selectedId);
+          const title = isChosen
+            ? "Your chosen skill"
+            : selectedId
+              ? "Locked — ask an admin to change your skill"
+              : spec.locked
+                ? "Choose this as your one skill"
+                : "Unlocked for the Newbie stage";
+
+          return (
+            <button
+              key={spec.id}
+              type="button"
+              className={`badge ${isChosen ? "badge-success" : "badge-neutral"}`}
+              onClick={() => choose(spec)}
+              disabled={disabled}
+              title={title}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                border: "none",
+                cursor: disabled ? (isChosen ? "default" : "not-allowed") : "pointer",
+                opacity: !isChosen && selectedId ? 0.55 : 1,
+              }}
+            >
+              <span aria-hidden="true">{spec.icon}</span>
+              {spec.label}
+              {isChosen && <Icon name="check" size={11} />}
+              {!isChosen && spec.locked && <Icon name="lock" size={11} />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user, profile } = useAuth();
 
@@ -188,6 +270,7 @@ export default function Dashboard() {
     loading: loadingJourney,
     error: journeyError,
     data: journey,
+    refetch: refetchJourney,
   } = useSupabaseQuery(() => user && supabase.rpc("get_journey_overview", { p_uid: user.id }), [user?.id]);
 
   const {
@@ -271,6 +354,7 @@ export default function Dashboard() {
                   {track.progressPercent ?? 0}% complete
                 </div>
               </div>
+              <SpecializationPicker track={track} onChanged={refetchJourney} />
             </div>
           ))}
         </div>
