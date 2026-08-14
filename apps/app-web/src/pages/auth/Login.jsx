@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import AuthLayout from "../../components/AuthLayout.jsx";
+import Icon from "../../components/Icon.jsx";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -50,14 +52,37 @@ export default function Login() {
         </div>
         <div className="field field-lg">
           <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <div style={{ position: "relative" }}>
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{ paddingRight: "40px" }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              title={showPassword ? "Hide password" : "Show password"}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              style={{
+                position: "absolute",
+                right: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                padding: "4px",
+                display: "flex",
+                color: "var(--slate)",
+                cursor: "pointer",
+              }}
+            >
+              <Icon name={showPassword ? "eye-off" : "eye"} size={18} />
+            </button>
+          </div>
         </div>
         {error && <div className="field-error" style={{ marginBottom: "16px" }}>{error}</div>}
         <button type="submit" className="btn btn-primary btn-lg" disabled={submitting}>
