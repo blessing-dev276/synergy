@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
@@ -10,10 +10,19 @@ import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
 
 const CATEGORY = {
-  tasks: { icon: "check-square", label: "Task Completion", format: (s) => `${s}%` },
-  prospects: { icon: "network", label: "Prospects", format: (s) => `${s}` },
-  earnings: { icon: "dollar-sign", label: "Top Earner", format: (s) => `$${s}` },
+  tasks: { icon: "check-square", label: "Task Completion", format: (s) => `${Math.round(s)}%` },
+  prospects: { icon: "network", label: "Prospects", format: (s) => `${Math.round(s)}` },
+  earnings: { icon: "dollar-sign", label: "Top Earner", format: (s) => `$${Math.round(s)}` },
 };
+
+const MEDAL = { 1: "🥇", 2: "🥈", 3: "🥉" };
+
+// CSS's own prefers-reduced-motion guard (app.css) covers everything driven
+// by `animation:` — this covers the two effects driven from JS instead
+// (rAF count-up, confetti), which that guard can't reach.
+function prefersReducedMotion() {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}
 
 const EARNING_STATUS_BADGE = {
   pending: "badge-warning",
@@ -28,8 +37,130 @@ function rankClass(rank) {
   return "";
 }
 
-function BoardCard({ category, entries, currentUid, valueOf }) {
-  const meta = CATEGORY[category];
+function initials(name) {
+  return (
+    (name ?? "")
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join("") || "?"
+  );
+}
+
+function Avatar({ name, photoUrl, size = 28, ring }) {
+  const style = {
+    width: size,
+    height: size,
+    borderRadius: "50%",
+    objectFit: "cover",
+    background: "var(--gradient-navy)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: Math.max(size / 2.6, 10),
+    flexShrink: 0,
+    border: ring ? `2px solid ${ring}` : "none",
+  };
+  if (photoUrl) {
+    return <img src={photoUrl} alt="" style={{ ...style, background: "var(--line)" }} />;
+  }
+  return <div style={style}>{initials(name)}</div>;
+}
+
+// Batch-signs every distinct photo_url across all three boards in one round
+// trip (profile-photos is a private bucket, see 0023) rather than one
+// request per row.
+function useSignedPhotoUrls(data) {
+  const [photoUrls, setPhotoUrls] = useState({});
+
+  useEffect(() => {
+    const paths = [
+      ...new Set([...(data?.tasks ?? []), ...(data?.prospects ?? []), ...(data?.earnings ?? [])].map((e) => e.photoUrl).filter(Boolean)),
+    ];
+    if (paths.length === 0) {
+      setPhotoUrls({});
+      return;
+    }
+    let cancelled = false;
+    supabase.storage
+      .from("profile-photos")
+      .createSignedUrls(paths, 3600)
+      .then(({ data: signed }) => {
+        if (cancelled || !signed) return;
+        const map = {};
+        for (const entry of signed) {
+          if (entry.signedUrl) map[entry.path] = entry.signedUrl;
+        }
+        setPhotoUrls(map);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [data]);
+
+  return photoUrls;
+}
+
+// Animates a score counting up from 0 to its true value on first reveal —
+// the raw target is used for the final frame so the displayed number always
+// settles on the exact figure, only the climb there is eased.
+function useCountUp(target, active) {
+  const [value, setValue] = useState(0);
+  const to = Number(target) || 0;
+
+  useEffect(() => {
+    if (!active || prefersReducedMotion()) {
+      setValue(to);
+      return;
+    }
+    let raf;
+    const duration = 900;
+    const start = performance.now();
+    const tick = (now) => {
+      const p = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setValue(p >= 1 ? to : to * eased);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [to, active]);
+
+  return value;
+}
+
+function PodiumSlot({ rank, entry, meta, isSelf, photoUrls, animate }) {
+  const score = useCountUp(entry ? meta.valueOf(entry) : 0, animate);
+  if (!entry) return <div className={`podium-slot rank-${rank}`} style={{ visibility: "hidden" }} />;
+
+  return (
+    <div
+      className={`podium-slot rank-${rank}${isSelf ? " self" : ""}`}
+      style={{ animationDelay: `${(3 - rank) * 0.1}s` }}
+    >
+      <div className="podium-medal">{MEDAL[rank]}</div>
+      <div className="podium-avatar-wrap">
+        <Avatar name={entry.displayName} photoUrl={photoUrls[entry.photoUrl]} size={rank === 1 ? 60 : 46} />
+      </div>
+      <div className="podium-name">
+        {entry.displayName}
+        {isSelf && " (you)"}
+      </div>
+      <div className="podium-score">{meta.format(score)}</div>
+    </div>
+  );
+}
+
+function BoardCard({ category, entries, currentUid, valueOf, revealed }) {
+  const meta = { ...CATEGORY[category], valueOf };
+  const photoUrls = useSignedPhotoUrls(useMemo(() => ({ [category]: entries }), [category, entries]));
+  const top3 = (entries ?? []).slice(0, 3);
+  const rest = (entries ?? []).slice(3, 10);
+
   return (
     <div className="card-elevated">
       <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -43,22 +174,47 @@ function BoardCard({ category, entries, currentUid, valueOf }) {
       )}
 
       {entries && entries.length > 0 && (
-        <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
-          {entries.slice(0, 10).map((entry, i) => {
-            const rank = i + 1;
-            const isSelf = entry.uid === currentUid;
-            return (
-              <li key={entry.uid} className={`leaderboard-row${isSelf ? " self" : ""}`}>
-                <span className={`leaderboard-rank ${rankClass(rank)}`}>{rank}</span>
-                <span style={{ flex: 1, minWidth: 0, fontWeight: isSelf ? 700 : 500, fontSize: "13.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {entry.displayName}
-                  {isSelf && " (you)"}
-                </span>
-                <span style={{ fontWeight: 700, fontSize: "13.5px", flexShrink: 0 }}>{meta.format(valueOf(entry))}</span>
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          <div className="leaderboard-podium">
+            <PodiumSlot rank={2} entry={top3[1]} meta={meta} isSelf={top3[1]?.uid === currentUid} photoUrls={photoUrls} animate={revealed} />
+            <PodiumSlot rank={1} entry={top3[0]} meta={meta} isSelf={top3[0]?.uid === currentUid} photoUrls={photoUrls} animate={revealed} />
+            <PodiumSlot rank={3} entry={top3[2]} meta={meta} isSelf={top3[2]?.uid === currentUid} photoUrls={photoUrls} animate={revealed} />
+          </div>
+
+          {rest.length > 0 && (
+            <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
+              {rest.map((entry, i) => {
+                const rank = i + 4;
+                const isSelf = entry.uid === currentUid;
+                return (
+                  <li
+                    key={entry.uid}
+                    className={`leaderboard-row${isSelf ? " self" : ""}`}
+                    style={{ animationDelay: `${0.3 + i * 0.05}s` }}
+                  >
+                    <span className={`leaderboard-rank ${rankClass(rank)}`}>{rank}</span>
+                    <Avatar name={entry.displayName} photoUrl={photoUrls[entry.photoUrl]} size={26} />
+                    <span
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        fontWeight: isSelf ? 700 : 500,
+                        fontSize: "13.5px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {entry.displayName}
+                      {isSelf && " (you)"}
+                    </span>
+                    <span style={{ fontWeight: 700, fontSize: "13.5px", flexShrink: 0 }}>{meta.format(valueOf(entry))}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );
@@ -67,15 +223,18 @@ function BoardCard({ category, entries, currentUid, valueOf }) {
 function CelebrationBanner({ winners }) {
   if (!winners || winners.length === 0) return null;
   return (
-    <div className="hero-banner gold" style={{ marginBottom: "24px" }}>
+    <div className="hero-banner gold celebration-banner" style={{ marginBottom: "24px" }}>
       <h1>🎉 Last Week's Champions</h1>
       <p>Fresh board, fresh chance — anyone can take the top spot this week.</p>
       <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", marginTop: "20px" }}>
-        {winners.map((w) => {
+        {winners.map((w, i) => {
           const meta = CATEGORY[w.category];
           if (!meta) return null;
           return (
-            <div key={w.category} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
+              key={w.category}
+              style={{ display: "flex", alignItems: "center", gap: "10px", opacity: 0, animation: "lb-rise .5s ease both", animationDelay: `${0.15 + i * 0.12}s` }}
+            >
               <span
                 style={{
                   width: 38, height: 38, borderRadius: "10px", flexShrink: 0,
@@ -86,7 +245,7 @@ function CelebrationBanner({ winners }) {
                 <Icon name={meta.icon} size={17} />
               </span>
               <div>
-                <div style={{ fontWeight: 700, color: "#fff", fontSize: "14.5px" }}>{w.displayName}</div>
+                <div style={{ fontWeight: 700, color: "#fff", fontSize: "14.5px" }}>🏆 {w.displayName}</div>
                 <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.75)" }}>
                   {meta.label} · {meta.format(w.score)}
                 </div>
@@ -95,6 +254,65 @@ function CelebrationBanner({ winners }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Fires once per member per week the moment they land on the board while
+// sitting at #1 in any category — a small unearned bonus of delight, not
+// something to repeat on every visit, so it's gated behind sessionStorage.
+function useTopSpotConfetti(data, uid) {
+  const [show, setShow] = useState(false);
+  const firedRef = useRef(false);
+
+  useEffect(() => {
+    if (!data || !uid || firedRef.current || prefersReducedMotion()) return;
+    const isTop = [data.tasks?.[0], data.prospects?.[0], data.earnings?.[0]].some((e) => e?.uid === uid);
+    if (!isTop) return;
+
+    const key = `lb_confetti_${uid}_${data.weekStart}`;
+    if (sessionStorage.getItem(key)) return;
+
+    sessionStorage.setItem(key, "1");
+    firedRef.current = true;
+    setShow(true);
+    const t = setTimeout(() => setShow(false), 3200);
+    return () => clearTimeout(t);
+  }, [data, uid]);
+
+  return show;
+}
+
+function Confetti() {
+  const pieces = useMemo(() => {
+    const colors = ["var(--gold)", "var(--blue)", "var(--blue-bright)", "var(--success)"];
+    return Array.from({ length: 44 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 0.5,
+      duration: 2.2 + Math.random() * 1.3,
+      color: colors[i % colors.length],
+      width: 6 + Math.random() * 4,
+      height: 10 + Math.random() * 6,
+    }));
+  }, []);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 500, overflow: "hidden" }} aria-hidden="true">
+      {pieces.map((p) => (
+        <span
+          key={p.id}
+          className="confetti-piece"
+          style={{
+            left: `${p.left}%`,
+            width: `${p.width}px`,
+            height: `${p.height}px`,
+            background: p.color,
+            animationDuration: `${p.duration}s`,
+            animationDelay: `${p.delay}s`,
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -159,6 +377,8 @@ function LogEarningForm({ onLogged }) {
   );
 }
 
+const SUBMISSION_ICON = { pending: "clock", verified: "check", rejected: "x" };
+
 function MySubmissions({ uid }) {
   const { data: entries } = useSupabaseQuery(
     () =>
@@ -175,10 +395,24 @@ function MySubmissions({ uid }) {
         Your recent submissions
       </div>
       <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
-        {entries.map((e) => (
-          <li key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13.5px" }}>
+        {entries.map((e, i) => (
+          <li
+            key={e.id}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: "13.5px",
+              opacity: 0,
+              animation: "lb-rise .35s ease both",
+              animationDelay: `${i * 0.05}s`,
+            }}
+          >
             <span>${e.amount}</span>
-            <span className={`badge ${EARNING_STATUS_BADGE[e.status] ?? "badge-neutral"}`}>{e.status}</span>
+            <span className={`badge ${EARNING_STATUS_BADGE[e.status] ?? "badge-neutral"}`} style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+              <Icon name={SUBMISSION_ICON[e.status] ?? "clock"} size={11} />
+              {e.status}
+            </span>
           </li>
         ))}
       </ul>
@@ -190,15 +424,29 @@ export default function Leaderboard() {
   const { user } = useAuth();
 
   const { loading, error, data, refetch } = useSupabaseQuery(() => user && supabase.rpc("get_leaderboards", {}), [user?.id]);
+  const showConfetti = useTopSpotConfetti(data, user?.id);
+  const revealedRef = useRef(false);
+  const revealed = !loading && !error && !!data;
+  useEffect(() => {
+    if (revealed) revealedRef.current = true;
+  }, [revealed]);
 
   return (
     <div>
+      {showConfetti && <Confetti />}
+
       <div className="hero-banner" style={{ marginBottom: "24px" }}>
         <h1>🏆 Weekly Leaderboard</h1>
         <p>100% task completion, most prospects, top earner — a fresh board every Monday. Anyone can win it.</p>
       </div>
 
-      {loading && <Skeleton variant="card" height="200px" />}
+      {loading && (
+        <div className="grid grid-3" style={{ marginBottom: "24px" }}>
+          <Skeleton variant="card" height="280px" />
+          <Skeleton variant="card" height="280px" />
+          <Skeleton variant="card" height="280px" />
+        </div>
+      )}
       {error && <ErrorState description="Couldn't load the leaderboard." />}
 
       {!loading && !error && (
@@ -206,9 +454,9 @@ export default function Leaderboard() {
           <CelebrationBanner winners={data?.lastWeekWinners} />
 
           <div className="grid grid-3" style={{ marginBottom: "24px" }}>
-            <BoardCard category="tasks" entries={data?.tasks} currentUid={user?.id} valueOf={(e) => e.completionPercent} />
-            <BoardCard category="prospects" entries={data?.prospects} currentUid={user?.id} valueOf={(e) => e.prospectCount} />
-            <BoardCard category="earnings" entries={data?.earnings} currentUid={user?.id} valueOf={(e) => e.totalAmount} />
+            <BoardCard category="tasks" entries={data?.tasks} currentUid={user?.id} valueOf={(e) => e.completionPercent} revealed={revealed && !revealedRef.current} />
+            <BoardCard category="prospects" entries={data?.prospects} currentUid={user?.id} valueOf={(e) => e.prospectCount} revealed={revealed && !revealedRef.current} />
+            <BoardCard category="earnings" entries={data?.earnings} currentUid={user?.id} valueOf={(e) => e.totalAmount} revealed={revealed && !revealedRef.current} />
           </div>
 
           <div className="card-elevated">

@@ -349,6 +349,58 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
 .leaderboard-rank.silver{ background:rgba(255,255,255,0.16); color:var(--navy); border-color:transparent; }
 .leaderboard-rank.bronze{ background:rgba(227,169,74,0.16); color:var(--gold); border-color:transparent; }
 
+/* ---------- leaderboard: podium + entrance/celebration motion ---------- */
+@keyframes lb-rise{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:translateY(0); } }
+@keyframes lb-pop{ 0%{ transform:scale(0.6); opacity:0; } 60%{ transform:scale(1.08); opacity:1; } 100%{ transform:scale(1); } }
+@keyframes lb-shimmer-sweep{ 0%{ background-position:-120% 0; } 100%{ background-position:220% 0; } }
+@keyframes lb-glow-pulse{
+  0%, 100%{ box-shadow:0 0 0 3px var(--gold), 0 0 18px rgba(227,169,74,0.35); }
+  50%{ box-shadow:0 0 0 3px var(--gold), 0 0 30px rgba(227,169,74,0.6); }
+}
+@keyframes lb-glow-pulse-blue{
+  0%, 100%{ box-shadow:0 0 0 1px rgba(76,141,255,0.35), 0 0 0 rgba(76,141,255,0); }
+  50%{ box-shadow:0 0 0 1px rgba(76,141,255,0.5), 0 0 14px rgba(76,141,255,0.35); }
+}
+@keyframes lb-confetti-fall{
+  0%{ transform:translateY(-10vh) rotate(0deg); opacity:1; }
+  100%{ transform:translateY(105vh) rotate(600deg); opacity:0; }
+}
+
+.leaderboard-podium{ display:flex; align-items:flex-end; justify-content:center; gap:12px; margin:6px 0 22px; }
+.podium-slot{
+  flex:1; max-width:150px; display:flex; flex-direction:column; align-items:center; text-align:center;
+  padding:18px 10px 16px; border-radius:14px; border:1px solid var(--line); background:var(--surface);
+  opacity:0; animation:lb-rise .5s ease both;
+}
+.podium-slot.rank-1{ order:2; padding-top:24px; min-height:186px; background:linear-gradient(180deg, rgba(227,169,74,0.14), var(--surface) 75%); border-color:rgba(227,169,74,0.35); box-shadow:var(--shadow-md); }
+.podium-slot.rank-2{ order:1; min-height:158px; }
+.podium-slot.rank-3{ order:3; min-height:158px; }
+.podium-medal{ font-size:22px; line-height:1; margin-bottom:8px; animation:lb-pop .5s ease .3s both; }
+.podium-avatar-wrap{ position:relative; margin-bottom:10px; }
+.podium-slot.rank-1 .podium-avatar-wrap{ animation:lb-glow-pulse 2.6s ease-in-out 1s infinite; border-radius:50%; }
+.podium-name{ font-size:13px; font-weight:700; color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+.podium-score{ font-family:'JetBrains Mono', monospace; font-weight:700; font-size:16px; color:var(--gold); margin-top:4px; }
+.podium-slot.rank-2 .podium-score, .podium-slot.rank-3 .podium-score{ color:var(--navy-soft); font-size:14px; }
+
+.leaderboard-row{ opacity:0; animation:lb-rise .4s ease both; transition:background .15s ease, transform .15s ease; }
+.leaderboard-row:hover{ background:var(--surface); transform:translateX(2px); }
+.leaderboard-row.self{ animation:lb-rise .4s ease both, lb-glow-pulse-blue 2.6s ease-in-out 1s infinite; }
+
+.celebration-banner{ position:relative; overflow:hidden; }
+.celebration-banner::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.16) 45%, transparent 60%);
+  background-size:300% 100%;
+  animation:lb-shimmer-sweep 3.2s ease-in-out infinite;
+}
+
+.confetti-piece{ position:absolute; top:-8%; border-radius:2px; animation-name:lb-confetti-fall; animation-timing-function:ease-in; animation-fill-mode:forwards; }
+
+@media (prefers-reduced-motion: reduce){
+  .podium-slot, .leaderboard-row, .podium-medal{ animation:none !important; opacity:1 !important; }
+  .podium-slot.rank-1 .podium-avatar-wrap, .leaderboard-row.self, .celebration-banner::after, .confetti-piece{ animation:none !important; }
+}
+
 .card-elevated{
   background:rgba(255,255,255,0.055); border:1px solid var(--line); border-radius:14px;
   padding:24px; box-shadow:var(--shadow-sm); transition:box-shadow .2s ease, border-color .2s ease;
