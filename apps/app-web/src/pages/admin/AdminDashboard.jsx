@@ -34,8 +34,7 @@ function StatCard({ label, value, icon, loading, to }) {
 }
 
 const QUICK_LINKS = [
-  { to: "/admin/journey", icon: "compass", label: "Stage Builder" },
-  { to: "/admin/content", icon: "layers", label: "Content Builder" },
+  { to: "/admin/content", icon: "layers", label: "Learning Hub" },
   { to: "/admin/members", icon: "users", label: "Members" },
   { to: "/admin/network", icon: "network", label: "Network" },
 ];

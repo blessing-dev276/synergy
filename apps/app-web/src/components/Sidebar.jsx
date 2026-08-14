@@ -22,7 +22,7 @@ export default function Sidebar({ sections, footer }) {
 
       <nav className="app-nav">
         {sections.map((section) => (
-          <div key={section.label ?? "default"}>
+          <div key={section.label ?? section.items[0]?.to}>
             {section.label && !collapsed && <div className="app-nav-section">{section.label}</div>}
             {section.items.map((item) => (
               <NavLink

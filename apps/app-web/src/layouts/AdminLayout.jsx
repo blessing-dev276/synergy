@@ -5,14 +5,7 @@ const sections = [
     items: [{ to: "/admin", label: "Overview", icon: "bar-chart", end: true }],
   },
   {
-    label: "Journey",
-    items: [
-      { to: "/admin/journey", label: "Stage Builder", icon: "compass", end: true },
-      { to: "/admin/journey/progression", label: "Progression", icon: "bar-chart" },
-      { to: "/admin/journey/promotions", label: "Stage Promotions", icon: "trophy" },
-      { to: "/admin/journey/milestones", label: "Milestones", icon: "award" },
-      { to: "/admin/content", label: "Content Builder", icon: "layers" },
-    ],
+    items: [{ to: "/admin/content", label: "Learning Hub", icon: "layers", end: true }],
   },
   {
     label: "People",
@@ -44,7 +37,7 @@ const sections = [
 
 const bottomItems = [
   { to: "/admin", label: "Overview", icon: "bar-chart", end: true },
-  { to: "/admin/journey", label: "Journey", icon: "compass" },
+  { to: "/admin/content", label: "Learning Hub", icon: "layers" },
   { to: "/admin/members", label: "People", icon: "users" },
   { to: "/admin/network", label: "Network", icon: "network" },
 ];
