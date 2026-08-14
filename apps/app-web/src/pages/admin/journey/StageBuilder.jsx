@@ -90,16 +90,20 @@ function NewStageForm({ onCreated, onDone }) {
   );
 }
 
-function EditStageForm({ stage, onSaved, onCancel }) {
+function EditStageForm({ stage, levels, onSaved, onCancel }) {
   const toast = useToast();
   const [title, setTitle] = useState(stage.title);
   const [description, setDescription] = useState(stage.description ?? "");
+  const [levelId, setLevelId] = useState(stage.level_id ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from("stages").update({ title: title.trim(), description: description.trim(), updated_at: new Date().toISOString() }).eq("id", stage.id);
+    const { error } = await supabase
+      .from("stages")
+      .update({ title: title.trim(), description: description.trim(), level_id: levelId || null, updated_at: new Date().toISOString() })
+      .eq("id", stage.id);
     setSaving(false);
     if (error) {
       toast.error("Couldn't save changes.");
@@ -113,6 +117,14 @@ function EditStageForm({ stage, onSaved, onCancel }) {
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
       <input className="inline-edit-field" required value={title} onChange={(e) => setTitle(e.target.value)} />
       <textarea className="inline-edit-field" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+      <select className="inline-edit-field" value={levelId} onChange={(e) => setLevelId(e.target.value)}>
+        <option value="">No level (unassigned)</option>
+        {levels?.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.label}
+          </option>
+        ))}
+      </select>
       <div style={{ display: "flex", gap: "8px" }}>
         <button type="submit" className="btn btn-primary" disabled={saving}>
           {saving ? "Saving…" : "Save"}
@@ -416,7 +428,7 @@ function StageTracks({ stage, tracks }) {
   );
 }
 
-function StageRow({ stage, tracks, memberUids, isFirst, isLast, onChanged, onReorder, expanded, onToggle }) {
+function StageRow({ stage, tracks, levels, levelLabel, memberUids, isFirst, isLast, onChanged, onReorder, expanded, onToggle }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
 
@@ -455,12 +467,15 @@ function StageRow({ stage, tracks, memberUids, isFirst, isLast, onChanged, onReo
         </div>
 
         {editing ? (
-          <EditStageForm stage={stage} onSaved={() => { setEditing(false); onChanged?.(); }} onCancel={() => setEditing(false)} />
+          <EditStageForm stage={stage} levels={levels} onSaved={() => { setEditing(false); onChanged?.(); }} onCancel={() => setEditing(false)} />
         ) : (
           <button type="button" className="accordion-header" onClick={onToggle} style={{ flex: 1, minWidth: 0 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="card-title" style={{ marginBottom: 0 }}>
+              <div className="card-title" style={{ marginBottom: 0, display: "flex", alignItems: "center", gap: "8px" }}>
                 {stage.title}
+                <span className={`badge ${levelLabel ? "badge-neutral" : "badge-warning"}`} style={{ fontWeight: 500 }}>
+                  {levelLabel ?? "No level"}
+                </span>
               </div>
               {stage.description && <p style={{ color: "var(--slate)", fontSize: "13.5px", marginTop: "6px" }}>{stage.description}</p>}
               {!expanded && <div className="row-meta" style={{ marginTop: "6px" }}>{tracks.length} tracks available</div>}
@@ -495,6 +510,103 @@ function StageRow({ stage, tracks, memberUids, isFirst, isLast, onChanged, onReo
   );
 }
 
+// The 7 Development Levels are fixed rows (no add/remove — see
+// supabase/migrations/0032_development_levels.sql) that Stages nest under
+// via stages.level_id. Admins can edit the label/purpose/outcome copy shown
+// on the member dashboard, but not the set of levels itself.
+function EditLevelForm({ level, onSaved, onCancel }) {
+  const toast = useToast();
+  const [label, setLabel] = useState(level.label);
+  const [purpose, setPurpose] = useState(level.purpose ?? "");
+  const [outcome, setOutcome] = useState(level.outcome ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    const { error } = await supabase
+      .from("levels")
+      .update({ label: label.trim(), purpose: purpose.trim(), outcome: outcome.trim(), updated_at: new Date().toISOString() })
+      .eq("id", level.id);
+    setSaving(false);
+    if (error) {
+      toast.error("Couldn't save changes.");
+      return;
+    }
+    toast.success("Level updated.");
+    onSaved();
+  };
+
+  return (
+    <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
+      <input className="inline-edit-field" required value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label" />
+      <textarea className="inline-edit-field" rows={2} value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Purpose" />
+      <textarea className="inline-edit-field" rows={2} value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder={'Outcome — "I can now say…"'} />
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? "Saving…" : "Save"}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function LevelsPanel({ levels, onChanged }) {
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+
+  return (
+    <div className="card-elevated" style={{ marginBottom: "20px" }}>
+      <button
+        type="button"
+        className="accordion-header"
+        onClick={() => setOpen((v) => !v)}
+        style={{ width: "100%" }}
+      >
+        <div className="card-title" style={{ marginBottom: 0 }}>
+          Development Levels
+        </div>
+        <span className="accordion-chevron">
+          <Icon name={open ? "chevron-down" : "chevron-right"} size={16} />
+        </span>
+      </button>
+      {!open && (
+        <p style={{ color: "var(--slate)", fontSize: "13px", marginTop: "6px" }}>
+          The 7 fixed levels members progress through. Stages nest under one below.
+        </p>
+      )}
+      {open && (
+        <div className="accordion-body">
+          <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "10px" }}>
+            {levels?.map((level) =>
+              editingId === level.id ? (
+                <li key={level.id}>
+                  <EditLevelForm level={level} onSaved={() => { setEditingId(null); onChanged?.(); }} onCancel={() => setEditingId(null)} />
+                </li>
+              ) : (
+                <li key={level.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: "13.5px" }}>
+                      {level.order_index}. {level.label}
+                    </div>
+                    {level.purpose && <div style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "2px" }}>{level.purpose}</div>}
+                  </div>
+                  <button type="button" className="icon-btn" title="Edit level" onClick={() => setEditingId(level.id)}>
+                    <Icon name="pencil" size={14} />
+                  </button>
+                </li>
+              ),
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function StageBuilder() {
   const [openStageId, setOpenStageId] = useState(null);
   const [showNewStage, setShowNewStage] = useState(false);
@@ -503,6 +615,11 @@ export default function StageBuilder() {
     [],
   );
   const { data: tracks } = useSupabaseQuery(() => supabase.from("tracks").select("*").order("key"), []);
+  const { data: levels, refetch: refetchLevels } = useSupabaseQuery(
+    () => supabase.from("levels").select("*").order("order_index"),
+    [],
+  );
+  const levelById = new Map((levels ?? []).map((l) => [l.id, l]));
 
   // Members currently in each stage — used only for the delete-stage
   // warning now; placing content no longer needs to know who's in a stage
@@ -545,6 +662,8 @@ export default function StageBuilder() {
         Stage → Skill / Business / Freelancing tracks → content. Click a stage to open it — opening another one closes this.
       </p>
 
+      <LevelsPanel levels={levels} onChanged={refetchLevels} />
+
       {showNewStage && <NewStageForm onCreated={refetch} onDone={() => setShowNewStage(false)} />}
 
       {loading && <Skeleton variant="card" height="80px" />}
@@ -555,6 +674,8 @@ export default function StageBuilder() {
             key={stage.id}
             stage={stage}
             tracks={tracks}
+            levels={levels}
+            levelLabel={levelById.get(stage.level_id)?.label}
             memberUids={membersByStage.get(stage.id) ?? []}
             isFirst={i === 0}
             isLast={i === stages.length - 1}

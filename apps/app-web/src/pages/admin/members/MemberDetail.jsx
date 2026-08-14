@@ -337,12 +337,13 @@ function StatusPanel({ member, onChanged }) {
   );
 }
 
-function StagePanel({ member, journey, stages, onChanged }) {
+function StagePanel({ member, journey, stages, levels, onChanged }) {
   const toast = useToast();
   const [selectedStage, setSelectedStage] = useState(journey?.current_stage_id ?? "");
   const [saving, setSaving] = useState(false);
 
   const currentStage = stages?.find((s) => s.id === journey?.current_stage_id);
+  const currentLevel = levels?.find((l) => l.id === currentStage?.level_id);
 
   const handleSet = async () => {
     setSaving(true);
@@ -365,6 +366,12 @@ function StagePanel({ member, journey, stages, onChanged }) {
       </div>
       <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
         Currently: <strong style={{ color: "var(--navy)" }}>{currentStage?.title ?? "Not started"}</strong>
+        {currentLevel && (
+          <>
+            {" "}
+            · <span className="badge badge-neutral">{currentLevel.label}</span>
+          </>
+        )}
       </p>
       <div style={{ display: "flex", gap: "8px" }}>
         <select value={selectedStage} onChange={(e) => setSelectedStage(e.target.value)} style={{ flex: 1, border: "1px solid var(--line)", borderRadius: "10px", padding: "9px 12px" }}>
@@ -709,6 +716,7 @@ export default function MemberDetail() {
   );
   const { data: stages } = useSupabaseQuery(() => supabase.from("stages").select("*").order("order_index"), []);
   const { data: tracks } = useSupabaseQuery(() => supabase.from("tracks").select("*").order("key"), []);
+  const { data: levels } = useSupabaseQuery(() => supabase.from("levels").select("*").order("order_index"), []);
 
   if (loading) return <Skeleton variant="card" height="200px" />;
   if (!member) return null;
@@ -728,7 +736,7 @@ export default function MemberDetail() {
         <>
           <PromotionPanel member={member} onChanged={refetchJourney} />
           <div className="grid grid-2">
-            <StagePanel member={member} journey={journey} stages={stages} onChanged={refetchJourney} />
+            <StagePanel member={member} journey={journey} stages={stages} levels={levels} onChanged={refetchJourney} />
             <SponsorPanel member={member} onChanged={refetchMember} />
           </div>
           <ActivitiesPanel member={member} stages={stages} tracks={tracks} defaultStageId={journey?.current_stage_id} />

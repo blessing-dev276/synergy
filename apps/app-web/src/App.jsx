@@ -38,6 +38,8 @@ import OrientationBuilder from "./pages/admin/content/OrientationBuilder.jsx";
 import CourseEditor from "./pages/admin/content/CourseEditor.jsx";
 import StageBuilder from "./pages/admin/journey/StageBuilder.jsx";
 import PromotionRequests from "./pages/admin/journey/PromotionRequests.jsx";
+import MilestoneBuilder from "./pages/admin/journey/MilestoneBuilder.jsx";
+import ProgressionOverview from "./pages/admin/journey/ProgressionOverview.jsx";
 import MemberList from "./pages/admin/members/MemberList.jsx";
 import MemberDetail from "./pages/admin/members/MemberDetail.jsx";
 import NetworkOverview from "./pages/admin/network/NetworkOverview.jsx";
@@ -97,6 +99,8 @@ function App() {
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/journey" element={<StageBuilder />} />
               <Route path="/admin/journey/promotions" element={<PromotionRequests />} />
+              <Route path="/admin/journey/milestones" element={<MilestoneBuilder />} />
+              <Route path="/admin/journey/progression" element={<ProgressionOverview />} />
               <Route path="/admin/content" element={<ContentBuilder />} />
               <Route path="/admin/content/courses/:courseId" element={<CourseEditor />} />
               <Route path="/admin/orientation" element={<OrientationBuilder />} />
