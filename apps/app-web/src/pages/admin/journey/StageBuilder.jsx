@@ -3,6 +3,7 @@ import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { useToast } from "../../../components/state/Toast.jsx";
+import ContentPicker from "../../../components/ContentPicker.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
@@ -29,7 +30,7 @@ function slugify(title) {
 }
 
 /* A single-purpose "click to expand" button — used for the nested "add
-   task" form, which (unlike ContentBuilder's plain title+description
+   content" form, which (unlike ContentBuilder's plain title+description
    NewCourseForm) has enough fields that it's worth keeping out of the
    way until the admin actually wants it. */
 function Disclosure({ label, icon = "plus", children }) {
@@ -89,16 +90,20 @@ function NewStageForm({ onCreated, onDone }) {
   );
 }
 
-function EditStageForm({ stage, onSaved, onCancel }) {
+function EditStageForm({ stage, levels, onSaved, onCancel }) {
   const toast = useToast();
   const [title, setTitle] = useState(stage.title);
   const [description, setDescription] = useState(stage.description ?? "");
+  const [levelId, setLevelId] = useState(stage.level_id ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from("stages").update({ title: title.trim(), description: description.trim(), updated_at: new Date().toISOString() }).eq("id", stage.id);
+    const { error } = await supabase
+      .from("stages")
+      .update({ title: title.trim(), description: description.trim(), level_id: levelId || null, updated_at: new Date().toISOString() })
+      .eq("id", stage.id);
     setSaving(false);
     if (error) {
       toast.error("Couldn't save changes.");
@@ -112,6 +117,14 @@ function EditStageForm({ stage, onSaved, onCancel }) {
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
       <input className="inline-edit-field" required value={title} onChange={(e) => setTitle(e.target.value)} />
       <textarea className="inline-edit-field" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+      <select className="inline-edit-field" value={levelId} onChange={(e) => setLevelId(e.target.value)}>
+        <option value="">No level (unassigned)</option>
+        {levels?.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.label}
+          </option>
+        ))}
+      </select>
       <div style={{ display: "flex", gap: "8px" }}>
         <button type="submit" className="btn btn-primary" disabled={saving}>
           {saving ? "Saving…" : "Save"}
@@ -124,11 +137,14 @@ function EditStageForm({ stage, onSaved, onCancel }) {
   );
 }
 
-function NewTaskForm({ stageId, trackId, memberUids, onCreated, close }) {
+// Places a content_item (existing, reused — or a brand-new bare one created
+// on the spot via ContentPicker) into this stage/track. One row, not one
+// per member (see supabase/migrations/0027_content_model_schema.sql) — every
+// member who reaches this stage, now or later, gets it automatically.
+function NewPlacementForm({ stageId, trackId, onCreated, close }) {
   const { user } = useAuth();
   const toast = useToast();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [content, setContent] = useState(null);
   const [showMore, setShowMore] = useState(false);
   const [taskType, setTaskType] = useState(DEFAULT_TASK_TYPE);
   const [xpReward, setXpReward] = useState(DEFAULT_XP);
@@ -138,56 +154,41 @@ function NewTaskForm({ stageId, trackId, memberUids, onCreated, close }) {
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!content) return;
     setSaving(true);
 
-    const base = {
-      title: title.trim(),
-      description: description.trim(),
-      priority: "medium",
-      created_by: user.id,
+    const { error } = await supabase.from("content_assignments").insert({
+      content_item_id: content.id,
       stage_id: stageId,
       track_id: trackId,
       task_type: taskType,
       xp_reward: Number(xpReward) || 0,
       is_required: isRequired,
       requires_admin_approval: requiresApproval,
-    };
-
-    // One task row per member currently in this stage — tasks are
-    // per-member assignments in this schema (see task_completions), not a
-    // template that expands automatically as members advance. Members who
-    // reach this stage later won't retroactively get earlier stages' tasks
-    // created this way — that gap is fine for now, flagged for later.
-    const rows =
-      memberUids.length > 0
-        ? memberUids.map((uid) => ({ ...base, scope: "individual", assigned_to_uid: uid }))
-        : [{ ...base, scope: "global", assigned_to_uid: null }];
-
-    const { error } = await supabase.from("tasks").insert(rows);
+      scope: "stage_track",
+      created_by: user.id,
+    });
     setSaving(false);
     if (error) {
-      toast.error("Couldn't create that task.");
+      toast.error("Couldn't place that content.");
       return;
     }
-    toast.success(
-      memberUids.length > 0 ? `Task created for ${memberUids.length} member(s).` : "Task created (no members in this stage yet).",
-    );
+    toast.success(`"${content.label}" placed in this stage/track.`);
     onCreated?.();
     close();
   };
 
   return (
     <form onSubmit={submit} className="activity-new-form" style={{ marginTop: "12px" }}>
-      <input className="inline-edit-field" autoFocus placeholder="Task title" required value={title} onChange={(e) => setTitle(e.target.value)} />
-      <textarea className="inline-edit-field" placeholder="Description / instructions (optional)" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+      <ContentPicker value={content} onChange={setContent} placeholder="Search or create content for this track…" />
 
-      {!showMore && (
+      {content && !showMore && (
         <button type="button" className="btn btn-secondary" onClick={() => setShowMore(true)} style={{ alignSelf: "flex-start", fontSize: "12.5px", padding: "6px 12px" }}>
           More options (type, XP, approval)
         </button>
       )}
 
-      {showMore && (
+      {content && showMore && (
         <div className="activity-edit-row">
           <select value={taskType} onChange={(e) => setTaskType(e.target.value)}>
             {TASK_TYPES.map((t) => (
@@ -212,8 +213,8 @@ function NewTaskForm({ stageId, trackId, memberUids, onCreated, close }) {
       )}
 
       <div style={{ display: "flex", gap: "8px" }}>
-        <button type="submit" className="btn btn-primary" disabled={saving} style={{ alignSelf: "flex-start" }}>
-          {saving ? "Adding…" : "Add task"}
+        <button type="submit" className="btn btn-primary" disabled={saving || !content} style={{ alignSelf: "flex-start" }}>
+          {saving ? "Placing…" : "Place content"}
         </button>
         <button type="button" className="btn btn-secondary" onClick={close}>
           Cancel
@@ -223,41 +224,43 @@ function NewTaskForm({ stageId, trackId, memberUids, onCreated, close }) {
   );
 }
 
-function EditTaskForm({ task, onSaved, onCancel }) {
+// Edits placement-specific settings only (xp/required/approval) — the
+// content's own title/description live on content_items and are shared
+// across every place it's used, so they're not editable from here.
+function EditPlacementForm({ assignment, onSaved, onCancel }) {
   const toast = useToast();
-  const [title, setTitle] = useState(task.title);
-  const [xpReward, setXpReward] = useState(task.xp_reward);
-  const [isRequired, setIsRequired] = useState(task.is_required);
+  const [xpReward, setXpReward] = useState(assignment.xp_reward);
+  const [isRequired, setIsRequired] = useState(assignment.is_required);
+  const [requiresApproval, setRequiresApproval] = useState(assignment.requires_admin_approval);
   const [saving, setSaving] = useState(false);
 
-  // Editing acts on every row sharing this title within the same
-  // stage+track — a "task" here fans out to one row per member (see
-  // NewTaskForm), so the card the admin sees represents the group.
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     const { error } = await supabase
-      .from("tasks")
-      .update({ title: title.trim(), xp_reward: Number(xpReward) || 0, is_required: isRequired })
-      .eq("stage_id", task.stage_id)
-      .eq("track_id", task.track_id)
-      .eq("title", task.title);
+      .from("content_assignments")
+      .update({ xp_reward: Number(xpReward) || 0, is_required: isRequired, requires_admin_approval: requiresApproval })
+      .eq("id", assignment.id);
     setSaving(false);
     if (error) {
       toast.error("Couldn't save changes.");
       return;
     }
-    toast.success("Task updated for all assigned members.");
+    toast.success("Placement updated.");
     onSaved();
   };
 
   return (
-    <form onSubmit={submit} style={{ display: "flex", gap: "6px", alignItems: "center", flex: 1 }}>
-      <input className="inline-edit-field" value={title} onChange={(e) => setTitle(e.target.value)} style={{ flex: 1 }} />
-      <input type="number" min={0} className="inline-edit-field" value={xpReward} onChange={(e) => setXpReward(e.target.value)} style={{ width: "60px" }} />
+    <form onSubmit={submit} style={{ display: "flex", gap: "8px", alignItems: "center", flex: 1, flexWrap: "wrap" }}>
+      <span style={{ fontWeight: 600, fontSize: "13.5px" }}>{assignment.label}</span>
+      <input type="number" min={0} className="inline-edit-field" value={xpReward} onChange={(e) => setXpReward(e.target.value)} style={{ width: "60px" }} title="XP" />
       <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "3px", whiteSpace: "nowrap" }}>
         <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} />
         Req.
+      </label>
+      <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "3px", whiteSpace: "nowrap" }}>
+        <input type="checkbox" checked={requiresApproval} onChange={(e) => setRequiresApproval(e.target.checked)} />
+        Approval
       </label>
       <button type="submit" className="icon-btn" disabled={saving} title="Save">
         <Icon name="check" size={14} />
@@ -271,7 +274,7 @@ function EditTaskForm({ task, onSaved, onCancel }) {
 
 /* Small pill toggle used both for "which tracks are in this stage" and,
    below it, "which of those tracks am I looking at right now" — one
-   track's tasks on screen at a time instead of all three stacked. */
+   track's content on screen at a time instead of all three stacked. */
 function Chip({ active, onClick, children, tone = "neutral" }) {
   const activeStyle =
     tone === "accent"
@@ -301,57 +304,62 @@ function Chip({ active, onClick, children, tone = "neutral" }) {
   );
 }
 
-function TrackTasks({ stage, track, memberUids }) {
-  const { data: tasks, refetch } = useSupabaseQuery(
+function TrackTasks({ stage, track }) {
+  const { data: assignments, refetch } = useSupabaseQuery(
     () =>
       supabase
-        .from("tasks")
-        .select("id, title, task_type, xp_reward, is_required, assigned_to_uid, stage_id, track_id")
+        .from("content_assignments")
+        .select(
+          "id, task_type, xp_reward, is_required, requires_admin_approval, order_index, content_item:content_items(id, content_type, title, course:courses(title), assignment:assignments(title))",
+        )
         .eq("stage_id", stage.id)
         .eq("track_id", track.id)
-        .order("title"),
+        .eq("scope", "stage_track")
+        .order("order_index"),
     [stage.id, track.id],
   );
   const toast = useToast();
-  const [editingTitle, setEditingTitle] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
-  // Same title = same task assigned to multiple members; collapse for display.
-  const distinctTitles = [...new Map((tasks ?? []).map((t) => [t.title, t])).values()];
+  const rows = (assignments ?? []).map((a) => ({
+    ...a,
+    label: a.content_item?.title ?? a.content_item?.course?.title ?? a.content_item?.assignment?.title ?? "Untitled",
+  }));
 
-  const handleDelete = async (task) => {
-    if (!window.confirm(`Delete "${task.title}" for every member it's assigned to?`)) return;
-    const { error } = await supabase.from("tasks").delete().eq("stage_id", task.stage_id).eq("track_id", task.track_id).eq("title", task.title);
+  const handleDelete = async (assignment) => {
+    if (!window.confirm(`Remove "${assignment.label}" from this stage/track for everyone?`)) return;
+    const { error } = await supabase.from("content_assignments").delete().eq("id", assignment.id);
     if (error) {
-      toast.error("Couldn't delete that task.");
+      toast.error("Couldn't remove that placement.");
       return;
     }
-    toast.success("Task deleted.");
+    toast.success("Removed.");
     refetch();
   };
 
   return (
     <div style={{ marginTop: "14px" }}>
-      {distinctTitles.length === 0 && <p style={{ fontSize: "13px", color: "var(--slate)" }}>No tasks in this track yet.</p>}
-      {distinctTitles.length > 0 && (
+      {rows.length === 0 && <p style={{ fontSize: "13px", color: "var(--slate)" }}>No content placed in this track yet.</p>}
+      {rows.length > 0 && (
         <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
-          {distinctTitles.map((t) =>
-            editingTitle === t.title ? (
-              <li key={t.title}>
-                <EditTaskForm task={t} onSaved={() => { setEditingTitle(null); refetch(); }} onCancel={() => setEditingTitle(null)} />
+          {rows.map((a) =>
+            editingId === a.id ? (
+              <li key={a.id}>
+                <EditPlacementForm assignment={a} onSaved={() => { setEditingId(null); refetch(); }} onCancel={() => setEditingId(null)} />
               </li>
             ) : (
-              <li key={t.title} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13.5px" }}>
+              <li key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13.5px" }}>
                 <div>
-                  <span>{t.title}</span>{" "}
+                  <span>{a.label}</span>{" "}
                   <span style={{ color: "var(--slate)" }}>
-                    · {t.task_type.replace("_", " ")} · {t.xp_reward} XP{t.is_required ? "" : " · optional"}
+                    · {a.task_type.replace("_", " ")} · {a.xp_reward} XP{a.is_required ? "" : " · optional"}
                   </span>
                 </div>
                 <div className="row-actions">
-                  <button type="button" className="icon-btn" title="Edit" onClick={() => setEditingTitle(t.title)}>
+                  <button type="button" className="icon-btn" title="Edit" onClick={() => setEditingId(a.id)}>
                     <Icon name="pencil" size={14} />
                   </button>
-                  <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(t)}>
+                  <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(a)}>
                     <Icon name="trash" size={14} />
                   </button>
                 </div>
@@ -362,15 +370,15 @@ function TrackTasks({ stage, track, memberUids }) {
       )}
 
       <div style={{ marginTop: "12px" }}>
-        <Disclosure label="Add task" icon="plus">
-          {(close) => <NewTaskForm stageId={stage.id} trackId={track.id} memberUids={memberUids} onCreated={refetch} close={close} />}
+        <Disclosure label="Add content" icon="plus">
+          {(close) => <NewPlacementForm stageId={stage.id} trackId={track.id} onCreated={refetch} close={close} />}
         </Disclosure>
       </div>
     </div>
   );
 }
 
-function StageTracks({ stage, tracks, memberUids }) {
+function StageTracks({ stage, tracks }) {
   const { data: stageTracks, refetch } = useSupabaseQuery(
     () => supabase.from("stage_tracks").select("track_id").eq("stage_id", stage.id),
     [stage.id],
@@ -413,14 +421,14 @@ function StageTracks({ stage, tracks, memberUids }) {
               </Chip>
             ))}
           </div>
-          {activeTrack && <TrackTasks stage={stage} track={activeTrack} memberUids={memberUids} />}
+          {activeTrack && <TrackTasks stage={stage} track={activeTrack} />}
         </>
       )}
     </div>
   );
 }
 
-function StageRow({ stage, tracks, memberUids, isFirst, isLast, onChanged, onReorder, expanded, onToggle }) {
+function StageRow({ stage, tracks, levels, levelLabel, memberUids, isFirst, isLast, onChanged, onReorder, expanded, onToggle }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
 
@@ -436,7 +444,7 @@ function StageRow({ stage, tracks, memberUids, isFirst, isLast, onChanged, onReo
       memberUids.length > 0
         ? ` ${memberUids.length} member${memberUids.length === 1 ? " is" : "s are"} currently on this stage — they'll lose their place and need to be moved to another stage.`
         : "";
-    if (!window.confirm(`Delete stage "${stage.title}"? This also deletes its tasks and members' completion records for them.${memberWarning}`)) return;
+    if (!window.confirm(`Delete stage "${stage.title}"? This also deletes its content placements for this stage.${memberWarning}`)) return;
     const { error } = await supabase.from("stages").delete().eq("id", stage.id);
     if (error) {
       toast.error("Couldn't delete that stage.");
@@ -459,12 +467,15 @@ function StageRow({ stage, tracks, memberUids, isFirst, isLast, onChanged, onReo
         </div>
 
         {editing ? (
-          <EditStageForm stage={stage} onSaved={() => { setEditing(false); onChanged?.(); }} onCancel={() => setEditing(false)} />
+          <EditStageForm stage={stage} levels={levels} onSaved={() => { setEditing(false); onChanged?.(); }} onCancel={() => setEditing(false)} />
         ) : (
           <button type="button" className="accordion-header" onClick={onToggle} style={{ flex: 1, minWidth: 0 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="card-title" style={{ marginBottom: 0 }}>
+              <div className="card-title" style={{ marginBottom: 0, display: "flex", alignItems: "center", gap: "8px" }}>
                 {stage.title}
+                <span className={`badge ${levelLabel ? "badge-neutral" : "badge-warning"}`} style={{ fontWeight: 500 }}>
+                  {levelLabel ?? "No level"}
+                </span>
               </div>
               {stage.description && <p style={{ color: "var(--slate)", fontSize: "13.5px", marginTop: "6px" }}>{stage.description}</p>}
               {!expanded && <div className="row-meta" style={{ marginTop: "6px" }}>{tracks.length} tracks available</div>}
@@ -492,7 +503,104 @@ function StageRow({ stage, tracks, memberUids, isFirst, isLast, onChanged, onReo
 
       {expanded && !editing && (
         <div className="accordion-body">
-          <StageTracks stage={stage} tracks={tracks} memberUids={memberUids} />
+          <StageTracks stage={stage} tracks={tracks} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The 7 Development Levels are fixed rows (no add/remove — see
+// supabase/migrations/0032_development_levels.sql) that Stages nest under
+// via stages.level_id. Admins can edit the label/purpose/outcome copy shown
+// on the member dashboard, but not the set of levels itself.
+function EditLevelForm({ level, onSaved, onCancel }) {
+  const toast = useToast();
+  const [label, setLabel] = useState(level.label);
+  const [purpose, setPurpose] = useState(level.purpose ?? "");
+  const [outcome, setOutcome] = useState(level.outcome ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    const { error } = await supabase
+      .from("levels")
+      .update({ label: label.trim(), purpose: purpose.trim(), outcome: outcome.trim(), updated_at: new Date().toISOString() })
+      .eq("id", level.id);
+    setSaving(false);
+    if (error) {
+      toast.error("Couldn't save changes.");
+      return;
+    }
+    toast.success("Level updated.");
+    onSaved();
+  };
+
+  return (
+    <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
+      <input className="inline-edit-field" required value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label" />
+      <textarea className="inline-edit-field" rows={2} value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Purpose" />
+      <textarea className="inline-edit-field" rows={2} value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder={'Outcome — "I can now say…"'} />
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? "Saving…" : "Save"}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function LevelsPanel({ levels, onChanged }) {
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+
+  return (
+    <div className="card-elevated" style={{ marginBottom: "20px" }}>
+      <button
+        type="button"
+        className="accordion-header"
+        onClick={() => setOpen((v) => !v)}
+        style={{ width: "100%" }}
+      >
+        <div className="card-title" style={{ marginBottom: 0 }}>
+          Development Levels
+        </div>
+        <span className="accordion-chevron">
+          <Icon name={open ? "chevron-down" : "chevron-right"} size={16} />
+        </span>
+      </button>
+      {!open && (
+        <p style={{ color: "var(--slate)", fontSize: "13px", marginTop: "6px" }}>
+          The 7 fixed levels members progress through. Stages nest under one below.
+        </p>
+      )}
+      {open && (
+        <div className="accordion-body">
+          <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "10px" }}>
+            {levels?.map((level) =>
+              editingId === level.id ? (
+                <li key={level.id}>
+                  <EditLevelForm level={level} onSaved={() => { setEditingId(null); onChanged?.(); }} onCancel={() => setEditingId(null)} />
+                </li>
+              ) : (
+                <li key={level.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: "13.5px" }}>
+                      {level.order_index}. {level.label}
+                    </div>
+                    {level.purpose && <div style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "2px" }}>{level.purpose}</div>}
+                  </div>
+                  <button type="button" className="icon-btn" title="Edit level" onClick={() => setEditingId(level.id)}>
+                    <Icon name="pencil" size={14} />
+                  </button>
+                </li>
+              ),
+            )}
+          </ul>
         </div>
       )}
     </div>
@@ -507,9 +615,15 @@ export default function StageBuilder() {
     [],
   );
   const { data: tracks } = useSupabaseQuery(() => supabase.from("tracks").select("*").order("key"), []);
+  const { data: levels, refetch: refetchLevels } = useSupabaseQuery(
+    () => supabase.from("levels").select("*").order("order_index"),
+    [],
+  );
+  const levelById = new Map((levels ?? []).map((l) => [l.id, l]));
 
-  // Members currently in each stage — used to fan a new task out to the
-  // right people (see NewTaskForm's comment on why tasks aren't templates).
+  // Members currently in each stage — used only for the delete-stage
+  // warning now; placing content no longer needs to know who's in a stage
+  // (see NewPlacementForm — one row applies to everyone, present and future).
   const { data: journeyRows } = useSupabaseQuery(
     () => supabase.from("member_journey").select("uid, current_stage_id"),
     [],
@@ -545,8 +659,10 @@ export default function StageBuilder() {
         )}
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
-        Stage → Skill / Business / Freelancing tracks → tasks. Click a stage to open it — opening another one closes this.
+        Stage → Skill / Business / Freelancing tracks → content. Click a stage to open it — opening another one closes this.
       </p>
+
+      <LevelsPanel levels={levels} onChanged={refetchLevels} />
 
       {showNewStage && <NewStageForm onCreated={refetch} onDone={() => setShowNewStage(false)} />}
 
@@ -558,6 +674,8 @@ export default function StageBuilder() {
             key={stage.id}
             stage={stage}
             tracks={tracks}
+            levels={levels}
+            levelLabel={levelById.get(stage.level_id)?.label}
             memberUids={membersByStage.get(stage.id) ?? []}
             isFirst={i === 0}
             isLast={i === stages.length - 1}

@@ -8,7 +8,9 @@ const sections = [
     label: "Journey",
     items: [
       { to: "/admin/journey", label: "Stage Builder", icon: "compass" },
+      { to: "/admin/journey/progression", label: "Progression", icon: "bar-chart" },
       { to: "/admin/journey/promotions", label: "Stage Promotions", icon: "trophy" },
+      { to: "/admin/journey/milestones", label: "Milestones", icon: "award" },
       { to: "/admin/content", label: "Content Builder", icon: "layers" },
     ],
   },
