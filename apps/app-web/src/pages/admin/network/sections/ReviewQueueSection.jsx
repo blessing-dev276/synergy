@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { supabase } from "../../supabaseClient.js";
-import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
-import { gradeAssignment, reviewContentEvidence } from "../../lib/rpc.js";
-import { useToast } from "../../components/state/Toast.jsx";
-import Icon from "../../components/Icon.jsx";
-import Skeleton from "../../components/state/Skeleton.jsx";
-import EmptyState from "../../components/state/EmptyState.jsx";
+import { supabase } from "../../../../supabaseClient.js";
+import { useSupabaseQuery } from "../../../../lib/useSupabaseQuery.js";
+import { gradeAssignment, reviewContentEvidence } from "../../../../lib/rpc.js";
+import { useToast } from "../../../../components/state/Toast.jsx";
+import Icon from "../../../../components/Icon.jsx";
+import Skeleton from "../../../../components/state/Skeleton.jsx";
+import EmptyState from "../../../../components/state/EmptyState.jsx";
 
 // Grading is admin-only (see supabase/migrations/0020_retire_mentor_
 // capability.sql — grade_assignment no longer has a mentor branch), so this
@@ -132,7 +132,7 @@ function EvidenceReviewRow({ submission, onReviewed }) {
   );
 }
 
-export default function ReviewQueue() {
+export default function ReviewQueueSection() {
   const { loading, data: submissions, refetch } = useSupabaseQuery(
     () =>
       supabase
@@ -157,9 +157,7 @@ export default function ReviewQueue() {
 
   return (
     <div>
-      <h1>Review Queue</h1>
-
-      <div className="card-title" style={{ marginTop: "8px" }}>Course assignments</div>
+      <div className="card-title">Course assignments</div>
       {loading && <Skeleton variant="card" height="140px" />}
       {!loading && (!submissions || submissions.length === 0) && (
         <EmptyState icon={<Icon name="folder" size={26} />} title="Nothing pending review" />

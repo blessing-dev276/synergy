@@ -4,9 +4,13 @@ import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import ContentPicker from "../../../components/ContentPicker.jsx";
+import Modal from "../../../components/Modal.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
+import MilestoneBuilder from "./MilestoneBuilder.jsx";
+import PromotionRequests from "./PromotionRequests.jsx";
+import ProgressionOverview from "./ProgressionOverview.jsx";
 
 const TASK_TYPES = [
   "learning",
@@ -731,9 +735,16 @@ function BareContentSection() {
   );
 }
 
+const TOOL_MODALS = [
+  { id: "milestones", label: "Milestones", icon: "award", Component: MilestoneBuilder },
+  { id: "promotions", label: "Promotions", icon: "trophy", Component: PromotionRequests },
+  { id: "progression", label: "Progression", icon: "bar-chart", Component: ProgressionOverview },
+];
+
 export default function StageBuilder() {
   const [openStageId, setOpenStageId] = useState(null);
   const [showNewStage, setShowNewStage] = useState(false);
+  const [openTool, setOpenTool] = useState(null);
   const { loading, data: stages, refetch } = useSupabaseQuery(
     () => supabase.from("stages").select("*").order("order_index", { ascending: true }),
     [],
@@ -782,9 +793,31 @@ export default function StageBuilder() {
           </button>
         )}
       </div>
-      <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
+      <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "16px" }}>
         Stage → Skill / Business / Freelancing tracks → content. Click a stage to open it — opening another one closes this.
       </p>
+
+      {/* Milestones/Promotions/Progression used to be dead ends reachable
+          only by typing their URL directly — no nav link pointed at any of
+          them. Surfacing them as popups here (rather than three more
+          permanent sidebar entries) keeps the sidebar uncluttered while
+          making them actually reachable. */}
+      <div className="quick-actions" style={{ marginTop: 0, marginBottom: "24px" }}>
+        {TOOL_MODALS.map((tool) => (
+          <button key={tool.id} type="button" className="quick-action" onClick={() => setOpenTool(tool.id)}>
+            <span className="qa-icon">
+              <Icon name={tool.icon} size={17} />
+            </span>
+            <span className="qa-label">{tool.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {TOOL_MODALS.map((tool) => (
+        <Modal key={tool.id} open={openTool === tool.id} onClose={() => setOpenTool(null)} size="lg">
+          <tool.Component />
+        </Modal>
+      ))}
 
       <RanksPanel ranks={ranks} onChanged={refetchRanks} />
 

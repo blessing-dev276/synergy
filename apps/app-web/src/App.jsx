@@ -33,22 +33,17 @@ import Leaderboard from "./pages/leaderboard/Leaderboard.jsx";
 
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import ActivityLog from "./pages/admin/ActivityLog.jsx";
-import ReviewQueue from "./pages/admin/ReviewQueue.jsx";
-import EarningsReview from "./pages/admin/EarningsReview.jsx";
 import ContentBuilder from "./pages/admin/content/ContentBuilder.jsx";
-import OrientationBuilder from "./pages/admin/content/OrientationBuilder.jsx";
 import CourseEditor from "./pages/admin/content/CourseEditor.jsx";
 import StageBuilder from "./pages/admin/journey/StageBuilder.jsx";
 import PromotionRequests from "./pages/admin/journey/PromotionRequests.jsx";
 import MilestoneBuilder from "./pages/admin/journey/MilestoneBuilder.jsx";
 import ProgressionOverview from "./pages/admin/journey/ProgressionOverview.jsx";
-import MemberList from "./pages/admin/members/MemberList.jsx";
 import MemberDetail from "./pages/admin/members/MemberDetail.jsx";
 import NetworkOverview from "./pages/admin/network/NetworkOverview.jsx";
-import ProspectingOverview from "./pages/admin/network/ProspectingOverview.jsx";
-import SponsorRequests from "./pages/admin/network/SponsorRequests.jsx";
-import LegacyMentors from "./pages/admin/network/LegacyMentors.jsx";
-import GoalReview from "./pages/admin/goals/GoalReview.jsx";
+import SettingsGeneral from "./pages/admin/settings/SettingsGeneral.jsx";
+import SettingsNotifications from "./pages/admin/settings/SettingsNotifications.jsx";
+import SettingsTeam from "./pages/admin/settings/SettingsTeam.jsx";
 
 import Forbidden from "./pages/Forbidden.jsx";
 import NotFound from "./pages/NotFound.jsx";
@@ -109,17 +104,14 @@ function App() {
               <Route path="/admin/journey/progression" element={<ProgressionOverview />} />
               <Route path="/admin/content" element={<ContentBuilder />} />
               <Route path="/admin/content/courses/:courseId" element={<CourseEditor />} />
-              <Route path="/admin/orientation" element={<OrientationBuilder />} />
-              <Route path="/admin/members" element={<MemberList />} />
               <Route path="/admin/members/:uid" element={<MemberDetail />} />
-              <Route path="/admin/reviews" element={<ReviewQueue />} />
-              <Route path="/admin/goals" element={<GoalReview />} />
-              <Route path="/admin/earnings" element={<EarningsReview />} />
+              <Route path="/admin/leaderboard" element={<Leaderboard />} />
+              <Route path="/admin/earnings" element={<Navigate to="/admin/leaderboard" replace />} />
               <Route path="/admin/network" element={<NetworkOverview />} />
-              <Route path="/admin/network/prospecting" element={<ProspectingOverview />} />
-              <Route path="/admin/network/requests" element={<SponsorRequests />} />
-              <Route path="/admin/network/legacy-mentors" element={<LegacyMentors />} />
-              <Route path="/admin/activity" element={<ActivityLog />} />
+              <Route path="/admin/settings/activity" element={<ActivityLog />} />
+              <Route path="/admin/settings/general" element={<SettingsGeneral />} />
+              <Route path="/admin/settings/notifications" element={<SettingsNotifications />} />
+              <Route path="/admin/settings/team" element={<SettingsTeam />} />
             </Route>
           </Route>
           </Route>

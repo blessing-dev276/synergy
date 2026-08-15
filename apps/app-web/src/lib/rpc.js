@@ -73,6 +73,9 @@ export const logEarning = (amount, note) => call("log_earning", { p_amount: amou
 export const reviewEarning = (id, decision, note) =>
   call("review_earning", { p_id: id, p_decision: decision, p_note: note });
 
+export const adminLogEarning = (uid, amount, note) =>
+  call("admin_log_earning", { p_uid: uid, p_amount: amount, p_note: note });
+
 export const getLeaderboards = () => call("get_leaderboards", {});
 
 export const submitContentEvidence = (contentAssignmentId, textResponse, fileUrls) =>

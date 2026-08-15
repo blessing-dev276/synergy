@@ -87,7 +87,7 @@ function EditPathForm({ path, onSaved, onCancel }) {
   );
 }
 
-function NewCourseForm({ pathId, onCreated }) {
+function NewCourseForm({ pathId, onCreated, onCancel, autoFocus }) {
   const { user } = useAuth();
   const toast = useToast();
   const [title, setTitle] = useState("");
@@ -120,6 +120,7 @@ function NewCourseForm({ pathId, onCreated }) {
         className="inline-edit-field"
         placeholder="New course title"
         required
+        autoFocus={autoFocus}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         style={{ flex: 1 }}
@@ -127,7 +128,28 @@ function NewCourseForm({ pathId, onCreated }) {
       <button type="submit" className="btn btn-secondary" disabled={saving}>
         Add course
       </button>
+      {onCancel && (
+        <button type="button" className="icon-btn" title="Cancel" onClick={onCancel}>
+          <Icon name="x" size={14} />
+        </button>
+      )}
     </form>
+  );
+}
+
+function StatTile({ label, value, icon, tone }) {
+  return (
+    <div className="card-elevated">
+      <div className="stat-tile">
+        <span className={`icon-badge ${tone ? `tone-${tone}` : ""}`}>
+          <Icon name={icon} size={18} />
+        </span>
+        <div>
+          <div className="stat-tile-label">{label}</div>
+          <div className="stat-tile-value">{value}</div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -176,8 +198,9 @@ function CourseRow({ course, isFirst, isLast, onReorder, onChanged }) {
 function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChanged }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
+  const [addingCourse, setAddingCourse] = useState(false);
 
-  const { data: courses, refetch } = useSupabaseQuery(
+  const { data: courses, loading: coursesLoading, refetch } = useSupabaseQuery(
     () => isOpen && supabase.from("courses").select("*").eq("path_id", path.id).order("order_index", { ascending: true }),
     [path.id, isOpen],
   );
@@ -213,52 +236,85 @@ function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChang
     refetch();
   };
 
-  return (
-    <div className="card-elevated" style={{ marginBottom: "12px" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
-        <div className="reorder-controls" onClick={(e) => e.stopPropagation()}>
-          <button type="button" className="icon-btn" disabled={isFirst} onClick={() => onReorder(-1)} title="Move up">
-            <Icon name="arrow-up" size={13} />
-          </button>
-          <button type="button" className="icon-btn" disabled={isLast} onClick={() => onReorder(1)} title="Move down">
-            <Icon name="arrow-down" size={13} />
-          </button>
-        </div>
+  // Course create/delete only touches this path's own course list locally —
+  // also nudge the outer paths refetch so the header's course_count (and the
+  // page-level "Total courses" stat) don't go stale while collapsed.
+  const refetchAll = () => {
+    refetch();
+    onChanged();
+  };
 
-        {editing ? (
-          <EditPathForm path={path} onSaved={() => { setEditing(false); onChanged(); }} onCancel={() => setEditing(false)} />
-        ) : (
-          <button type="button" className="accordion-header" onClick={onToggle} style={{ flex: 1, minWidth: 0 }}>
+  const courseCount = path.course_count ?? 0;
+
+  const openToAddCourse = (e) => {
+    e.stopPropagation();
+    if (!isOpen) onToggle();
+    setAddingCourse(true);
+  };
+
+  return (
+    <div className={`card-elevated learning-path-card${isOpen ? " is-open" : ""}`} style={{ marginBottom: "14px" }}>
+      {editing ? (
+        <EditPathForm path={path} onSaved={() => { setEditing(false); onChanged(); }} onCancel={() => setEditing(false)} />
+      ) : (
+        <>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+            <span className="icon-badge" style={{ width: "56px", height: "56px", borderRadius: "16px" }}>
+              <Icon name="layers" size={24} />
+            </span>
+            <button type="button" className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "13px" }} onClick={openToAddCourse}>
+              <Icon name="plus" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+              Add
+            </button>
+          </div>
+
+          <button type="button" className="accordion-header" onClick={onToggle} style={{ width: "100%", marginTop: "18px" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="card-title" style={{ marginBottom: 0 }}>
+              <div className="card-title" style={{ fontSize: "19px", marginBottom: "4px" }}>
                 {path.title}
               </div>
-              {path.description && <p style={{ color: "var(--slate)", fontSize: "13.5px", marginTop: "6px" }}>{path.description}</p>}
-              {!isOpen && <div className="row-meta" style={{ marginTop: "6px" }}>{path.course_count ?? 0} courses</div>}
+              <div className="row-meta">
+                {courseCount} course{courseCount === 1 ? "" : "s"}
+              </div>
             </div>
-            <span className="accordion-chevron" style={{ marginLeft: 0 }}>
+            <span className="accordion-chevron">
               <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={16} />
             </span>
           </button>
-        )}
 
-        {!editing && (
-          <div className="row-actions" style={{ flexShrink: 0 }}>
-            <button type="button" className={`badge ${path.published ? "badge-success" : "badge-warning"}`} onClick={togglePublished}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "14px" }}>
+            <div className="reorder-controls" style={{ flexDirection: "row" }}>
+              <button type="button" className="icon-btn" disabled={isFirst} onClick={() => onReorder(-1)} title="Move up">
+                <Icon name="arrow-up" size={12} />
+              </button>
+              <button type="button" className="icon-btn" disabled={isLast} onClick={() => onReorder(1)} title="Move down">
+                <Icon name="arrow-down" size={12} />
+              </button>
+            </div>
+            <button type="button" className={`badge ${path.published ? "badge-success" : "badge-warning"}`} onClick={togglePublished} title="Toggle published status">
               {path.published ? "Published" : "Draft"}
             </button>
+            <span style={{ flex: 1 }} />
             <button type="button" className="icon-btn" title="Edit path" onClick={() => setEditing(true)}>
-              <Icon name="pencil" size={14} />
+              <Icon name="pencil" size={13} />
             </button>
             <button type="button" className="icon-btn icon-btn-danger" title="Delete path" onClick={handleDelete}>
-              <Icon name="trash" size={14} />
+              <Icon name="trash" size={13} />
             </button>
           </div>
-        )}
-      </div>
+        </>
+      )}
 
-      {isOpen && (
-        <div className="accordion-body">
+      {isOpen && !editing && (
+        <div className="accordion-body" style={{ borderTop: "1px solid var(--line)", paddingTop: "16px", marginTop: "16px" }}>
+          {path.description && <p style={{ color: "var(--slate)", fontSize: "13.5px", marginBottom: "14px" }}>{path.description}</p>}
+
+          {coursesLoading && <Skeleton variant="card" height="60px" />}
+
+          {!coursesLoading && courses?.length === 0 && !addingCourse && (
+            <div style={{ textAlign: "center", padding: "26px 12px", color: "var(--slate)", fontSize: "13.5px" }}>No courses in this path yet.</div>
+          )}
+
           {courses?.map((course, i) => (
             <CourseRow
               key={course.id}
@@ -266,10 +322,21 @@ function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChang
               isFirst={i === 0}
               isLast={i === courses.length - 1}
               onReorder={(direction) => reorderCourse(i, direction)}
-              onChanged={refetch}
+              onChanged={refetchAll}
             />
           ))}
-          <NewCourseForm pathId={path.id} onCreated={refetch} />
+
+          {addingCourse && (
+            <NewCourseForm
+              pathId={path.id}
+              autoFocus
+              onCreated={() => {
+                refetchAll();
+                setAddingCourse(false);
+              }}
+              onCancel={() => setAddingCourse(false)}
+            />
+          )}
         </div>
       )}
     </div>
@@ -298,10 +365,13 @@ export default function ContentBuilder() {
     refetch();
   };
 
+  const publishedCount = paths?.filter((p) => p.published).length ?? 0;
+  const totalCourses = paths?.reduce((sum, p) => sum + (p.course_count ?? 0), 0) ?? 0;
+
   return (
     <div>
       <div className="section-heading">
-        <h1>Content Builder</h1>
+        <h1>Learning Hub</h1>
         {!showNewPath && (
           <button type="button" className="btn btn-primary" onClick={() => setShowNewPath(true)}>
             <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
@@ -313,10 +383,31 @@ export default function ContentBuilder() {
         Learning Path → Course → Module → Lesson → Quiz/Assignment. Click a path to open it — opening another one closes this.
       </p>
 
+      {!loading && paths && paths.length > 0 && (
+        <div className="grid grid-3" style={{ marginBottom: "24px" }}>
+          <StatTile label="Learning paths" value={paths.length} icon="layers" />
+          <StatTile label="Published" value={publishedCount} icon="check" tone="success" />
+          <StatTile label="Draft" value={paths.length - publishedCount} icon="pencil" tone="warning" />
+          <StatTile label="Total courses" value={totalCourses} icon="book" />
+        </div>
+      )}
+
       {showNewPath && <NewPathForm onCreated={refetch} onDone={() => setShowNewPath(false)} />}
 
       {loading && <Skeleton variant="card" height="140px" />}
-      {!loading && (!paths || paths.length === 0) && <EmptyState icon={<Icon name="layers" size={26} />} title="No learning paths yet" />}
+      {!loading && !showNewPath && (!paths || paths.length === 0) && (
+        <EmptyState
+          icon={<Icon name="layers" size={26} />}
+          title="No learning paths yet"
+          description="Create your first learning path to start building out courses, modules, and lessons."
+          action={
+            <button type="button" className="btn btn-primary" onClick={() => setShowNewPath(true)} style={{ marginTop: "4px" }}>
+              <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
+              New Learning Path
+            </button>
+          }
+        />
+      )}
       {paths?.map((path, i) => (
         <PathBlock
           key={path.id}

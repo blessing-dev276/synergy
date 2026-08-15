@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
-import { logEarning } from "../../lib/rpc.js";
+import { logEarning, adminLogEarning, reviewEarning } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
+import SponsorPicker from "../../components/SponsorPicker.jsx";
 
 const CATEGORY = {
   tasks: { icon: "check-square", label: "Task Completion", format: (s) => `${Math.round(s)}%` },
@@ -420,8 +422,159 @@ function MySubmissions({ uid }) {
   );
 }
 
+// Admin-only: log an earning on an arbitrary member's behalf. Unlike
+// LogEarningForm (self-report, lands 'pending'), an admin entering this
+// directly is already the trusted party, so admin_log_earning inserts
+// straight to 'verified' -- no separate review step, see
+// supabase/migrations/0048_admin_log_earning.sql.
+function AdminLogEarningForm({ onLogged }) {
+  const toast = useToast();
+  const [picked, setPicked] = useState({ selected: null, claimedName: "" });
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!picked.selected) {
+      toast.error("Pick a member to log this earning for.");
+      return;
+    }
+    const parsed = Number(amount);
+    if (!parsed || parsed <= 0) {
+      toast.error("Enter an amount greater than zero.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await adminLogEarning(picked.selected.id, parsed, note.trim());
+      toast.success(`$${parsed} logged for ${picked.selected.display_name}.`);
+      setPicked({ selected: null, claimedName: "" });
+      setAmount("");
+      setNote("");
+      onLogged();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't log that earning.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="card-elevated" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div className="card-title">Log an earning for a member</div>
+      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "4px" }}>
+        Entered by an admin, so it's counted right away — no review needed.
+      </p>
+      <div className="field" style={{ marginBottom: 0 }}>
+        <label>Member</label>
+        <SponsorPicker
+          value={picked}
+          onChange={(v) => setPicked({ selected: v.selected, claimedName: "" })}
+        />
+      </div>
+      <div className="field" style={{ marginBottom: 0 }}>
+        <label>Amount ($)</label>
+        <input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+      </div>
+      <div className="field" style={{ marginBottom: 0 }}>
+        <label>Note (optional)</label>
+        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What sale or commission was this?" />
+      </div>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? "Logging…" : "Log earning"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// Admin-only: the pending-review queue, formerly its own page
+// (pages/admin/EarningsReview.jsx) -- folded in here since it's really just
+// another view onto the same earnings_logs table this page already reads.
+function EarningRow({ entry, onResolved }) {
+  const toast = useToast();
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const decide = async (decision) => {
+    if (decision === "rejected" && !window.confirm(`Reject this $${entry.amount} earning submission?`)) return;
+    setBusy(true);
+    try {
+      await reviewEarning(entry.id, decision, note.trim());
+      toast.success(decision === "verified" ? "Earning verified." : "Earning rejected.");
+      onResolved();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't review that submission.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card-elevated" style={{ marginBottom: "14px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "10px" }}>
+        <div>
+          <Link to={`/admin/members/${entry.uid}`} style={{ fontWeight: 600 }}>
+            {entry.member?.display_name || entry.member?.email || "Unknown member"}
+          </Link>
+          <div style={{ fontSize: "12.5px", color: "var(--slate)" }}>{new Date(entry.earned_at).toLocaleString()}</div>
+        </div>
+        <div style={{ fontSize: "20px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>${entry.amount}</div>
+      </div>
+
+      {entry.note && <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "12px" }}>"{entry.note}"</p>}
+
+      <div className="field" style={{ marginBottom: "10px" }}>
+        <label>Note (optional)</label>
+        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason, if rejecting" />
+      </div>
+
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button type="button" className="btn btn-primary" onClick={() => decide("verified")} disabled={busy}>
+          Verify
+        </button>
+        <button type="button" className="btn btn-danger" onClick={() => decide("rejected")} disabled={busy}>
+          Reject
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PendingEarningsReview() {
+  const { loading, data: entries, refetch } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("earnings_logs")
+        .select("*, member:profiles!earnings_logs_uid_fkey(display_name, email)")
+        .eq("status", "pending")
+        .order("earned_at", { ascending: true }),
+    [],
+  );
+
+  return (
+    <div className="card-elevated">
+      <div className="card-title">Pending earnings to verify</div>
+      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
+        Members self-report earnings for the weekly leaderboard. Only verified amounts count toward Top Earner —
+        review each submission before it's counted.
+      </p>
+
+      {loading && <Skeleton variant="card" height="140px" />}
+      {!loading && (entries ?? []).length === 0 && (
+        <EmptyState icon={<Icon name="dollar-sign" size={26} />} title="No earnings waiting for review" />
+      )}
+      {(entries ?? []).map((e) => (
+        <EarningRow key={e.id} entry={e} onResolved={refetch} />
+      ))}
+    </div>
+  );
+}
+
 export default function Leaderboard() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   const { loading, error, data, refetch } = useSupabaseQuery(() => user && supabase.rpc("get_leaderboards", {}), [user?.id]);
   const showConfetti = useTopSpotConfetti(data, user?.id);
@@ -467,6 +620,13 @@ export default function Leaderboard() {
             <LogEarningForm onLogged={refetch} />
             <MySubmissions uid={user?.id} />
           </div>
+
+          {role === "admin" && (
+            <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "24px" }}>
+              <AdminLogEarningForm onLogged={refetch} />
+              <PendingEarningsReview />
+            </div>
+          )}
         </>
       )}
     </div>

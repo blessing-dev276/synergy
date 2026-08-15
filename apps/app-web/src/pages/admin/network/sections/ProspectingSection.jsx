@@ -1,12 +1,12 @@
-import { supabase } from "../../../supabaseClient.js";
-import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import Skeleton from "../../../components/state/Skeleton.jsx";
-import EmptyState from "../../../components/state/EmptyState.jsx";
-import Icon from "../../../components/Icon.jsx";
+import { supabase } from "../../../../supabaseClient.js";
+import { useSupabaseQuery } from "../../../../lib/useSupabaseQuery.js";
+import Skeleton from "../../../../components/state/Skeleton.jsx";
+import EmptyState from "../../../../components/state/EmptyState.jsx";
+import Icon from "../../../../components/Icon.jsx";
 
 // One row per active member: who is actually prospecting and following up,
 // not just who logged in (see supabase/migrations/0046_prospecting_crm.sql).
-export default function ProspectingOverview() {
+export default function ProspectingSection() {
   const { loading, data: rows } = useSupabaseQuery(() => supabase.rpc("get_admin_prospecting_overview", {}), []);
 
   const list = rows ?? [];
@@ -15,8 +15,7 @@ export default function ProspectingOverview() {
 
   return (
     <div>
-      <h1>Prospecting</h1>
-      <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "20px" }}>
+      <p style={{ color: "var(--slate)", marginTop: 0, marginBottom: "20px" }}>
         {totalDueToday} follow-up{totalDueToday === 1 ? "" : "s"} due today across the team · {totalOverdue} overdue
       </p>
 

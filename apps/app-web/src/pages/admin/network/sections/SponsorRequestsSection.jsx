@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { supabase } from "../../../supabaseClient.js";
-import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { resolveSponsorRequest, rejectSponsorRequest } from "../../../lib/rpc.js";
-import { useToast } from "../../../components/state/Toast.jsx";
-import SponsorPicker from "../../../components/SponsorPicker.jsx";
-import Icon from "../../../components/Icon.jsx";
-import Skeleton from "../../../components/state/Skeleton.jsx";
-import EmptyState from "../../../components/state/EmptyState.jsx";
+import { supabase } from "../../../../supabaseClient.js";
+import { useSupabaseQuery } from "../../../../lib/useSupabaseQuery.js";
+import { resolveSponsorRequest, rejectSponsorRequest } from "../../../../lib/rpc.js";
+import { useToast } from "../../../../components/state/Toast.jsx";
+import SponsorPicker from "../../../../components/SponsorPicker.jsx";
+import Icon from "../../../../components/Icon.jsx";
+import Skeleton from "../../../../components/state/Skeleton.jsx";
+import EmptyState from "../../../../components/state/EmptyState.jsx";
 
 // New members whose typed sponsor name didn't match an existing account
 // land here (see handle_new_user in
@@ -88,7 +88,7 @@ function RequestRow({ request, onResolved }) {
   );
 }
 
-export default function SponsorRequests() {
+export default function SponsorRequestsSection() {
   const { loading, data: requests, refetch } = useSupabaseQuery(
     () =>
       supabase
@@ -101,8 +101,7 @@ export default function SponsorRequests() {
 
   return (
     <div>
-      <h1>Sponsor Requests</h1>
-      <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
+      <p style={{ color: "var(--slate)", marginTop: 0, marginBottom: "24px" }}>
         New members whose claimed sponsor wasn't found among existing accounts. Find the real account and link it,
         or reject the claim — nothing here is auto-matched.
       </p>

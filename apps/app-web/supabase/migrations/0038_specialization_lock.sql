@@ -169,7 +169,11 @@ begin
 end;
 $$;
 
-create or replace function public.compute_rank_progress(p_uid uuid, p_rank_id uuid)
+-- Note: parameter kept as p_level_id (not renamed to p_rank_id) because
+-- Postgres's CREATE OR REPLACE FUNCTION disallows renaming an existing
+-- function's input parameters -- this is a rename of stages.level_id to
+-- stages.rank_id (0037), not of this function's own signature.
+create or replace function public.compute_rank_progress(p_uid uuid, p_level_id uuid)
 returns int
 language plpgsql
 security definer
@@ -184,7 +188,7 @@ begin
     select ca.id, ca.track_id
     from public.content_assignments ca
     join public.stages s on s.id = ca.stage_id
-    where s.rank_id = p_rank_id and ca.scope = 'stage_track' and ca.is_required = true
+    where s.rank_id = p_level_id and ca.scope = 'stage_track' and ca.is_required = true
       and (
         ca.specialization_id is null
         or public.is_specialization_unlocked(p_uid, ca.specialization_id)

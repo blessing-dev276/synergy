@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import { supabase } from "../../../supabaseClient.js";
-import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import Icon from "../../../components/Icon.jsx";
-import Skeleton from "../../../components/state/Skeleton.jsx";
-import EmptyState from "../../../components/state/EmptyState.jsx";
+import { supabase } from "../../../../supabaseClient.js";
+import { useSupabaseQuery } from "../../../../lib/useSupabaseQuery.js";
+import Icon from "../../../../components/Icon.jsx";
+import Skeleton from "../../../../components/state/Skeleton.jsx";
+import EmptyState from "../../../../components/state/EmptyState.jsx";
 
 // Read-only by design (see supabase/migrations/0018_role_simplification_and_
 // sponsor_schema.sql's header comment): mentor_assignments rows are kept as
@@ -11,7 +11,7 @@ import EmptyState from "../../../components/state/EmptyState.jsx";
 // mentor wasn't necessarily who actually invited their assigned members.
 // Review each row and, where it genuinely reflects a real sponsor
 // relationship, assign it by hand from the member's detail page.
-export default function LegacyMentors() {
+export default function LegacyMentorsSection() {
   const { loading, data: rows } = useSupabaseQuery(
     () =>
       supabase
@@ -25,8 +25,7 @@ export default function LegacyMentors() {
 
   return (
     <div>
-      <h1>Legacy Mentors</h1>
-      <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
+      <p style={{ color: "var(--slate)", marginTop: 0, marginBottom: "24px" }}>
         Oversight assignments from before Synergy moved to the sponsor/network model. Kept for reference only —
         nothing here is wired into the network. If a row reflects a real sponsor relationship, assign it manually
         from that member's detail page.

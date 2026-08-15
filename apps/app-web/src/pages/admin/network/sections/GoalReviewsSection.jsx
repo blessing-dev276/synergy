@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { supabase } from "../../../supabaseClient.js";
-import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { useToast } from "../../../components/state/Toast.jsx";
-import { reviewMemberGoals } from "../../../lib/rpc.js";
-import Skeleton from "../../../components/state/Skeleton.jsx";
-import EmptyState from "../../../components/state/EmptyState.jsx";
-import Icon from "../../../components/Icon.jsx";
-import Modal from "../../../components/Modal.jsx";
+import { supabase } from "../../../../supabaseClient.js";
+import { useSupabaseQuery } from "../../../../lib/useSupabaseQuery.js";
+import { useToast } from "../../../../components/state/Toast.jsx";
+import { reviewMemberGoals } from "../../../../lib/rpc.js";
+import Skeleton from "../../../../components/state/Skeleton.jsx";
+import EmptyState from "../../../../components/state/EmptyState.jsx";
+import Icon from "../../../../components/Icon.jsx";
+import Modal from "../../../../components/Modal.jsx";
 
 const CATEGORIES = [
   { key: "skill", label: "Skill" },
@@ -100,7 +100,7 @@ function ReviewModal({ uid, period, onClose, onResolved }) {
   );
 }
 
-export default function GoalReview() {
+export default function GoalReviewsSection() {
   const period = currentPeriod();
   const [reviewingUid, setReviewingUid] = useState(null);
 
@@ -120,9 +120,8 @@ export default function GoalReview() {
 
   return (
     <div>
-      <h1>Monthly Goals — {monthLabel}</h1>
-      <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "20px" }}>
-        {needsReview} awaiting review · {notStarted} haven't set goals yet
+      <p style={{ color: "var(--slate)", marginTop: 0, marginBottom: "20px" }}>
+        {monthLabel} · {needsReview} awaiting review · {notStarted} haven't set goals yet
       </p>
 
       {loading && <Skeleton variant="card" height="240px" />}

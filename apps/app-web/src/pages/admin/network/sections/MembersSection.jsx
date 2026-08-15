@@ -1,14 +1,14 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useState } from "react";
-import { supabase } from "../../../supabaseClient.js";
-import { useAuth } from "../../../lib/AuthContext.jsx";
-import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { setUserRole, setMemberStatus, assignSponsor } from "../../../lib/rpc.js";
-import { useToast } from "../../../components/state/Toast.jsx";
-import { ROLES } from "../../../lib/roles.js";
-import Icon from "../../../components/Icon.jsx";
-import Skeleton from "../../../components/state/Skeleton.jsx";
-import EmptyState from "../../../components/state/EmptyState.jsx";
+import { supabase } from "../../../../supabaseClient.js";
+import { useAuth } from "../../../../lib/AuthContext.jsx";
+import { useSupabaseQuery } from "../../../../lib/useSupabaseQuery.js";
+import { setUserRole, setMemberStatus, assignSponsor } from "../../../../lib/rpc.js";
+import { useToast } from "../../../../components/state/Toast.jsx";
+import { ROLES } from "../../../../lib/roles.js";
+import Icon from "../../../../components/Icon.jsx";
+import Skeleton from "../../../../components/state/Skeleton.jsx";
+import EmptyState from "../../../../components/state/EmptyState.jsx";
 
 const STATUS_FILTERS = [
   { value: "not_removed", label: "All except removed" },
@@ -32,7 +32,7 @@ function matchesFilter(status, filter) {
   return status === filter;
 }
 
-export default function MemberList() {
+export default function MembersSection() {
   const toast = useToast();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -139,29 +139,26 @@ export default function MemberList() {
 
   return (
     <div>
-      <div className="section-heading">
-        <h1>Members</h1>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <select
-            value={sponsorFilter}
-            onChange={(e) => setSponsorFilter(e.target.value)}
-            style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 12px" }}
-          >
-            <option value="all">All members</option>
-            <option value="none">No sponsor</option>
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 12px" }}
-          >
-            {STATUS_FILTERS.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginBottom: "14px", flexWrap: "wrap" }}>
+        <select
+          value={sponsorFilter}
+          onChange={(e) => setSponsorFilter(e.target.value)}
+          style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 12px" }}
+        >
+          <option value="all">All members</option>
+          <option value="none">No sponsor</option>
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 12px" }}
+        >
+          {STATUS_FILTERS.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {selected.size > 0 && (

@@ -280,7 +280,9 @@ $$;
 -- it needs its own gate) -- callers that already checked (get_journey_overview,
 -- get_admin_progression_overview, check_member_milestones) are unaffected
 -- since they invoke it for auth.uid() or while current_role() = 'admin'.
-create or replace function public.compute_rank_progress(p_uid uuid, p_rank_id uuid)
+-- Note: parameter kept as p_level_id, same reason as 0038's version --
+-- CREATE OR REPLACE FUNCTION can't rename an existing parameter.
+create or replace function public.compute_rank_progress(p_uid uuid, p_level_id uuid)
 returns int
 language plpgsql
 security definer
@@ -303,7 +305,7 @@ begin
     from public.content_assignments ca
     join public.stages s on s.id = ca.stage_id
     join public.tracks t on t.id = ca.track_id
-    where s.rank_id = p_rank_id and ca.scope = 'stage_track' and ca.is_required = true
+    where s.rank_id = p_level_id and ca.scope = 'stage_track' and ca.is_required = true
       and (v_path = 'full' or t.key not in ('skill', 'freelancing'))
       and (
         ca.specialization_id is null
