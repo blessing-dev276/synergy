@@ -53,12 +53,7 @@ export const completeContentAssignment = (contentAssignmentId) =>
 
 export const getMyContentAssignments = (uid) => call("get_my_content_assignments", { p_uid: uid });
 
-export const getBusinessPathOverview = (uid) => call("get_business_path_overview", { p_uid: uid });
-
-export const getNextBusinessPathAction = (uid) => call("get_next_business_path_action", { p_uid: uid });
-
-export const setMemberBusinessPathStage = (uid, stageId) =>
-  call("set_member_business_path_stage", { p_uid: uid, p_stage_id: stageId });
+export const getLearningPaths = () => call("get_learning_paths", {});
 
 export const setMemberStatus = (uid, status) => call("set_member_status", { p_uid: uid, p_status: status });
 
@@ -82,25 +77,23 @@ export const submitContentEvidence = (contentAssignmentId, textResponse, fileUrl
 export const reviewContentEvidence = (submissionId, decision, feedback) =>
   call("review_content_evidence", { p_submission_id: submissionId, p_decision: decision, p_feedback: feedback });
 
-export const getAdminBusinessPathOverview = () => call("get_admin_business_path_overview", {});
+// ---------- ranks (Business Path v2 — free-form ranks + attached Learning Hub paths) ----------
+export const adminListRanks = () => call("admin_list_ranks", {});
 
-export const setMyBusinessPathSpecialization = (trackId, specializationId) =>
-  call("set_my_business_path_specialization", { p_track_id: trackId, p_specialization_id: specializationId });
+export const adminCreateRank = (title) => call("admin_create_rank", { p_title: title });
 
-export const adminSetMemberBusinessPathSpecialization = (uid, trackId, specializationId) =>
-  call("admin_set_member_business_path_specialization", { p_uid: uid, p_track_id: trackId, p_specialization_id: specializationId });
+export const adminUpdateRank = (id, title, orderIndex) =>
+  call("admin_update_rank", { p_id: id, p_title: title, p_order_index: orderIndex });
 
-// ---------- Business Path placements (stage/track-scoped content) ----------
-export const getMyBusinessPathPlacements = (uid) => call("get_my_business_path_placements", { p_uid: uid });
+export const adminDeleteRank = (id) => call("admin_delete_rank", { p_id: id });
 
-export const completeBusinessPathPlacement = (placementId) =>
-  call("complete_business_path_placement", { p_placement_id: placementId });
+export const adminSetRankLearningPaths = (rankId, learningPathIds) =>
+  call("admin_set_rank_learning_paths", { p_rank_id: rankId, p_learning_path_ids: learningPathIds });
 
-export const submitBusinessPathEvidence = (placementId, textResponse, fileUrls) =>
-  call("submit_business_path_evidence", { p_placement_id: placementId, p_text_response: textResponse, p_file_urls: fileUrls });
+export const adminSetMemberRank = (uid, rankId) =>
+  call("admin_set_member_rank", { p_uid: uid, p_rank_id: rankId });
 
-export const reviewBusinessPathEvidence = (submissionId, decision, feedback) =>
-  call("review_business_path_evidence", { p_submission_id: submissionId, p_decision: decision, p_feedback: feedback });
+export const adminGetMembersByRank = () => call("admin_get_members_by_rank", {});
 
 // ---------- participation path ----------
 export const requestParticipationPath = (requestedPath, reason) =>
@@ -111,14 +104,6 @@ export const adminSetParticipationPath = (uid, path) =>
 
 export const reviewParticipationPathRequest = (requestId, decision, note) =>
   call("review_participation_path_request", { p_request_id: requestId, p_decision: decision, p_note: note });
-
-// ---------- daily tasks ----------
-// Reads go through supabase.rpc directly inside useSupabaseQuery (this
-// wrapper's {data,error}-unwrapping `call()` shape doesn't fit that hook) --
-// this export is for imperative (non-list) callers only. Omits p_date
-// entirely when unset so Postgres' `default current_date` applies -- passing
-// an explicit null would defeat the default.
-export const getDailyTasks = (uid, date) => call("get_or_generate_daily_tasks", date ? { p_uid: uid, p_date: date } : { p_uid: uid });
 
 // ---------- monthly goals ----------
 export const saveMyGoals = (period, goals) => call("save_my_goals", { p_period: period, p_goals: goals });

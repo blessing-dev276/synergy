@@ -7,8 +7,10 @@ import { useToast } from "./state/Toast.jsx";
 const CONTENT_TYPE_LABEL = { course: "Course", assignment: "Assignment", bare: "Task/Project" };
 
 // Search-as-you-type over the reusable content library (content_items),
-// shared by BusinessPathBuilder.jsx (placing content into a stage/track) and
-// MemberDetail.jsx's ActivitiesPanel (assigning content to one member).
+// used by MemberDetail.jsx's ActivitiesPanel (assigning individual content
+// to one member -- the only content-assignment surface left; Business Path
+// v2 dropped the stage/track content model this was also once shared with,
+// see supabase/migrations/0058_business_path_v2_drop_v1.sql).
 // This is the whole point of the content-assignment refactor: content is
 // created ONCE and placed wherever it's needed, not retyped per placement
 // (see supabase/migrations/0027_content_model_schema.sql). "Can't find it?"

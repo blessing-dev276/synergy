@@ -20,12 +20,15 @@ export default function PathDetail() {
     [pathId],
   );
 
-  // get_learning_paths (0047) is the source of truth for lock state (mirrors
-  // the Dashboard/PathList gate) -- fetched here too so a locked path can't
-  // be opened by going straight to its URL even though PathList no longer
-  // links to it.
+  // get_learning_paths (Business Path v2) is the source of truth for which
+  // paths this member can see (mirrors PathList's gate) -- fetched here too
+  // so a path outside the member's rank can't be opened by going straight to
+  // its URL even though PathList no longer links to it. No more partial/
+  // locked state (see 0047's old `locked` field, dropped) -- a path is
+  // either in this list or it isn't. Don't block while `paths` hasn't
+  // loaded yet, same as the old `locked ?? false` default did.
   const { data: paths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths"), []);
-  const locked = paths?.find((p) => p.id === pathId)?.locked ?? false;
+  const accessible = !paths || paths.some((p) => p.id === pathId);
 
   const {
     loading: loadingCourses,
@@ -33,14 +36,14 @@ export default function PathDetail() {
     data: courses,
   } = useSupabaseQuery(
     () =>
-      !locked &&
+      accessible &&
       supabase
         .from("courses")
         .select("*")
         .eq("path_id", pathId)
         .eq("published", true)
         .order("order_index", { ascending: true }),
-    [pathId, locked],
+    [pathId, accessible],
   );
 
   return (
@@ -53,15 +56,15 @@ export default function PathDetail() {
         </>
       )}
 
-      {locked && (
-        <EmptyState icon="🔒" title="This skill is locked" description="This isn't your chosen skill — ask an admin if you'd like it changed." />
+      {!accessible && (
+        <EmptyState icon="🔒" title="This path isn't available to you" description="It isn't attached to your rank — ask an admin if you think this is a mistake." />
       )}
-      {!locked && loadingCourses && <Skeleton variant="card" height="100px" />}
-      {!locked && error && <ErrorState description="Couldn't load courses." />}
-      {!locked && !loadingCourses && !error && (!courses || courses.length === 0) && (
+      {accessible && loadingCourses && <Skeleton variant="card" height="100px" />}
+      {accessible && error && <ErrorState description="Couldn't load courses." />}
+      {accessible && !loadingCourses && !error && (!courses || courses.length === 0) && (
         <EmptyState icon="📘" title="Nothing published in this path yet" />
       )}
-      {!locked && courses && courses.length > 0 && (
+      {accessible && courses && courses.length > 0 && (
         <div className="grid grid-2">
           {courses.map((course) => {
             const type = course.resource_type ?? "course";

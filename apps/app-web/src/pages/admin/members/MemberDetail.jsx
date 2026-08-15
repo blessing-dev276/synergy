@@ -5,9 +5,9 @@ import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import {
   assignSponsor,
-  setMemberBusinessPathStage,
   setMemberStatus,
-  adminSetMemberBusinessPathSpecialization,
+  adminListRanks,
+  adminSetMemberRank,
   adminSetParticipationPath,
   reviewParticipationPathRequest,
 } from "../../../lib/rpc.js";
@@ -57,7 +57,7 @@ function ProfilePanel({ member }) {
     [member.id],
   );
   const { data: goals } = useSupabaseQuery(
-    () => supabase.from("member_goals").select("*, target_rank:business_path_levels(label)").eq("uid", member.id).maybeSingle(),
+    () => supabase.from("member_goals").select("*, target_rank:ranks(title)").eq("uid", member.id).maybeSingle(),
     [member.id],
   );
 
@@ -162,8 +162,8 @@ function ProfilePanel({ member }) {
             )}
             {goals.target_rank && (
               <>
-                <dt style={{ color: "var(--slate)" }}>Target Path Level</dt>
-                <dd>{goals.target_rank.label}</dd>
+                <dt style={{ color: "var(--slate)" }}>Target rank</dt>
+                <dd>{goals.target_rank.title}</dd>
               </>
             )}
             {goals.reward_tools?.length > 0 && (
@@ -399,22 +399,25 @@ function StatusPanel({ member, onChanged }) {
   );
 }
 
-function StagePanel({ member, journey, stages, levels, onChanged }) {
+// Business Path v2: a member has exactly one admin-assigned rank
+// (profiles.rank_id), no fixed ladder -- ranks are whatever an admin has
+// created in the Rank Builder (admin_list_ranks, see supabase/migrations/
+// 0059_business_path_v2_schema.sql / 0060_business_path_v2_functions.sql).
+function RankPanel({ member, ranks, onChanged }) {
   const toast = useToast();
-  const [selectedStage, setSelectedStage] = useState(journey?.current_stage_id ?? "");
+  const [selectedRank, setSelectedRank] = useState(member.rank_id ?? "");
   const [saving, setSaving] = useState(false);
 
-  const currentStage = stages?.find((s) => s.id === journey?.current_stage_id);
-  const currentLevel = levels?.find((l) => l.id === currentStage?.path_level_id);
+  const currentRank = ranks?.find((r) => r.id === member.rank_id);
 
   const handleSet = async () => {
     setSaving(true);
     try {
-      await setMemberBusinessPathStage(member.id, selectedStage || null);
-      toast.success("Business Path stage updated.");
+      await adminSetMemberRank(member.id, selectedRank || null);
+      toast.success("Rank updated.");
       onChanged();
     } catch (err) {
-      toast.error(err.message ?? "Couldn't update stage.");
+      toast.error(err.message ?? "Couldn't update rank.");
     } finally {
       setSaving(false);
     }
@@ -424,28 +427,22 @@ function StagePanel({ member, journey, stages, levels, onChanged }) {
     <div className="card-elevated">
       <div className="card-title">
         <Icon name="compass" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        Business Path Stage
+        Rank
       </div>
       <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
-        Currently: <strong style={{ color: "var(--navy)" }}>{currentStage?.title ?? "Not started"}</strong>
-        {currentLevel && (
-          <>
-            {" "}
-            · <span className="badge badge-neutral">{currentLevel.label}</span>
-          </>
-        )}
+        Currently: <strong style={{ color: "var(--navy)" }}>{currentRank?.title ?? "No rank assigned"}</strong>
       </p>
       <div style={{ display: "flex", gap: "8px" }}>
-        <select value={selectedStage} onChange={(e) => setSelectedStage(e.target.value)} style={{ flex: 1, border: "1px solid var(--line)", borderRadius: "10px", padding: "9px 12px" }}>
-          <option value="">Not started</option>
-          {stages?.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.title}
+        <select value={selectedRank} onChange={(e) => setSelectedRank(e.target.value)} style={{ flex: 1, border: "1px solid var(--line)", borderRadius: "10px", padding: "9px 12px" }}>
+          <option value="">No rank</option>
+          {ranks?.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.title}
             </option>
           ))}
         </select>
-        <button type="button" className="btn btn-primary" onClick={handleSet} disabled={saving || selectedStage === (journey?.current_stage_id ?? "")}>
-          {saving ? "Saving…" : "Set stage"}
+        <button type="button" className="btn btn-primary" onClick={handleSet} disabled={saving || selectedRank === (member.rank_id ?? "")}>
+          {saving ? "Saving…" : "Set rank"}
         </button>
       </div>
     </div>
@@ -549,95 +546,6 @@ function ParticipationPathPanel({ member, onChanged }) {
           Set: Network Marketing only
         </button>
       </div>
-    </div>
-  );
-}
-
-// Members lock in their own skill specialization once (see
-// set_my_business_path_specialization, supabase/migrations/0051_business_path_
-// functions.sql) — this is the only way to change it after the fact. Grouped
-// by track since only the 'skill' track has specializations seeded today,
-// but any track with published rows here will show a picker.
-function SpecializationPanel({ member }) {
-  const toast = useToast();
-  const [saving, setSaving] = useState(null);
-
-  const { data: specializations } = useSupabaseQuery(
-    () =>
-      supabase
-        .from("business_path_specializations")
-        .select("*, tracks:business_path_tracks(label)")
-        .eq("published", true)
-        .order("order_index"),
-    [],
-  );
-  const { data: chosen, refetch: refetchChosen } = useSupabaseQuery(
-    () => supabase.from("member_business_path_specializations").select("*").eq("uid", member.id),
-    [member.id],
-  );
-
-  if (!specializations || specializations.length === 0) return null;
-
-  const byTrack = {};
-  for (const spec of specializations) {
-    (byTrack[spec.track_id] ??= []).push(spec);
-  }
-
-  const choose = async (spec) => {
-    setSaving(spec.id);
-    try {
-      await adminSetMemberBusinessPathSpecialization(member.id, spec.track_id, spec.id);
-      toast.success(`${spec.label} set as this member's skill.`);
-      refetchChosen();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't set that skill.");
-    } finally {
-      setSaving(null);
-    }
-  };
-
-  return (
-    <div className="card-elevated">
-      <div className="card-title">
-        <Icon name="target" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        Skill Specialization
-      </div>
-      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
-        Members choose one skill themselves and can't change it — use this to reassign it.
-      </p>
-      {Object.entries(byTrack).map(([trackId, specs]) => {
-        const selectedId = chosen?.find((c) => c.track_id === trackId)?.specialization_id;
-        return (
-          <div key={trackId} style={{ marginBottom: "12px" }}>
-            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate)", marginBottom: "6px" }}>{specs[0].tracks?.label}</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-              {specs.map((spec) => {
-                const isChosen = spec.id === selectedId;
-                return (
-                  <button
-                    key={spec.id}
-                    type="button"
-                    className={`badge ${isChosen ? "badge-success" : "badge-neutral"}`}
-                    onClick={() => choose(spec)}
-                    disabled={isChosen || saving === spec.id}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "5px",
-                      border: "none",
-                      cursor: isChosen ? "default" : "pointer",
-                    }}
-                  >
-                    <span aria-hidden="true">{spec.icon}</span>
-                    {spec.label}
-                    {isChosen && <Icon name="check" size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -899,13 +807,7 @@ export default function MemberDetail() {
     () => supabase.from("profiles").select("*").eq("id", uid).single(),
     [uid],
   );
-  const { data: journey, refetch: refetchJourney } = useSupabaseQuery(
-    () => supabase.from("member_business_path_stage").select("*").eq("uid", uid).maybeSingle(),
-    [uid],
-  );
-  const { data: stages } = useSupabaseQuery(() => supabase.from("business_path_stages").select("*").order("order_index"), []);
-  const { data: tracks } = useSupabaseQuery(() => supabase.from("business_path_tracks").select("*").order("key"), []);
-  const { data: levels } = useSupabaseQuery(() => supabase.from("business_path_levels").select("*").order("order_index"), []);
+  const { data: ranks } = useSupabaseQuery(() => adminListRanks(), []);
 
   if (loading) return <Skeleton variant="card" height="200px" />;
   if (!member) return null;
@@ -924,14 +826,13 @@ export default function MemberDetail() {
       {member.role === "member" && (
         <>
           <div className="grid grid-2" style={{ alignItems: "start" }}>
-            <StagePanel member={member} journey={journey} stages={stages} levels={levels} onChanged={refetchJourney} />
+            <RankPanel member={member} ranks={ranks} onChanged={refetchMember} />
             <SponsorPanel member={member} onChanged={refetchMember} />
           </div>
-          <div className="grid grid-2" style={{ alignItems: "start", marginTop: "16px" }}>
+          <div style={{ marginTop: "16px" }}>
             <ParticipationPathPanel member={member} onChanged={refetchMember} />
-            <SpecializationPanel member={member} />
           </div>
-          <ActivitiesPanel member={member} stages={stages} tracks={tracks} defaultStageId={journey?.current_stage_id} />
+          <ActivitiesPanel member={member} />
         </>
       )}
     </div>

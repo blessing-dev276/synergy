@@ -17,12 +17,13 @@ const SECTIONS = [
 export default function PathList() {
   const [section, setSection] = useState("skill_set");
 
-  // get_learning_paths (0047, section-aware since 0049) computes `locked`
-  // server-side off the same is_specialization_unlocked gate the
-  // Dashboard's track cards use -- a member only has their chosen skill
-  // (+ Graphics Design while Newbie) unlocked here too, instead of every
-  // path being browsable. Fetched once, filtered by tab client-side --
-  // it's a small catalog, no need for a per-tab round trip.
+  // get_learning_paths (Business Path v2, see supabase/migrations/
+  // 0060_business_path_v2_functions.sql) already returns only the paths this
+  // member can see -- unattached paths (visible to everyone) plus whatever's
+  // attached to their rank, minus any skill path if they're network-
+  // marketing-only. A path is either in this list or it isn't; there's no
+  // partial/locked state anymore. Fetched once, filtered by tab client-side
+  // -- it's a small catalog, no need for a per-tab round trip.
   const { loading, error, data: allPaths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths"), []);
   const paths = allPaths?.filter((p) => p.section === section);
   const activeSection = SECTIONS.find((s) => s.key === section);
@@ -60,24 +61,13 @@ export default function PathList() {
       )}
       {paths && paths.length > 0 && (
         <div className="grid grid-2">
-          {paths.map((path) =>
-            path.locked ? (
-              <div key={path.id} className="card" style={{ opacity: 0.55, cursor: "not-allowed" }} title="Locked — this isn't your chosen skill">
-                <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  {path.title}
-                  <Icon name="lock" size={14} />
-                </div>
-                <div className="card-subtitle">{path.description}</div>
-                <span className="badge badge-neutral">Locked</span>
-              </div>
-            ) : (
-              <Link key={path.id} to={`/learning/${path.id}`} className="card">
-                <div className="card-title">{path.title}</div>
-                <div className="card-subtitle">{path.description}</div>
-                <span className="badge badge-neutral">{path.courseCount ?? 0} resources</span>
-              </Link>
-            ),
-          )}
+          {paths.map((path) => (
+            <Link key={path.id} to={`/learning/${path.id}`} className="card">
+              <div className="card-title">{path.title}</div>
+              <div className="card-subtitle">{path.description}</div>
+              <span className="badge badge-neutral">{path.courseCount ?? 0} resources</span>
+            </Link>
+          ))}
         </div>
       )}
     </div>

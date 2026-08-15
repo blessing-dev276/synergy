@@ -35,8 +35,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import ActivityLog from "./pages/admin/ActivityLog.jsx";
 import ContentBuilder from "./pages/admin/content/ContentBuilder.jsx";
 import CourseEditor from "./pages/admin/content/CourseEditor.jsx";
-import BusinessPathBuilder from "./pages/admin/business-path/BusinessPathBuilder.jsx";
-import ProgressionOverview from "./pages/admin/business-path/ProgressionOverview.jsx";
+import RankBuilder from "./pages/admin/business-path/RankBuilder.jsx";
 import MemberDetail from "./pages/admin/members/MemberDetail.jsx";
 import NetworkOverview from "./pages/admin/network/NetworkOverview.jsx";
 import SettingsGeneral from "./pages/admin/settings/SettingsGeneral.jsx";
@@ -96,8 +95,7 @@ function App() {
           <Route element={<RoleGuard allow={["admin"]} />}>
             <Route element={<AdminLayout />}>
               <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/business-path" element={<BusinessPathBuilder />} />
-              <Route path="/admin/business-path/progression" element={<ProgressionOverview />} />
+              <Route path="/admin/business-path" element={<RankBuilder />} />
               <Route path="/admin/journey" element={<Navigate to="/admin/business-path" replace />} />
               <Route path="/admin/content" element={<ContentBuilder />} />
               <Route path="/admin/content/courses/:courseId" element={<CourseEditor />} />
