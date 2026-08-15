@@ -134,8 +134,8 @@ function TeamComposition({ counts }) {
 
 const QUICK_LINKS = [
   { to: "/admin/content", icon: "layers", label: "Learning Hub" },
-  { to: "/admin/journey", icon: "compass", label: "Stage Builder" },
-  { to: "/admin/network?section=members", icon: "users", label: "Members" },
+  { to: "/admin/business-path", icon: "compass", label: "Business Path" },
+  { to: "/admin/settings/team", icon: "users", label: "Team" },
   { to: "/admin/network", icon: "network", label: "Network" },
   { to: "/admin/leaderboard", icon: "dollar-sign", label: "Leaderboard" },
   { to: "/admin/settings/activity", icon: "activity", label: "Activity Log" },
@@ -156,9 +156,7 @@ export default function AdminDashboard() {
         newThisMonth,
         coursesPublished,
         coursesTotal,
-        pendingSponsorRequests,
         pendingReviews,
-        pendingPromotions,
         quizAgg,
         activeNetwork,
         verifiedEarnings,
@@ -178,9 +176,7 @@ export default function AdminDashboard() {
           .gt("created_at", new Date(Date.now() - 30 * 86400000).toISOString()),
         supabase.from("courses").select("*", { count: "exact", head: true }).eq("published", true),
         supabase.from("courses").select("*", { count: "exact", head: true }),
-        supabase.from("sponsor_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("assignment_submissions").select("*", { count: "exact", head: true }).eq("status", "submitted"),
-        supabase.from("stage_promotion_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("quiz_attempts").select("score"),
         supabase.from("sponsor_relationships").select("*", { count: "exact", head: true }).eq("active", true),
         supabase.from("earnings_logs").select("amount").eq("status", "verified"),
@@ -199,9 +195,7 @@ export default function AdminDashboard() {
         newThisMonth: newThisMonth.count ?? 0,
         coursesPublished: coursesPublished.count ?? 0,
         coursesTotal: coursesTotal.count ?? 0,
-        pendingSponsorRequests: pendingSponsorRequests.count ?? 0,
         pendingReviews: pendingReviews.count ?? 0,
-        pendingPromotions: pendingPromotions.count ?? 0,
         avgQuizScore,
         activeNetwork: activeNetwork.count ?? 0,
         earningsTotal,
@@ -220,7 +214,7 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  const totalPending = (stats?.pendingReviews ?? 0) + (stats?.pendingSponsorRequests ?? 0) + (stats?.pendingPromotions ?? 0);
+  const totalPending = stats?.pendingReviews ?? 0;
 
   return (
     <div>
@@ -243,19 +237,13 @@ export default function AdminDashboard() {
               {stats.pendingReviews > 0 && (
                 <AttentionRow icon="folder" count={stats.pendingReviews} label="Assignment submissions awaiting review" to="/admin/network?section=reviews" />
               )}
-              {stats.pendingSponsorRequests > 0 && (
-                <AttentionRow icon="network" count={stats.pendingSponsorRequests} label="Sponsor requests awaiting resolution" to="/admin/network?section=sponsor-requests" />
-              )}
-              {stats.pendingPromotions > 0 && (
-                <AttentionRow icon="compass" count={stats.pendingPromotions} label="Stage promotion requests pending" to="/admin/journey/promotions" />
-              )}
             </>
           )}
         </div>
       )}
 
       <div className="grid grid-3" style={{ marginBottom: "24px" }}>
-        <StatTile label="Total members" value={stats?.members} icon="users" loading={!stats} to="/admin/network?section=members" />
+        <StatTile label="Total members" value={stats?.members} icon="users" loading={!stats} to="/admin/settings/team" />
         <StatTile label="Active this week" value={stats?.activeThisWeek} icon="activity" tone="success" loading={!stats} />
         <StatTile label="New this month" value={stats?.newThisMonth} icon="user" loading={!stats} />
         <StatTile label="Published courses" value={stats && `${stats.coursesPublished}/${stats.coursesTotal}`} icon="book" loading={!stats} to="/admin/content" />

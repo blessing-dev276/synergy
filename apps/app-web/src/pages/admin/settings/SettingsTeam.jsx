@@ -1,59 +1,158 @@
+import { Link, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { setUserRole } from "../../../lib/rpc.js";
+import { setUserRole, setMemberStatus, assignSponsor } from "../../../lib/rpc.js";
 import { useToast } from "../../../components/state/Toast.jsx";
+import { ROLES } from "../../../lib/roles.js";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 
+// The full member roster used to live as a "Members" accordion section
+// under /admin/network — moved here since it's a team-management concern
+// (who's in, their role, their sponsor), not a network-relationships one.
+// Network keeps sponsor tree/prospecting/reviews; this page absorbed
+// Members' filtering + bulk actions AND the old grant/revoke-admin flow
+// (redundant once every row already has a role dropdown).
+const STATUS_FILTERS = [
+  { value: "not_removed", label: "All except removed" },
+  { value: "pending", label: "Pending approval" },
+  { value: "active", label: "Active only" },
+  { value: "suspended", label: "Suspended only" },
+  { value: "removed", label: "Removed / Archived" },
+  { value: "all", label: "All" },
+];
+
+const STATUS_BADGE = {
+  pending: "badge-info",
+  active: "badge-success",
+  suspended: "badge-warning",
+  removed: "badge-danger",
+};
+
+function matchesFilter(status, filter) {
+  if (filter === "all") return true;
+  if (filter === "not_removed") return status !== "removed";
+  return status === filter;
+}
+
 export default function SettingsTeam() {
   const toast = useToast();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const validFilters = new Set(STATUS_FILTERS.map((f) => f.value));
+  const initialFilter = searchParams.get("status");
   const [busyUid, setBusyUid] = useState(null);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState(validFilters.has(initialFilter) ? initialFilter : "not_removed");
+  const [sponsorFilter, setSponsorFilter] = useState(searchParams.get("sponsor") === "none" ? "none" : "all");
+  const [selected, setSelected] = useState(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
-  const { loading, data: profiles, refetch } = useSupabaseQuery(
+  const { loading, data: users, refetch } = useSupabaseQuery(
     () => supabase.from("profiles").select("*").order("created_at", { ascending: false }),
     [],
   );
 
-  const admins = (profiles ?? []).filter((p) => p.role === "admin");
-  const members = (profiles ?? []).filter((p) => p.role === "member");
+  const isUnsponsored = (u) => u.role === "member" && !u.sponsor_uid;
+  const membersById = new Map((users ?? []).map((u) => [u.id, u]));
+  const sponsorOptions = (users ?? []).filter((u) => (u.status ?? "active") === "active");
 
   const q = query.trim().toLowerCase();
-  const matches = q
-    ? members.filter(
-        (m) => (m.display_name ?? "").toLowerCase().includes(q) || (m.email ?? "").toLowerCase().includes(q),
-      )
-    : [];
+  const visibleUsers = (users ?? []).filter(
+    (u) =>
+      matchesFilter(u.status ?? "active", statusFilter) &&
+      (sponsorFilter !== "none" || isUnsponsored(u)) &&
+      (!q || (u.display_name ?? "").toLowerCase().includes(q) || (u.email ?? "").toLowerCase().includes(q)),
+  );
 
-  const revoke = async (p) => {
-    if (!window.confirm(`Revoke admin access for ${p.display_name || p.email}? They'll lose access to this admin area.`)) return;
-    setBusyUid(p.id);
+  const assignMemberSponsor = async (memberUid, sponsorUid) => {
+    if (!sponsorUid) return;
+    setBusyUid(memberUid);
     try {
-      await setUserRole(p.id, "member");
-      toast.success("Admin access revoked.");
+      await assignSponsor(memberUid, sponsorUid);
+      toast.success("Sponsor assigned.");
       refetch();
     } catch (err) {
-      toast.error(err.message ?? "Couldn't revoke admin access.");
+      toast.error(err.message ?? "Couldn't assign sponsor.");
     } finally {
       setBusyUid(null);
     }
   };
 
-  const grant = async (p) => {
-    if (!window.confirm(`Make ${p.display_name || p.email} an admin? They'll get full access to this admin area.`)) return;
-    setBusyUid(p.id);
+  // Granting/revoking admin access is the sensitive transition here (full
+  // access to this admin area), so it keeps the confirmation the old
+  // dedicated grant/revoke buttons had — plain member/mentor changes don't
+  // need it. The role select is disabled for your own row entirely so you
+  // can't demote yourself by accident.
+  const changeRole = async (u, role) => {
+    if (role === u.role) return;
+    if (role === "admin" && !window.confirm(`Make ${u.display_name || u.email} an admin? They'll get full access to this admin area.`)) return;
+    if (u.role === "admin" && role !== "admin" && !window.confirm(`Revoke admin access for ${u.display_name || u.email}? They'll lose access to this admin area.`)) return;
+    setBusyUid(u.id);
     try {
-      await setUserRole(p.id, "admin");
-      toast.success("Admin access granted.");
+      await setUserRole(u.id, role);
+      toast.success("Role updated. They'll see it next time they log in.");
       refetch();
     } catch (err) {
-      toast.error(err.message ?? "Couldn't grant admin access.");
+      toast.error(err.message ?? "Couldn't update role.");
     } finally {
       setBusyUid(null);
+    }
+  };
+
+  const changeStatus = async (u, status) => {
+    const wasPending = (u.status ?? "active") === "pending";
+    if (status === "suspended" && !window.confirm(`Suspend ${u.display_name || u.email}? They'll stay logged in but won't be able to take part in any training, tasks, or assignments until reinstated.`)) return;
+    if (status === "removed" && wasPending && !window.confirm(`Reject ${u.display_name || u.email}'s application? Their profile is archived and hidden from this list. This can be undone.`)) return;
+    if (status === "removed" && !wasPending && !window.confirm(`Remove ${u.display_name || u.email}? Their profile is archived and hidden from this list, and they lose access to the program. Their data is kept, not deleted, and this can be undone.`)) return;
+    setBusyUid(u.id);
+    try {
+      await setMemberStatus(u.id, status);
+      toast.success(
+        status === "active" ? (wasPending ? "Member approved." : "Member reinstated.") : status === "suspended" ? "Member suspended." : wasPending ? "Application rejected." : "Member removed (archived).",
+      );
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't update status.");
+    } finally {
+      setBusyUid(null);
+    }
+  };
+
+  const toggleSelect = (uid) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(uid)) next.delete(uid);
+      else next.add(uid);
+      return next;
+    });
+  };
+
+  const selectableUids = visibleUsers.filter((u) => u.role !== "admin" && u.id !== user?.id).map((u) => u.id);
+  const allSelected = selectableUids.length > 0 && selectableUids.every((id) => selected.has(id));
+
+  const toggleSelectAll = () => {
+    setSelected(allSelected ? new Set() : new Set(selectableUids));
+  };
+
+  const bulkChangeStatus = async (status) => {
+    const targets = [...selected];
+    if (targets.length === 0) return;
+    const verb = status === "active" ? "reinstate" : status;
+    if (!window.confirm(`${verb === "reinstate" ? "Reinstate" : `${verb[0].toUpperCase()}${verb.slice(1)}`} ${targets.length} member(s)?`)) return;
+    setBulkBusy(true);
+    try {
+      const results = await Promise.allSettled(targets.map((uid) => setMemberStatus(uid, status)));
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) toast.error(`${failed} of ${targets.length} couldn't be updated.`);
+      else toast.success(`${targets.length} member(s) updated.`);
+      setSelected(new Set());
+      refetch();
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -62,109 +161,181 @@ export default function SettingsTeam() {
       <div className="section-heading">
         <h1>Team</h1>
       </div>
-      <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
-        Manage who has admin access to this area.
+      <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "20px" }}>
+        Your full member roster — search, filter, manage status and sponsors, and grant or revoke admin access.
       </p>
 
+      <div style={{ display: "flex", gap: "10px", marginBottom: "14px", flexWrap: "wrap" }}>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by name or email…"
+          style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 12px", flex: 1, minWidth: "200px" }}
+        />
+        <select
+          value={sponsorFilter}
+          onChange={(e) => setSponsorFilter(e.target.value)}
+          style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 12px" }}
+        >
+          <option value="all">All members</option>
+          <option value="none">No sponsor</option>
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 12px" }}
+        >
+          {STATUS_FILTERS.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selected.size > 0 && (
+        <div className="card-elevated" style={{ marginBottom: "14px", display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px" }}>
+          <span style={{ fontSize: "13.5px", fontWeight: 600 }}>{selected.size} selected</span>
+          <button type="button" className="btn btn-secondary" disabled={bulkBusy} onClick={() => bulkChangeStatus("suspended")}>
+            <Icon name="ban" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            Suspend
+          </button>
+          <button type="button" className="btn btn-secondary" disabled={bulkBusy} onClick={() => bulkChangeStatus("active")}>
+            <Icon name="rotate-ccw" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            Reinstate
+          </button>
+          <button type="button" className="btn btn-danger" disabled={bulkBusy} onClick={() => bulkChangeStatus("removed")}>
+            <Icon name="user-x" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            Remove
+          </button>
+          <button type="button" className="btn btn-secondary" disabled={bulkBusy} onClick={() => setSelected(new Set())} style={{ marginLeft: "auto" }}>
+            Clear
+          </button>
+        </div>
+      )}
+
       {loading && <Skeleton variant="card" height="200px" />}
-
-      {!loading && (
-        <>
-          <div className="card-title">Admins</div>
-          {admins.length === 0 && <EmptyState icon={<Icon name="users" size={26} />} title="No admins yet" />}
-          {admins.length > 0 && (
-            <div className="card-elevated" style={{ padding: 0, marginBottom: "28px" }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {admins.map((p) => {
-                    const isSelf = p.id === user?.id;
-                    return (
-                      <tr key={p.id}>
-                        <td style={{ fontWeight: 600 }}>{p.display_name || "—"}</td>
-                        <td>{p.email}</td>
-                        <td>
-                          <span className="badge badge-neutral">{p.role}</span>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="btn btn-danger"
-                            disabled={isSelf || busyUid === p.id}
-                            title={isSelf ? "You can't revoke your own admin access" : "Revoke admin access"}
-                            onClick={() => revoke(p)}
-                          >
-                            <Icon name="user-x" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
-                            Revoke admin access
+      {!loading && visibleUsers.length === 0 && <EmptyState icon={<Icon name="users" size={26} />} title="No matching members" />}
+      {visibleUsers.length > 0 && (
+        <div className="card-elevated" style={{ padding: 0 }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>
+                  <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} disabled={selectableUids.length === 0} aria-label="Select all" />
+                </th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Sponsor</th>
+                <th>Change role</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleUsers.map((u) => {
+                const status = u.status ?? "active";
+                const isSelf = u.id === user?.id;
+                const isAdmin = u.role === "admin";
+                return (
+                  <tr key={u.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(u.id)}
+                        onChange={() => toggleSelect(u.id)}
+                        disabled={isSelf || isAdmin}
+                        aria-label={`Select ${u.display_name || u.email}`}
+                      />
+                    </td>
+                    <td>
+                      <Link to={`/admin/members/${u.id}`} style={{ fontWeight: 600 }}>
+                        {u.display_name || u.email}
+                      </Link>
+                    </td>
+                    <td>
+                      <span className="badge badge-neutral">{u.role}</span>
+                    </td>
+                    <td>
+                      <span className={`badge ${STATUS_BADGE[status] ?? "badge-neutral"}`}>{status}</span>
+                    </td>
+                    <td>
+                      {u.role !== "member" ? (
+                        "—"
+                      ) : u.sponsor_uid ? (
+                        membersById.get(u.sponsor_uid)?.display_name || membersById.get(u.sponsor_uid)?.email || "—"
+                      ) : (
+                        <select
+                          value=""
+                          disabled={busyUid === u.id}
+                          onChange={(e) => assignMemberSponsor(u.id, e.target.value)}
+                          style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "6px 10px" }}
+                        >
+                          <option value="">Assign sponsor…</option>
+                          {sponsorOptions
+                            .filter((s) => s.id !== u.id)
+                            .map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.display_name || s.email}
+                              </option>
+                            ))}
+                        </select>
+                      )}
+                    </td>
+                    <td>
+                      <select
+                        value={u.role}
+                        disabled={busyUid === u.id || isSelf}
+                        title={isSelf ? "You can't change your own role" : undefined}
+                        onChange={(e) => changeRole(u, e.target.value)}
+                        style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "6px 10px" }}
+                      >
+                        {ROLES.map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <Link to={`/admin/members/${u.id}`} className="icon-btn" title="Manage">
+                          <Icon name="pencil" size={14} />
+                        </Link>
+                        {!isSelf && !isAdmin && status === "pending" && (
+                          <>
+                            <button type="button" className="icon-btn" title="Approve" disabled={busyUid === u.id} onClick={() => changeStatus(u, "active")}>
+                              <Icon name="check" size={14} />
+                            </button>
+                            <button type="button" className="icon-btn icon-btn-danger" title="Reject" disabled={busyUid === u.id} onClick={() => changeStatus(u, "removed")}>
+                              <Icon name="x" size={14} />
+                            </button>
+                          </>
+                        )}
+                        {!isSelf && !isAdmin && status !== "pending" && status !== "suspended" && (
+                          <button type="button" className="icon-btn" title="Suspend" disabled={busyUid === u.id} onClick={() => changeStatus(u, "suspended")}>
+                            <Icon name="ban" size={14} />
                           </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div className="card-title">Grant admin access</div>
-          <p style={{ fontSize: "13.5px", color: "var(--slate)", marginTop: "-6px", marginBottom: "12px" }}>
-            Search current members by name or email, then grant admin access.
-          </p>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search members by name or email…"
-            style={{
-              border: "1px solid var(--line)",
-              borderRadius: "8px",
-              padding: "8px 12px",
-              width: "100%",
-              maxWidth: "360px",
-              marginBottom: "14px",
-            }}
-          />
-
-          {q && matches.length === 0 && <EmptyState icon={<Icon name="users" size={26} />} title="No matching members" />}
-          {matches.length > 0 && (
-            <div className="card-elevated" style={{ padding: 0 }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th></th>
+                        )}
+                        {!isSelf && !isAdmin && status !== "pending" && status !== "active" && (
+                          <button type="button" className="icon-btn" title="Reinstate" disabled={busyUid === u.id} onClick={() => changeStatus(u, "active")}>
+                            <Icon name="rotate-ccw" size={14} />
+                          </button>
+                        )}
+                        {!isSelf && !isAdmin && status !== "pending" && status !== "removed" && (
+                          <button type="button" className="icon-btn icon-btn-danger" title="Remove" disabled={busyUid === u.id} onClick={() => changeStatus(u, "removed")}>
+                            <Icon name="user-x" size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {matches.map((p) => (
-                    <tr key={p.id}>
-                      <td style={{ fontWeight: 600 }}>{p.display_name || "—"}</td>
-                      <td>{p.email}</td>
-                      <td>
-                        <span className="badge badge-neutral">{p.role}</span>
-                      </td>
-                      <td>
-                        <button type="button" className="btn btn-primary" disabled={busyUid === p.id} onClick={() => grant(p)}>
-                          <Icon name="check" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
-                          Make admin
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

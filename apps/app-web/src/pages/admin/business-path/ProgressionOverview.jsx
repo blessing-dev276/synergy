@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
-import { getAdminProgressionOverview } from "../../../lib/rpc.js";
+import { getAdminBusinessPathOverview } from "../../../lib/rpc.js";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
@@ -27,13 +27,15 @@ const SORT_OPTIONS = [
 ];
 
 // One row per active member, computed server-side in a single call (see
-// get_admin_progression_overview, supabase/migrations/0034_admin_
-// progression_overview.sql) rather than looping get_journey_overview per
-// member — this page exists specifically so admins can spot who needs
-// support without opening every profile.
+// get_admin_business_path_overview, supabase/migrations/0051_business_path_
+// functions.sql) rather than looping get_business_path_overview per member —
+// this page exists specifically so admins can spot who needs support without
+// opening every profile. Milestones/promotions are gone, so this no longer
+// carries any milestone- or promotion-derived columns — just progress,
+// overdue tasks, and pending evidence review.
 export default function ProgressionOverview() {
   const [sort, setSort] = useState("overdue");
-  const { loading, data: rows } = useSupabaseQuery(() => getAdminProgressionOverview(), []);
+  const { loading, data: rows } = useSupabaseQuery(() => getAdminBusinessPathOverview(), []);
 
   const sorted = [...(rows ?? [])].sort((a, b) => {
     if (sort === "overdue") return (b.overdueCount ?? 0) - (a.overdueCount ?? 0);
@@ -54,7 +56,7 @@ export default function ProgressionOverview() {
         </select>
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
-        Every active member's progress in one place — Rank categorizes members and determines which training they get.
+        Every active member's progress in one place — Path Level categorizes members and determines which training they get.
       </p>
 
       {loading && <Skeleton variant="card" height="200px" />}
@@ -66,7 +68,7 @@ export default function ProgressionOverview() {
             <thead>
               <tr>
                 <th>Member</th>
-                <th>Rank</th>
+                <th>Path Level</th>
                 <th>Tracks (Skill / Business / Freelancing)</th>
                 <th>Stage</th>
                 <th>Overdue</th>
@@ -82,11 +84,14 @@ export default function ProgressionOverview() {
                       {row.displayName || "—"}
                     </Link>
                   </td>
+                  {/* get_admin_business_path_overview returns `level`/`levelProgressPercent`
+                      (not `rank`) to match business_path_levels and the "Path Level" branding
+                      this ladder now carries (see 0051). */}
                   <td>
-                    {row.rank ? (
+                    {row.level ? (
                       <>
-                        {row.rank.label}{" "}
-                        <span style={{ fontSize: "12px", color: "var(--slate)" }}>{row.rankProgressPercent}%</span>
+                        {row.level.label}{" "}
+                        <span style={{ fontSize: "12px", color: "var(--slate)" }}>{row.levelProgressPercent}%</span>
                       </>
                     ) : (
                       <span style={{ color: "var(--slate)" }}>—</span>

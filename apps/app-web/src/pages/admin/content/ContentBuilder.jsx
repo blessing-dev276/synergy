@@ -8,7 +8,26 @@ import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 
-function NewPathForm({ onCreated, onDone }) {
+// Validated 8-hue categorical set (dataviz skill, dark-mode column) — gives
+// each path a stable, CVD-safe identity color. Hashed off path.id (not list
+// position) so a path's color survives reordering instead of following rank.
+const PATH_HUES = ["blue", "orange", "aqua", "yellow", "magenta", "green", "violet", "red"];
+function pathHue(id) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  return PATH_HUES[Math.abs(hash) % PATH_HUES.length];
+}
+
+// The Learning Hub's three fixed, Udemy-style top-level catalog tabs. Fixed
+// on purpose (not an admin-configurable table like track_specializations,
+// 0017) — there are exactly three and that's not expected to change.
+const SECTIONS = [
+  { key: "skill_set", label: "Skill Set Training", icon: "layers" },
+  { key: "nm_business", label: "Network Marketing Business Training", icon: "briefcase" },
+  { key: "mind_training", label: "Mind Training", icon: "brain" },
+];
+
+function NewPathForm({ section, onCreated, onDone }) {
   const { user } = useAuth();
   const toast = useToast();
   const [title, setTitle] = useState("");
@@ -21,6 +40,7 @@ function NewPathForm({ onCreated, onDone }) {
     const { error } = await supabase.from("learning_paths").insert({
       title: title.trim(),
       description: description.trim(),
+      section,
       order_index: Math.floor(Date.now() / 1000),
       published: false,
       created_by: user.id,
@@ -259,7 +279,7 @@ function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChang
       ) : (
         <>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
-            <span className="icon-badge" style={{ width: "56px", height: "56px", borderRadius: "16px" }}>
+            <span className={`icon-badge hue-${pathHue(path.id)}`} style={{ width: "56px", height: "56px", borderRadius: "16px" }}>
               <Icon name="layers" size={24} />
             </span>
             <button type="button" className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "13px" }} onClick={openToAddCourse}>
@@ -344,13 +364,22 @@ function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChang
 }
 
 export default function ContentBuilder() {
+  const [section, setSection] = useState("skill_set");
   const [openPathId, setOpenPathId] = useState(null);
   const [showNewPath, setShowNewPath] = useState(false);
 
   const { loading, data: paths, refetch } = useSupabaseQuery(
-    () => supabase.from("learning_paths").select("*").order("order_index", { ascending: true }),
-    [],
+    () => supabase.from("learning_paths").select("*").eq("section", section).order("order_index", { ascending: true }),
+    [section],
   );
+
+  const changeSection = (key) => {
+    setSection(key);
+    setOpenPathId(null);
+    setShowNewPath(false);
+  };
+
+  const activeSection = SECTIONS.find((s) => s.key === section);
 
   const reorderPath = async (index, direction) => {
     if (!paths) return;
@@ -379,9 +408,23 @@ export default function ContentBuilder() {
           </button>
         )}
       </div>
-      <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "24px" }}>
+      <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "20px" }}>
         Learning Path → Course → Module → Lesson → Quiz/Assignment. Click a path to open it — opening another one closes this.
       </p>
+
+      <div style={{ display: "flex", gap: "10px", marginBottom: "24px", flexWrap: "wrap" }}>
+        {SECTIONS.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            className={`btn ${section === s.key ? "btn-primary" : "btn-secondary"}`}
+            onClick={() => changeSection(s.key)}
+          >
+            <Icon name={s.icon} size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
+            {s.label}
+          </button>
+        ))}
+      </div>
 
       {!loading && paths && paths.length > 0 && (
         <div className="grid grid-3" style={{ marginBottom: "24px" }}>
@@ -392,14 +435,14 @@ export default function ContentBuilder() {
         </div>
       )}
 
-      {showNewPath && <NewPathForm onCreated={refetch} onDone={() => setShowNewPath(false)} />}
+      {showNewPath && <NewPathForm section={section} onCreated={refetch} onDone={() => setShowNewPath(false)} />}
 
       {loading && <Skeleton variant="card" height="140px" />}
       {!loading && !showNewPath && (!paths || paths.length === 0) && (
         <EmptyState
-          icon={<Icon name="layers" size={26} />}
-          title="No learning paths yet"
-          description="Create your first learning path to start building out courses, modules, and lessons."
+          icon={<Icon name={activeSection.icon} size={26} />}
+          title={`No paths in ${activeSection.label} yet`}
+          description="Create the first learning path in this section to start building out courses, modules, and lessons."
           action={
             <button type="button" className="btn btn-primary" onClick={() => setShowNewPath(true)} style={{ marginTop: "4px" }}>
               <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />

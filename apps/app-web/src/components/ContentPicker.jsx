@@ -7,7 +7,7 @@ import { useToast } from "./state/Toast.jsx";
 const CONTENT_TYPE_LABEL = { course: "Course", assignment: "Assignment", bare: "Task/Project" };
 
 // Search-as-you-type over the reusable content library (content_items),
-// shared by StageBuilder.jsx (placing content into a stage/track) and
+// shared by BusinessPathBuilder.jsx (placing content into a stage/track) and
 // MemberDetail.jsx's ActivitiesPanel (assigning content to one member).
 // This is the whole point of the content-assignment refactor: content is
 // created ONCE and placed wherever it's needed, not retyped per placement

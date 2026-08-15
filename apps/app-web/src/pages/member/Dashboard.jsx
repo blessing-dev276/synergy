@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
-import { requestStagePromotion, setMemberSpecialization } from "../../lib/rpc.js";
+import { setMyBusinessPathSpecialization } from "../../lib/rpc.js";
 import { computeProfileHealth } from "../../lib/profileHealth.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
@@ -87,121 +87,8 @@ const QUICK_ACTIONS = [
   { to: "/notifications", icon: "bell", label: "Notifications" },
 ];
 
-// Shown once every track in the member's current stage hits 100% — lets
-// them ask an admin to review and move them forward, rather than an admin
-// having to notice on their own (see request_stage_promotion in
-// supabase/migrations/0025_stage_promotion_requests.sql). The server
-// re-verifies 100% completion itself, so this button is just a convenience
-// gate, not the actual check.
-function PromotionCard({ uid, tracks, onRequested }) {
-  const toast = useToast();
-  const [busy, setBusy] = useState(false);
-
-  const { data: pending, refetch } = useSupabaseQuery(
-    () =>
-      uid &&
-      supabase
-        .from("stage_promotion_requests")
-        .select("*, to_stage:stages!stage_promotion_requests_to_stage_id_fkey(title)")
-        .eq("uid", uid)
-        .eq("status", "pending")
-        .maybeSingle(),
-    [uid],
-  );
-
-  const allComplete = tracks.length > 0 && tracks.every((t) => (t.progressPercent ?? 0) >= 100);
-  if (!pending && !allComplete) return null;
-
-  const submit = async () => {
-    setBusy(true);
-    try {
-      await requestStagePromotion();
-      toast.success("Promotion requested — an admin will review it shortly.");
-      refetch();
-      onRequested?.();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't request a promotion right now.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="card-elevated" style={{ marginBottom: "24px", borderColor: "var(--gold)" }}>
-      <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <Icon name="trophy" size={16} />
-        {pending ? "Promotion requested" : "Every track complete!"}
-      </div>
-      {pending ? (
-        <p style={{ fontSize: "13.5px", color: "var(--slate)" }}>
-          Waiting on an admin to review your move to <strong style={{ color: "var(--navy)" }}>{pending.to_stage?.title}</strong>.
-        </p>
-      ) : (
-        <>
-          <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
-            You've finished every track in this stage. Ask an admin to review and move you to the next one.
-          </p>
-          <button type="button" className="btn btn-primary" onClick={submit} disabled={busy}>
-            {busy ? "Requesting…" : "Request promotion"}
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
-
-// Milestones the member has earned, plus the next few unearned published
-// ones as a preview — mirrors the ✓ / ○ checklist from the architecture
-// proposal. Read directly off milestones/member_milestones (both readable
-// by any authenticated member via RLS, see 0033) rather than an RPC, same
-// pattern as other simple read-only lists in this app.
-function MilestonesCard({ uid }) {
-  const { data: milestones } = useSupabaseQuery(() => supabase.from("milestones").select("*").eq("published", true).order("order_index"), []);
-  const { data: earned } = useSupabaseQuery(
-    () => uid && supabase.from("member_milestones").select("milestone_id, achieved_at").eq("uid", uid),
-    [uid],
-  );
-
-  if (!milestones || milestones.length === 0) return null;
-
-  const earnedIds = new Set((earned ?? []).map((e) => e.milestone_id));
-  const rows = [...milestones].sort((a, b) => (earnedIds.has(b.id) ? 1 : 0) - (earnedIds.has(a.id) ? 1 : 0));
-
-  return (
-    <div className="card-elevated" style={{ marginBottom: "24px" }}>
-      <div className="card-title">Milestones</div>
-      <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
-        {rows.map((m) => {
-          const done = earnedIds.has(m.id);
-          return (
-            <li key={m.id} style={{ display: "flex", alignItems: "center", gap: "10px", opacity: done ? 1 : 0.6 }}>
-              <span
-                style={{
-                  width: "22px",
-                  height: "22px",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "12px",
-                  background: done ? "var(--gold-soft)" : "transparent",
-                  color: done ? "var(--gold)" : "var(--slate)",
-                  border: done ? "none" : "1px solid var(--line)",
-                }}
-              >
-                {done ? "✓" : "○"}
-              </span>
-              <span style={{ fontSize: "13.5px" }}>{m.title}</span>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-// One skill, chosen once (server-enforced in set_member_specialization —
-// see supabase/migrations/0038_specialization_lock.sql). Graphics Design
+// One skill, chosen once (server-enforced in set_my_business_path_specialization
+// — see supabase/migrations/0051_business_path_functions.sql). Graphics Design
 // stays unlocked during the newbie stage for everyone regardless of pick
 // (server marks it `locked: false`); the rest show a lock icon until an
 // admin reassigns the member's choice.
@@ -217,7 +104,7 @@ function SpecializationPicker({ track, onChanged }) {
     if (selectedId || saving) return;
     setSaving(true);
     try {
-      await setMemberSpecialization(track.trackId, spec.id);
+      await setMyBusinessPathSpecialization(track.trackId, spec.id);
       toast.success(`${spec.label} is now your skill.`);
       onChanged();
     } catch (err) {
@@ -354,22 +241,22 @@ function ProspectFollowUpCard({ uid }) {
 export default function Dashboard() {
   const { user, profile } = useAuth();
 
-  // get_journey_overview/get_next_best_action are reads despite being RPCs
-  // (progress/next-action logic must be server-authoritative, see
-  // supabase/migrations/0009_journey_functions.sql) — used the same way as
-  // any other useSupabaseQuery read.
+  // get_business_path_overview/get_next_business_path_action are reads
+  // despite being RPCs (progress/next-action logic must be
+  // server-authoritative, see supabase/migrations/0051_business_path_
+  // functions.sql) — used the same way as any other useSupabaseQuery read.
   const {
     loading: loadingJourney,
     error: journeyError,
     data: journey,
     refetch: refetchJourney,
-  } = useSupabaseQuery(() => user && supabase.rpc("get_journey_overview", { p_uid: user.id }), [user?.id]);
+  } = useSupabaseQuery(() => user && supabase.rpc("get_business_path_overview", { p_uid: user.id }), [user?.id]);
 
   const {
     loading: loadingAction,
     error: actionError,
     data: nextAction,
-  } = useSupabaseQuery(() => user && supabase.rpc("get_next_best_action", { p_uid: user.id }), [user?.id]);
+  } = useSupabaseQuery(() => user && supabase.rpc("get_next_business_path_action", { p_uid: user.id }), [user?.id]);
 
   // Today's list is generated once per calendar day and then stays fixed
   // (see get_or_generate_daily_tasks, supabase/migrations/0044_daily_tasks.sql)
@@ -392,9 +279,9 @@ export default function Dashboard() {
 
   const stage = journey?.stage;
   const tracks = journey?.tracks ?? [];
-  const rank = journey?.rank;
-  const rankProgressPercent = journey?.rankProgressPercent ?? 0;
-  const nextRank = journey?.nextRank;
+  const level = journey?.level;
+  const levelProgressPercent = journey?.levelProgressPercent ?? 0;
+  const nextLevel = journey?.nextLevel;
   const firstName = profile?.display_name?.split(" ")[0] ?? "there";
 
   return (
@@ -403,7 +290,7 @@ export default function Dashboard() {
         <h1>
           {greeting()}, {firstName} 👋
         </h1>
-        <p>{stage ? `Your Synergy Journey — ${stage.title}` : "You're making progress. Keep going."}</p>
+        <p>{stage ? `Your Business Path — ${stage.title}` : "You're making progress. Keep going."}</p>
       </div>
 
       {!health.complete && (
@@ -427,27 +314,27 @@ export default function Dashboard() {
         </div>
       )}
 
-      {rank && (
+      {level && (
         <div className="card-elevated" style={{ marginTop: "24px", borderColor: "var(--gold)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
             <div>
               <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Rank
+                Path Level
               </div>
-              <div style={{ fontSize: "26px", fontWeight: 700, color: "var(--gold)", marginTop: "4px" }}>{rank.label}</div>
+              <div style={{ fontSize: "26px", fontWeight: 700, color: "var(--gold)", marginTop: "4px" }}>{level.label}</div>
             </div>
-            {nextRank && (
+            {nextLevel && (
               <div style={{ minWidth: "200px", flex: 1, maxWidth: "320px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12.5px", color: "var(--slate)", marginBottom: "6px" }}>
-                  <span>{rankProgressPercent}% to {nextRank.label}</span>
+                  <span>{levelProgressPercent}% to {nextLevel.label}</span>
                 </div>
                 <div style={{ height: "8px", borderRadius: "100px", background: "var(--line)", overflow: "hidden" }}>
-                  <div style={{ width: `${Math.min(rankProgressPercent, 100)}%`, height: "100%", borderRadius: "100px", background: "var(--gold)" }} />
+                  <div style={{ width: `${Math.min(levelProgressPercent, 100)}%`, height: "100%", borderRadius: "100px", background: "var(--gold)" }} />
                 </div>
               </div>
             )}
           </div>
-          {rank.purpose && <p style={{ fontSize: "13.5px", color: "var(--slate)", marginTop: "14px" }}>{rank.purpose}</p>}
+          {level.purpose && <p style={{ fontSize: "13.5px", color: "var(--slate)", marginTop: "14px" }}>{level.purpose}</p>}
         </div>
       )}
 
@@ -457,7 +344,7 @@ export default function Dashboard() {
         <div style={{ marginTop: "24px" }}>
           <EmptyState
             icon={<Icon name="compass" size={28} />}
-            title="Your journey hasn't started yet"
+            title="Your Business Path hasn't started yet"
             description="An admin will get you set up shortly."
           />
         </div>
@@ -482,8 +369,6 @@ export default function Dashboard() {
           ))}
         </div>
       )}
-
-      {!loadingJourney && <PromotionCard uid={user?.id} tracks={tracks} />}
 
       <div className="grid grid-2" style={{ marginBottom: "24px" }}>
         <div className="card-elevated">
@@ -563,8 +448,6 @@ export default function Dashboard() {
         <GoalsNudgeCard uid={user?.id} />
         <ProspectFollowUpCard uid={user?.id} />
       </div>
-
-      <MilestonesCard uid={user?.id} />
 
       <div className="quick-actions">
         {QUICK_ACTIONS.map((qa) => (

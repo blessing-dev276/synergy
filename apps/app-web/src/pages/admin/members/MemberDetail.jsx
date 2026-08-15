@@ -5,10 +5,9 @@ import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import {
   assignSponsor,
-  setMemberStage,
+  setMemberBusinessPathStage,
   setMemberStatus,
-  reviewStagePromotion,
-  adminSetMemberSpecialization,
+  adminSetMemberBusinessPathSpecialization,
   adminSetParticipationPath,
   reviewParticipationPathRequest,
 } from "../../../lib/rpc.js";
@@ -58,7 +57,7 @@ function ProfilePanel({ member }) {
     [member.id],
   );
   const { data: goals } = useSupabaseQuery(
-    () => supabase.from("member_goals").select("*, target_rank:ranks(label)").eq("uid", member.id).maybeSingle(),
+    () => supabase.from("member_goals").select("*, target_rank:business_path_levels(label)").eq("uid", member.id).maybeSingle(),
     [member.id],
   );
 
@@ -163,7 +162,7 @@ function ProfilePanel({ member }) {
             )}
             {goals.target_rank && (
               <>
-                <dt style={{ color: "var(--slate)" }}>Target rank</dt>
+                <dt style={{ color: "var(--slate)" }}>Target Path Level</dt>
                 <dd>{goals.target_rank.label}</dd>
               </>
             )}
@@ -400,19 +399,19 @@ function StatusPanel({ member, onChanged }) {
   );
 }
 
-function StagePanel({ member, journey, stages, ranks, onChanged }) {
+function StagePanel({ member, journey, stages, levels, onChanged }) {
   const toast = useToast();
   const [selectedStage, setSelectedStage] = useState(journey?.current_stage_id ?? "");
   const [saving, setSaving] = useState(false);
 
   const currentStage = stages?.find((s) => s.id === journey?.current_stage_id);
-  const currentRank = ranks?.find((r) => r.id === currentStage?.rank_id);
+  const currentLevel = levels?.find((l) => l.id === currentStage?.path_level_id);
 
   const handleSet = async () => {
     setSaving(true);
     try {
-      await setMemberStage(member.id, selectedStage || null);
-      toast.success("Journey stage updated.");
+      await setMemberBusinessPathStage(member.id, selectedStage || null);
+      toast.success("Business Path stage updated.");
       onChanged();
     } catch (err) {
       toast.error(err.message ?? "Couldn't update stage.");
@@ -425,14 +424,14 @@ function StagePanel({ member, journey, stages, ranks, onChanged }) {
     <div className="card-elevated">
       <div className="card-title">
         <Icon name="compass" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        Journey Stage
+        Business Path Stage
       </div>
       <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
         Currently: <strong style={{ color: "var(--navy)" }}>{currentStage?.title ?? "Not started"}</strong>
-        {currentRank && (
+        {currentLevel && (
           <>
             {" "}
-            · <span className="badge badge-neutral">{currentRank.label}</span>
+            · <span className="badge badge-neutral">{currentLevel.label}</span>
           </>
         )}
       </p>
@@ -555,10 +554,10 @@ function ParticipationPathPanel({ member, onChanged }) {
 }
 
 // Members lock in their own skill specialization once (see
-// set_member_specialization, supabase/migrations/0038_specialization_lock.sql)
-// — this is the only way to change it after the fact. Grouped by track since
-// only the 'skill' track has specializations seeded today, but any track
-// with published rows here will show a picker.
+// set_my_business_path_specialization, supabase/migrations/0051_business_path_
+// functions.sql) — this is the only way to change it after the fact. Grouped
+// by track since only the 'skill' track has specializations seeded today,
+// but any track with published rows here will show a picker.
 function SpecializationPanel({ member }) {
   const toast = useToast();
   const [saving, setSaving] = useState(null);
@@ -566,14 +565,14 @@ function SpecializationPanel({ member }) {
   const { data: specializations } = useSupabaseQuery(
     () =>
       supabase
-        .from("track_specializations")
-        .select("*, tracks(label)")
+        .from("business_path_specializations")
+        .select("*, tracks:business_path_tracks(label)")
         .eq("published", true)
         .order("order_index"),
     [],
   );
   const { data: chosen, refetch: refetchChosen } = useSupabaseQuery(
-    () => supabase.from("member_track_specializations").select("*").eq("uid", member.id),
+    () => supabase.from("member_business_path_specializations").select("*").eq("uid", member.id),
     [member.id],
   );
 
@@ -587,7 +586,7 @@ function SpecializationPanel({ member }) {
   const choose = async (spec) => {
     setSaving(spec.id);
     try {
-      await adminSetMemberSpecialization(member.id, spec.track_id, spec.id);
+      await adminSetMemberBusinessPathSpecialization(member.id, spec.track_id, spec.id);
       toast.success(`${spec.label} set as this member's skill.`);
       refetchChosen();
     } catch (err) {
@@ -639,69 +638,6 @@ function SpecializationPanel({ member }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-// A member only shows up here once request_stage_promotion (0025) has
-// already re-verified server-side that every track in their current stage
-// is at 100% — this panel is just the approve/decline UI, not the check.
-function PromotionPanel({ member, onChanged }) {
-  const toast = useToast();
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const { data: request, refetch } = useSupabaseQuery(
-    () =>
-      supabase
-        .from("stage_promotion_requests")
-        .select("*, to_stage:stages!stage_promotion_requests_to_stage_id_fkey(title)")
-        .eq("uid", member.id)
-        .eq("status", "pending")
-        .maybeSingle(),
-    [member.id],
-  );
-
-  if (!request) return null;
-
-  const decide = async (decision) => {
-    if (decision === "rejected" && !window.confirm(`Decline this promotion request?`)) return;
-    setSaving(true);
-    try {
-      await reviewStagePromotion(request.id, decision, note.trim());
-      toast.success(decision === "approved" ? "Promotion approved." : "Promotion declined.");
-      setNote("");
-      refetch();
-      onChanged();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't review that request.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="card-elevated" style={{ marginBottom: "16px", borderColor: "var(--gold)" }}>
-      <div className="card-title">
-        <Icon name="trophy" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        Promotion requested
-      </div>
-      <p style={{ fontSize: "13.5px", marginBottom: "12px" }}>
-        Every track in their current stage is at 100%. They're asking to move up to{" "}
-        <strong style={{ color: "var(--navy)" }}>{request.to_stage?.title}</strong>.
-      </p>
-      <div className="field" style={{ marginBottom: "10px" }}>
-        <label>Note (optional)</label>
-        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Feedback for the member" />
-      </div>
-      <div style={{ display: "flex", gap: "8px" }}>
-        <button type="button" className="btn btn-primary" onClick={() => decide("approved")} disabled={saving}>
-          Approve
-        </button>
-        <button type="button" className="btn btn-danger" onClick={() => decide("rejected")} disabled={saving}>
-          Decline
-        </button>
-      </div>
     </div>
   );
 }
@@ -964,12 +900,12 @@ export default function MemberDetail() {
     [uid],
   );
   const { data: journey, refetch: refetchJourney } = useSupabaseQuery(
-    () => supabase.from("member_journey").select("*").eq("uid", uid).maybeSingle(),
+    () => supabase.from("member_business_path_stage").select("*").eq("uid", uid).maybeSingle(),
     [uid],
   );
-  const { data: stages } = useSupabaseQuery(() => supabase.from("stages").select("*").order("order_index"), []);
-  const { data: tracks } = useSupabaseQuery(() => supabase.from("tracks").select("*").order("key"), []);
-  const { data: ranks } = useSupabaseQuery(() => supabase.from("ranks").select("*").order("order_index"), []);
+  const { data: stages } = useSupabaseQuery(() => supabase.from("business_path_stages").select("*").order("order_index"), []);
+  const { data: tracks } = useSupabaseQuery(() => supabase.from("business_path_tracks").select("*").order("key"), []);
+  const { data: levels } = useSupabaseQuery(() => supabase.from("business_path_levels").select("*").order("order_index"), []);
 
   if (loading) return <Skeleton variant="card" height="200px" />;
   if (!member) return null;
@@ -987,9 +923,8 @@ export default function MemberDetail() {
 
       {member.role === "member" && (
         <>
-          <PromotionPanel member={member} onChanged={refetchJourney} />
           <div className="grid grid-2" style={{ alignItems: "start" }}>
-            <StagePanel member={member} journey={journey} stages={stages} ranks={ranks} onChanged={refetchJourney} />
+            <StagePanel member={member} journey={journey} stages={stages} levels={levels} onChanged={refetchJourney} />
             <SponsorPanel member={member} onChanged={refetchMember} />
           </div>
           <div className="grid grid-2" style={{ alignItems: "start", marginTop: "16px" }}>

@@ -51,22 +51,20 @@ export const gradeAssignment = (submissionId, decision, grade, feedback) =>
 export const completeContentAssignment = (contentAssignmentId) =>
   call("complete_content_assignment", { p_content_assignment_id: contentAssignmentId });
 
-export const getJourneyOverview = (uid) => call("get_journey_overview", { p_uid: uid });
+export const getMyContentAssignments = (uid) => call("get_my_content_assignments", { p_uid: uid });
 
-export const getNextBestAction = (uid) => call("get_next_best_action", { p_uid: uid });
+export const getBusinessPathOverview = (uid) => call("get_business_path_overview", { p_uid: uid });
 
-export const setMemberStage = (uid, stageId) => call("set_member_stage", { p_uid: uid, p_stage_id: stageId });
+export const getNextBusinessPathAction = (uid) => call("get_next_business_path_action", { p_uid: uid });
+
+export const setMemberBusinessPathStage = (uid, stageId) =>
+  call("set_member_business_path_stage", { p_uid: uid, p_stage_id: stageId });
 
 export const setMemberStatus = (uid, status) => call("set_member_status", { p_uid: uid, p_status: status });
 
 export const getOrientationContent = () => call("get_orientation_content", {});
 
 export const submitOrientation = (answers) => call("submit_orientation", { p_answers: answers });
-
-export const requestStagePromotion = () => call("request_stage_promotion", {});
-
-export const reviewStagePromotion = (requestId, decision, note) =>
-  call("review_stage_promotion", { p_request_id: requestId, p_decision: decision, p_note: note });
 
 export const logEarning = (amount, note) => call("log_earning", { p_amount: amount, p_note: note });
 
@@ -84,16 +82,25 @@ export const submitContentEvidence = (contentAssignmentId, textResponse, fileUrl
 export const reviewContentEvidence = (submissionId, decision, feedback) =>
   call("review_content_evidence", { p_submission_id: submissionId, p_decision: decision, p_feedback: feedback });
 
-export const awardMilestoneManual = (uid, milestoneId, note) =>
-  call("award_milestone_manual", { p_uid: uid, p_milestone_id: milestoneId, p_note: note });
+export const getAdminBusinessPathOverview = () => call("get_admin_business_path_overview", {});
 
-export const getAdminProgressionOverview = () => call("get_admin_progression_overview", {});
+export const setMyBusinessPathSpecialization = (trackId, specializationId) =>
+  call("set_my_business_path_specialization", { p_track_id: trackId, p_specialization_id: specializationId });
 
-export const setMemberSpecialization = (trackId, specializationId) =>
-  call("set_member_specialization", { p_track_id: trackId, p_specialization_id: specializationId });
+export const adminSetMemberBusinessPathSpecialization = (uid, trackId, specializationId) =>
+  call("admin_set_member_business_path_specialization", { p_uid: uid, p_track_id: trackId, p_specialization_id: specializationId });
 
-export const adminSetMemberSpecialization = (uid, trackId, specializationId) =>
-  call("admin_set_member_specialization", { p_uid: uid, p_track_id: trackId, p_specialization_id: specializationId });
+// ---------- Business Path placements (stage/track-scoped content) ----------
+export const getMyBusinessPathPlacements = (uid) => call("get_my_business_path_placements", { p_uid: uid });
+
+export const completeBusinessPathPlacement = (placementId) =>
+  call("complete_business_path_placement", { p_placement_id: placementId });
+
+export const submitBusinessPathEvidence = (placementId, textResponse, fileUrls) =>
+  call("submit_business_path_evidence", { p_placement_id: placementId, p_text_response: textResponse, p_file_urls: fileUrls });
+
+export const reviewBusinessPathEvidence = (submissionId, decision, feedback) =>
+  call("review_business_path_evidence", { p_submission_id: submissionId, p_decision: decision, p_feedback: feedback });
 
 // ---------- participation path ----------
 export const requestParticipationPath = (requestedPath, reason) =>

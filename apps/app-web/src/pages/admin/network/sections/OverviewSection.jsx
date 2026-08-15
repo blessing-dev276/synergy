@@ -60,10 +60,10 @@ export default function OverviewSection() {
   );
 
   // Every "needs a human to look at this" queue across the network area,
-  // rolled up in one place — sponsor requests, course + activity-evidence
-  // submissions, monthly goal reviews, and overdue prospecting follow-ups.
-  // Legacy Mentors is deliberately excluded: it's read-only historical data
-  // (see LegacyMentorsSection), never an actionable queue.
+  // rolled up in one place — course + activity-evidence submissions,
+  // monthly goal reviews, and overdue prospecting follow-ups. (Sponsor
+  // Requests and Legacy Mentors were removed from this page on request —
+  // no counts for either are fetched anymore.)
   //
   // Each call is caught individually (not a single Promise.all) so one
   // broken/undeployed piece (e.g. an RPC whose migration hasn't shipped yet)
@@ -76,16 +76,14 @@ export default function OverviewSection() {
     () =>
       Promise.all([
         safeCount(supabase.from("sponsor_relationships").select("*", { count: "exact", head: true }).eq("active", true)),
-        safeCount(supabase.from("sponsor_requests").select("*", { count: "exact", head: true }).eq("status", "pending")),
         safeCount(supabase.from("profiles").select("*", { count: "exact", head: true }).is("sponsor_uid", null).eq("role", "member")),
         safeCount(supabase.from("assignment_submissions").select("*", { count: "exact", head: true }).eq("status", "submitted")),
         safeCount(supabase.from("content_evidence_submissions").select("*", { count: "exact", head: true }).eq("status", "submitted")),
         safeRows(supabase.rpc("get_admin_goal_overview", { p_period: period })),
         safeRows(supabase.rpc("get_admin_prospecting_overview", {})),
-      ]).then(([sponsoredCount, pendingRequestCount, unsponsoredCount, submittedAssignments, submittedEvidence, goalRows, prospectingRows]) => ({
+      ]).then(([sponsoredCount, unsponsoredCount, submittedAssignments, submittedEvidence, goalRows, prospectingRows]) => ({
         data: {
           sponsoredCount,
-          pendingRequestCount,
           unsponsoredCount,
           pendingReviewCount: submittedAssignments + submittedEvidence,
           pendingGoalReviewCount: goalRows.filter((r) => r.status === "submitted").length,
@@ -106,8 +104,7 @@ export default function OverviewSection() {
     [picked.selected?.id],
   );
 
-  const totalAttention =
-    (counts?.pendingRequestCount ?? 0) + (counts?.pendingReviewCount ?? 0) + (counts?.pendingGoalReviewCount ?? 0) + (counts?.overdueFollowUps ?? 0);
+  const totalAttention = (counts?.pendingReviewCount ?? 0) + (counts?.pendingGoalReviewCount ?? 0) + (counts?.overdueFollowUps ?? 0);
 
   return (
     <div>
@@ -125,9 +122,6 @@ export default function OverviewSection() {
               {counts.pendingReviewCount > 0 && (
                 <AttentionRow icon="folder" count={counts.pendingReviewCount} label="Submissions awaiting review" to="/admin/network?section=reviews" />
               )}
-              {counts.pendingRequestCount > 0 && (
-                <AttentionRow icon="network" count={counts.pendingRequestCount} label="Sponsor requests awaiting resolution" to="/admin/network?section=sponsor-requests" />
-              )}
               {counts.pendingGoalReviewCount > 0 && (
                 <AttentionRow icon="target" count={counts.pendingGoalReviewCount} label="Monthly goals awaiting review" to="/admin/network?section=goals" />
               )}
@@ -141,7 +135,7 @@ export default function OverviewSection() {
 
       <div className="grid grid-3" style={{ marginBottom: "24px" }}>
         <StatTile label="Active sponsor links" value={counts?.sponsoredCount} icon="network" loading={loadingCounts} />
-        <StatTile label="Members with no sponsor" value={counts?.unsponsoredCount} icon="user-x" tone="warning" loading={loadingCounts} to="/admin/network?section=members&sponsor=none" />
+        <StatTile label="Members with no sponsor" value={counts?.unsponsoredCount} icon="user-x" tone="warning" loading={loadingCounts} to="/admin/settings/team?sponsor=none" />
         <StatTile label="Follow-ups due today" value={counts?.dueTodayFollowUps} icon="clock" loading={loadingCounts} to="/admin/network?section=prospecting" />
       </div>
 

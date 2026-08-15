@@ -8,10 +8,13 @@ const sections = [
     items: [{ to: "/admin/content", label: "Learning Hub", icon: "layers", end: true }],
   },
   {
-    items: [{ to: "/admin/journey", label: "Journey", icon: "compass", end: true }],
+    items: [{ to: "/admin/business-path", label: "Business Path", icon: "compass", end: true }],
   },
   {
     items: [{ to: "/admin/network", label: "Network", icon: "network", end: true }],
+  },
+  {
+    items: [{ to: "/admin/settings/team", label: "Team", icon: "users", end: true }],
   },
   {
     items: [{ to: "/admin/leaderboard", label: "Leaderboard", icon: "dollar-sign", end: true }],
@@ -22,7 +25,6 @@ const sections = [
       { to: "/admin/settings/activity", label: "Activity Log", icon: "activity" },
       { to: "/admin/settings/general", label: "General", icon: "briefcase" },
       { to: "/admin/settings/notifications", label: "Notifications", icon: "bell" },
-      { to: "/admin/settings/team", label: "Team", icon: "users" },
     ],
   },
 ];

@@ -3,15 +3,26 @@ import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
-import { completeContentAssignment, submitContentEvidence } from "../../lib/rpc.js";
+import {
+  completeContentAssignment,
+  submitContentEvidence,
+  completeBusinessPathPlacement,
+  submitBusinessPathEvidence,
+} from "../../lib/rpc.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
 
 // Shown for a bare task flagged requires_admin_approval — self-attesting is
-// blocked server-side for these (see complete_content_assignment,
-// supabase/migrations/0033_milestones_and_evidence_review.sql), so this is
-// the only way to mark one done: write-up now, file attachments later.
+// blocked server-side for these (see complete_content_assignment /
+// complete_business_path_placement), so this is the only way to mark one
+// done: write-up now, file attachments later. task.source (see TaskList
+// below) decides which RPC pair to call — 'individual' rows are the
+// untouched per-member ad-hoc task feature (content_assignments/
+// content_evidence_submissions); 'business_path' rows are stage/track
+// content from the Business Path rebuild (business_path_placements/
+// business_path_evidence_submissions), a separate table so the two
+// features can't collide.
 function EvidenceForm({ task, onSubmitted }) {
   const toast = useToast();
   const [text, setText] = useState("");
@@ -20,7 +31,11 @@ function EvidenceForm({ task, onSubmitted }) {
   const submit = async () => {
     setSubmitting(true);
     try {
-      await submitContentEvidence(task.id, text.trim(), []);
+      if (task.source === "business_path") {
+        await submitBusinessPathEvidence(task.id, text.trim(), []);
+      } else {
+        await submitContentEvidence(task.id, text.trim(), []);
+      }
       toast.success("Evidence submitted for review.");
       setText("");
       onSubmitted();
@@ -82,17 +97,40 @@ export default function TaskList() {
   const [openTaskId, setOpenTaskId] = useState(null);
   const [view, setView] = useState("today");
 
-  // get_my_content_assignments: current stage's stage-wide content plus
-  // this member's own individual assignments, each with isDone already
-  // resolved server-side (see supabase/migrations/0028_content_model_functions.sql)
-  // — replaces the old direct `tasks`/`task_completions` table queries.
+  // "All tasks" merges two independent sources client-side:
+  // get_my_content_assignments (the untouched individual/ad-hoc task
+  // feature reachable from MemberDetail.jsx's Activities panel, simplified
+  // server-side to individual-only now that stage/track content moved out)
+  // and get_my_business_path_placements (this member's current stage's
+  // stage/track content). Each row is stamped with which endpoint it came
+  // from so markComplete/EvidenceForm below can call the matching RPC pair
+  // — the two features intentionally live in separate tables post-rebuild,
+  // so there's no server-side row to disambiguate them by itself.
   const { loading: loadingAll, error: errorAll, data: allTasks, refetch: refetchAll } = useSupabaseQuery(
-    () => user && view === "all" && supabase.rpc("get_my_content_assignments", { p_uid: user.id }),
+    () =>
+      user &&
+      view === "all" &&
+      Promise.all([
+        supabase.rpc("get_my_content_assignments", { p_uid: user.id }),
+        supabase.rpc("get_my_business_path_placements", { p_uid: user.id }),
+      ]).then(([individual, businessPath]) => {
+        if (individual.error) return { data: null, error: individual.error };
+        if (businessPath.error) return { data: null, error: businessPath.error };
+        return {
+          data: [
+            ...(individual.data ?? []).map((t) => ({ ...t, source: "individual" })),
+            ...(businessPath.data ?? []).map((t) => ({ ...t, source: "business_path" })),
+          ],
+          error: null,
+        };
+      }),
     [user?.id, view],
   );
 
-  // Today's fixed daily selection (see supabase/migrations/0044_daily_tasks.sql)
-  // — same row shape as get_my_content_assignments, so it reuses TaskStatus/EvidenceForm as-is.
+  // Today's fixed daily selection (see get_or_generate_daily_tasks) already
+  // merges both sources server-side and tags each row with `source` itself
+  // — same row shape as the two calls above either way, so it reuses
+  // TaskStatus/EvidenceForm as-is.
   const { loading: loadingToday, error: errorToday, data: todayTasks, refetch: refetchToday } = useSupabaseQuery(
     () => user && view === "today" && supabase.rpc("get_or_generate_daily_tasks", { p_uid: user.id }),
     [user?.id, view],
@@ -104,11 +142,16 @@ export default function TaskList() {
   const refetch = view === "today" ? refetchToday : refetchAll;
 
   // One-way, same as lesson completion (LessonViewer.jsx) — always goes
-  // through the complete_content_assignment RPC so dependency/linked-course/
-  // linked-assignment rules are enforced server-side, not just in this UI.
+  // through an RPC so dependency/linked-course/linked-assignment rules are
+  // enforced server-side, not just in this UI. task.source decides which
+  // RPC pair (see EvidenceForm above).
   const markComplete = async (task) => {
     try {
-      await completeContentAssignment(task.id);
+      if (task.source === "business_path") {
+        await completeBusinessPathPlacement(task.id);
+      } else {
+        await completeContentAssignment(task.id);
+      }
       refetch();
     } catch (err) {
       toast.error(err.message ?? "Couldn't complete that task.");

@@ -8,8 +8,6 @@ import Modal from "../../../components/Modal.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
-import MilestoneBuilder from "./MilestoneBuilder.jsx";
-import PromotionRequests from "./PromotionRequests.jsx";
 import ProgressionOverview from "./ProgressionOverview.jsx";
 
 const TASK_TYPES = [
@@ -59,7 +57,7 @@ function NewStageForm({ onCreated, onDone }) {
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from("stages").insert({
+    const { error } = await supabase.from("business_path_stages").insert({
       key: `${slugify(title)}-${Date.now().toString(36)}`,
       title: title.trim(),
       description: description.trim(),
@@ -94,19 +92,19 @@ function NewStageForm({ onCreated, onDone }) {
   );
 }
 
-function EditStageForm({ stage, ranks, onSaved, onCancel }) {
+function EditStageForm({ stage, levels, onSaved, onCancel }) {
   const toast = useToast();
   const [title, setTitle] = useState(stage.title);
   const [description, setDescription] = useState(stage.description ?? "");
-  const [rankId, setRankId] = useState(stage.rank_id ?? "");
+  const [pathLevelId, setPathLevelId] = useState(stage.path_level_id ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     const { error } = await supabase
-      .from("stages")
-      .update({ title: title.trim(), description: description.trim(), rank_id: rankId || null, updated_at: new Date().toISOString() })
+      .from("business_path_stages")
+      .update({ title: title.trim(), description: description.trim(), path_level_id: pathLevelId || null, updated_at: new Date().toISOString() })
       .eq("id", stage.id);
     setSaving(false);
     if (error) {
@@ -121,11 +119,11 @@ function EditStageForm({ stage, ranks, onSaved, onCancel }) {
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
       <input className="inline-edit-field" required value={title} onChange={(e) => setTitle(e.target.value)} />
       <textarea className="inline-edit-field" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
-      <select className="inline-edit-field" value={rankId} onChange={(e) => setRankId(e.target.value)}>
-        <option value="">No rank (unassigned)</option>
-        {ranks?.map((r) => (
-          <option key={r.id} value={r.id}>
-            {r.label}
+      <select className="inline-edit-field" value={pathLevelId} onChange={(e) => setPathLevelId(e.target.value)}>
+        <option value="">No Path Level (unassigned)</option>
+        {levels?.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.label}
           </option>
         ))}
       </select>
@@ -143,8 +141,11 @@ function EditStageForm({ stage, ranks, onSaved, onCancel }) {
 
 // Places a content_item (existing, reused — or a brand-new bare one created
 // on the spot via ContentPicker) into this stage/track. One row, not one
-// per member (see supabase/migrations/0027_content_model_schema.sql) — every
-// member who reaches this stage, now or later, gets it automatically.
+// per member (see supabase/migrations/0027_content_model_schema.sql /
+// 0050_business_path_schema.sql) — every member who reaches this stage, now
+// or later, gets it automatically. business_path_placements is always
+// stage/track-scoped (no scope column, unlike the individual-task feature's
+// content_assignments), so there's no scope branching here.
 function NewPlacementForm({ stageId, trackId, onCreated, close }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -161,7 +162,7 @@ function NewPlacementForm({ stageId, trackId, onCreated, close }) {
     if (!content) return;
     setSaving(true);
 
-    const { error } = await supabase.from("content_assignments").insert({
+    const { error } = await supabase.from("business_path_placements").insert({
       content_item_id: content.id,
       stage_id: stageId,
       track_id: trackId,
@@ -169,7 +170,6 @@ function NewPlacementForm({ stageId, trackId, onCreated, close }) {
       xp_reward: Number(xpReward) || 0,
       is_required: isRequired,
       requires_admin_approval: requiresApproval,
-      scope: "stage_track",
       created_by: user.id,
     });
     setSaving(false);
@@ -231,20 +231,20 @@ function NewPlacementForm({ stageId, trackId, onCreated, close }) {
 // Edits placement-specific settings only (xp/required/approval) — the
 // content's own title/description live on content_items and are shared
 // across every place it's used, so they're not editable from here.
-function EditPlacementForm({ assignment, onSaved, onCancel }) {
+function EditPlacementForm({ placement, onSaved, onCancel }) {
   const toast = useToast();
-  const [xpReward, setXpReward] = useState(assignment.xp_reward);
-  const [isRequired, setIsRequired] = useState(assignment.is_required);
-  const [requiresApproval, setRequiresApproval] = useState(assignment.requires_admin_approval);
+  const [xpReward, setXpReward] = useState(placement.xp_reward);
+  const [isRequired, setIsRequired] = useState(placement.is_required);
+  const [requiresApproval, setRequiresApproval] = useState(placement.requires_admin_approval);
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     const { error } = await supabase
-      .from("content_assignments")
+      .from("business_path_placements")
       .update({ xp_reward: Number(xpReward) || 0, is_required: isRequired, requires_admin_approval: requiresApproval })
-      .eq("id", assignment.id);
+      .eq("id", placement.id);
     setSaving(false);
     if (error) {
       toast.error("Couldn't save changes.");
@@ -256,7 +256,7 @@ function EditPlacementForm({ assignment, onSaved, onCancel }) {
 
   return (
     <form onSubmit={submit} style={{ display: "flex", gap: "8px", alignItems: "center", flex: 1, flexWrap: "wrap" }}>
-      <span style={{ fontWeight: 600, fontSize: "13.5px" }}>{assignment.label}</span>
+      <span style={{ fontWeight: 600, fontSize: "13.5px" }}>{placement.label}</span>
       <input type="number" min={0} className="inline-edit-field" value={xpReward} onChange={(e) => setXpReward(e.target.value)} style={{ width: "60px" }} title="XP" />
       <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "3px", whiteSpace: "nowrap" }}>
         <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} />
@@ -308,31 +308,30 @@ function Chip({ active, onClick, children, tone = "neutral" }) {
   );
 }
 
-function TrackTasks({ stage, track }) {
-  const { data: assignments, refetch } = useSupabaseQuery(
+function TrackPlacements({ stage, track }) {
+  const { data: placements, refetch } = useSupabaseQuery(
     () =>
       supabase
-        .from("content_assignments")
+        .from("business_path_placements")
         .select(
           "id, task_type, xp_reward, is_required, requires_admin_approval, order_index, content_item:content_items(id, content_type, title, course:courses(title), assignment:assignments(title))",
         )
         .eq("stage_id", stage.id)
         .eq("track_id", track.id)
-        .eq("scope", "stage_track")
         .order("order_index"),
     [stage.id, track.id],
   );
   const toast = useToast();
   const [editingId, setEditingId] = useState(null);
 
-  const rows = (assignments ?? []).map((a) => ({
-    ...a,
-    label: a.content_item?.title ?? a.content_item?.course?.title ?? a.content_item?.assignment?.title ?? "Untitled",
+  const rows = (placements ?? []).map((p) => ({
+    ...p,
+    label: p.content_item?.title ?? p.content_item?.course?.title ?? p.content_item?.assignment?.title ?? "Untitled",
   }));
 
-  const handleDelete = async (assignment) => {
-    if (!window.confirm(`Remove "${assignment.label}" from this stage/track for everyone?`)) return;
-    const { error } = await supabase.from("content_assignments").delete().eq("id", assignment.id);
+  const handleDelete = async (placement) => {
+    if (!window.confirm(`Remove "${placement.label}" from this stage/track for everyone?`)) return;
+    const { error } = await supabase.from("business_path_placements").delete().eq("id", placement.id);
     if (error) {
       toast.error("Couldn't remove that placement.");
       return;
@@ -346,24 +345,24 @@ function TrackTasks({ stage, track }) {
       {rows.length === 0 && <p style={{ fontSize: "13px", color: "var(--slate)" }}>No content placed in this track yet.</p>}
       {rows.length > 0 && (
         <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
-          {rows.map((a) =>
-            editingId === a.id ? (
-              <li key={a.id}>
-                <EditPlacementForm assignment={a} onSaved={() => { setEditingId(null); refetch(); }} onCancel={() => setEditingId(null)} />
+          {rows.map((p) =>
+            editingId === p.id ? (
+              <li key={p.id}>
+                <EditPlacementForm placement={p} onSaved={() => { setEditingId(null); refetch(); }} onCancel={() => setEditingId(null)} />
               </li>
             ) : (
-              <li key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13.5px" }}>
+              <li key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13.5px" }}>
                 <div>
-                  <span>{a.label}</span>{" "}
+                  <span>{p.label}</span>{" "}
                   <span style={{ color: "var(--slate)" }}>
-                    · {a.task_type.replace("_", " ")} · {a.xp_reward} XP{a.is_required ? "" : " · optional"}
+                    · {p.task_type.replace("_", " ")} · {p.xp_reward} XP{p.is_required ? "" : " · optional"}
                   </span>
                 </div>
                 <div className="row-actions">
-                  <button type="button" className="icon-btn" title="Edit" onClick={() => setEditingId(a.id)}>
+                  <button type="button" className="icon-btn" title="Edit" onClick={() => setEditingId(p.id)}>
                     <Icon name="pencil" size={14} />
                   </button>
-                  <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(a)}>
+                  <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(p)}>
                     <Icon name="trash" size={14} />
                   </button>
                 </div>
@@ -384,7 +383,7 @@ function TrackTasks({ stage, track }) {
 
 function StageTracks({ stage, tracks }) {
   const { data: stageTracks, refetch } = useSupabaseQuery(
-    () => supabase.from("stage_tracks").select("track_id").eq("stage_id", stage.id),
+    () => supabase.from("business_path_stage_tracks").select("track_id").eq("stage_id", stage.id),
     [stage.id],
   );
   const attachedTrackIds = new Set((stageTracks ?? []).map((st) => st.track_id));
@@ -395,9 +394,9 @@ function StageTracks({ stage, tracks }) {
 
   const toggleTrack = async (track) => {
     if (attachedTrackIds.has(track.id)) {
-      await supabase.from("stage_tracks").delete().eq("stage_id", stage.id).eq("track_id", track.id);
+      await supabase.from("business_path_stage_tracks").delete().eq("stage_id", stage.id).eq("track_id", track.id);
     } else {
-      await supabase.from("stage_tracks").insert({ stage_id: stage.id, track_id: track.id });
+      await supabase.from("business_path_stage_tracks").insert({ stage_id: stage.id, track_id: track.id });
     }
     refetch();
   };
@@ -425,20 +424,20 @@ function StageTracks({ stage, tracks }) {
               </Chip>
             ))}
           </div>
-          {activeTrack && <TrackTasks stage={stage} track={activeTrack} />}
+          {activeTrack && <TrackPlacements stage={stage} track={activeTrack} />}
         </>
       )}
     </div>
   );
 }
 
-function StageRow({ stage, tracks, ranks, rankLabel, memberUids, isFirst, isLast, onChanged, onReorder, expanded, onToggle }) {
+function StageRow({ stage, tracks, levels, levelLabel, memberUids, isFirst, isLast, onChanged, onReorder, expanded, onToggle }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
 
   const togglePublished = async (e) => {
     e.stopPropagation();
-    await supabase.from("stages").update({ published: !stage.published }).eq("id", stage.id);
+    await supabase.from("business_path_stages").update({ published: !stage.published }).eq("id", stage.id);
     onChanged?.();
   };
 
@@ -449,7 +448,7 @@ function StageRow({ stage, tracks, ranks, rankLabel, memberUids, isFirst, isLast
         ? ` ${memberUids.length} member${memberUids.length === 1 ? " is" : "s are"} currently on this stage — they'll lose their place and need to be moved to another stage.`
         : "";
     if (!window.confirm(`Delete stage "${stage.title}"? This also deletes its content placements for this stage.${memberWarning}`)) return;
-    const { error } = await supabase.from("stages").delete().eq("id", stage.id);
+    const { error } = await supabase.from("business_path_stages").delete().eq("id", stage.id);
     if (error) {
       toast.error("Couldn't delete that stage.");
       return;
@@ -471,14 +470,14 @@ function StageRow({ stage, tracks, ranks, rankLabel, memberUids, isFirst, isLast
         </div>
 
         {editing ? (
-          <EditStageForm stage={stage} ranks={ranks} onSaved={() => { setEditing(false); onChanged?.(); }} onCancel={() => setEditing(false)} />
+          <EditStageForm stage={stage} levels={levels} onSaved={() => { setEditing(false); onChanged?.(); }} onCancel={() => setEditing(false)} />
         ) : (
           <button type="button" className="accordion-header" onClick={onToggle} style={{ flex: 1, minWidth: 0 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="card-title" style={{ marginBottom: 0, display: "flex", alignItems: "center", gap: "8px" }}>
                 {stage.title}
-                <span className={`badge ${rankLabel ? "badge-neutral" : "badge-warning"}`} style={{ fontWeight: 500 }}>
-                  {rankLabel ?? "No rank"}
+                <span className={`badge ${levelLabel ? "badge-neutral" : "badge-warning"}`} style={{ fontWeight: 500 }}>
+                  {levelLabel ?? "No Path Level"}
                 </span>
               </div>
               {stage.description && <p style={{ color: "var(--slate)", fontSize: "13.5px", marginTop: "6px" }}>{stage.description}</p>}
@@ -514,34 +513,32 @@ function StageRow({ stage, tracks, ranks, rankLabel, memberUids, isFirst, isLast
   );
 }
 
-// The 7 Ranks are fixed rows (no add/remove — see supabase/migrations/
-// 0032_development_levels.sql / 0037_merge_levels_and_ranks.sql) that
-// Stages nest under via stages.rank_id. This merges what used to be two
-// separate fields (a training-driven "Development Level" and a hand-set
-// "Official Rank") into the one thing that both categorizes members and
-// drives which training/tasks they get. Admins can edit the label/purpose/
-// outcome copy shown on the member dashboard, but not the set of ranks
-// itself.
-function EditRankForm({ rank, onSaved, onCancel }) {
+// The 7 Path Levels are fixed rows (no add/remove — see supabase/migrations/
+// 0050_business_path_schema.sql) that Stages nest under via
+// stages.path_level_id. This is the renamed "rank ladder" — it both
+// categorizes members and drives which training/tasks they get. Admins can
+// edit the label/purpose/outcome copy shown on the member dashboard, but not
+// the set of Path Levels itself.
+function EditLevelForm({ level, onSaved, onCancel }) {
   const toast = useToast();
-  const [label, setLabel] = useState(rank.label);
-  const [purpose, setPurpose] = useState(rank.purpose ?? "");
-  const [outcome, setOutcome] = useState(rank.outcome ?? "");
+  const [label, setLabel] = useState(level.label);
+  const [purpose, setPurpose] = useState(level.purpose ?? "");
+  const [outcome, setOutcome] = useState(level.outcome ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     const { error } = await supabase
-      .from("ranks")
+      .from("business_path_levels")
       .update({ label: label.trim(), purpose: purpose.trim(), outcome: outcome.trim(), updated_at: new Date().toISOString() })
-      .eq("id", rank.id);
+      .eq("id", level.id);
     setSaving(false);
     if (error) {
       toast.error("Couldn't save changes.");
       return;
     }
-    toast.success("Rank updated.");
+    toast.success("Path Level updated.");
     onSaved();
   };
 
@@ -562,7 +559,7 @@ function EditRankForm({ rank, onSaved, onCancel }) {
   );
 }
 
-function RanksPanel({ ranks, onChanged }) {
+function PathLevelsPanel({ levels, onChanged }) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
@@ -575,7 +572,7 @@ function RanksPanel({ ranks, onChanged }) {
         style={{ width: "100%" }}
       >
         <div className="card-title" style={{ marginBottom: 0 }}>
-          Ranks
+          Path Levels
         </div>
         <span className="accordion-chevron">
           <Icon name={open ? "chevron-down" : "chevron-right"} size={16} />
@@ -583,26 +580,26 @@ function RanksPanel({ ranks, onChanged }) {
       </button>
       {!open && (
         <p style={{ color: "var(--slate)", fontSize: "13px", marginTop: "6px" }}>
-          The 7 fixed ranks members progress through. Stages nest under one below.
+          The 7 fixed Path Levels members progress through. Stages nest under one below.
         </p>
       )}
       {open && (
         <div className="accordion-body">
           <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "10px" }}>
-            {ranks?.map((rank) =>
-              editingId === rank.id ? (
-                <li key={rank.id}>
-                  <EditRankForm rank={rank} onSaved={() => { setEditingId(null); onChanged?.(); }} onCancel={() => setEditingId(null)} />
+            {levels?.map((level) =>
+              editingId === level.id ? (
+                <li key={level.id}>
+                  <EditLevelForm level={level} onSaved={() => { setEditingId(null); onChanged?.(); }} onCancel={() => setEditingId(null)} />
                 </li>
               ) : (
-                <li key={rank.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                <li key={level.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: "13.5px" }}>
-                      {rank.order_index}. {rank.label}
+                      {level.order_index}. {level.label}
                     </div>
-                    {rank.purpose && <div style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "2px" }}>{rank.purpose}</div>}
+                    {level.purpose && <div style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "2px" }}>{level.purpose}</div>}
                   </div>
-                  <button type="button" className="icon-btn" title="Edit rank" onClick={() => setEditingId(rank.id)}>
+                  <button type="button" className="icon-btn" title="Edit Path Level" onClick={() => setEditingId(level.id)}>
                     <Icon name="pencil" size={14} />
                   </button>
                 </li>
@@ -620,10 +617,10 @@ function RanksPanel({ ranks, onChanged }) {
 // one, same as a course or assignment. The per-stage "Add content" flow
 // (NewPlacementForm above) can also create one inline via ContentPicker on
 // the spot; this section is the browse-everything/manage view, kept next
-// to Stage Builder rather than Content Builder since it's tasks/projects
-// admins place into stages, not learning content (see supabase/migrations/
-// 0027_content_model_schema.sql for why content is a separate reusable
-// layer from where/when it's placed).
+// to Business Path Builder rather than Content Builder since it's
+// tasks/projects admins place into stages, not learning content (see
+// supabase/migrations/0027_content_model_schema.sql for why content is a
+// separate reusable layer from where/when it's placed).
 function NewBareContentForm({ onCreated, onDone }) {
   const toast = useToast();
   const [title, setTitle] = useState("");
@@ -735,36 +732,32 @@ function BareContentSection() {
   );
 }
 
-const TOOL_MODALS = [
-  { id: "milestones", label: "Milestones", icon: "award", Component: MilestoneBuilder },
-  { id: "promotions", label: "Promotions", icon: "trophy", Component: PromotionRequests },
-  { id: "progression", label: "Progression", icon: "bar-chart", Component: ProgressionOverview },
-];
+const TOOL_MODALS = [{ id: "progression", label: "Progression", icon: "bar-chart", Component: ProgressionOverview }];
 
-export default function StageBuilder() {
+export default function BusinessPathBuilder() {
   const [openStageId, setOpenStageId] = useState(null);
   const [showNewStage, setShowNewStage] = useState(false);
   const [openTool, setOpenTool] = useState(null);
   const { loading, data: stages, refetch } = useSupabaseQuery(
-    () => supabase.from("stages").select("*").order("order_index", { ascending: true }),
+    () => supabase.from("business_path_stages").select("*").order("order_index", { ascending: true }),
     [],
   );
-  const { data: tracks } = useSupabaseQuery(() => supabase.from("tracks").select("*").order("key"), []);
-  const { data: ranks, refetch: refetchRanks } = useSupabaseQuery(
-    () => supabase.from("ranks").select("*").order("order_index"),
+  const { data: tracks } = useSupabaseQuery(() => supabase.from("business_path_tracks").select("*").order("key"), []);
+  const { data: levels, refetch: refetchLevels } = useSupabaseQuery(
+    () => supabase.from("business_path_levels").select("*").order("order_index"),
     [],
   );
-  const rankById = new Map((ranks ?? []).map((r) => [r.id, r]));
+  const levelById = new Map((levels ?? []).map((l) => [l.id, l]));
 
   // Members currently in each stage — used only for the delete-stage
   // warning now; placing content no longer needs to know who's in a stage
   // (see NewPlacementForm — one row applies to everyone, present and future).
-  const { data: journeyRows } = useSupabaseQuery(
-    () => supabase.from("member_journey").select("uid, current_stage_id"),
+  const { data: memberStageRows } = useSupabaseQuery(
+    () => supabase.from("member_business_path_stage").select("uid, current_stage_id"),
     [],
   );
   const membersByStage = new Map();
-  for (const row of journeyRows ?? []) {
+  for (const row of memberStageRows ?? []) {
     if (!membersByStage.has(row.current_stage_id)) membersByStage.set(row.current_stage_id, []);
     membersByStage.get(row.current_stage_id).push(row.uid);
   }
@@ -776,8 +769,8 @@ export default function StageBuilder() {
     const a = stages[index];
     const b = stages[targetIndex];
     await Promise.all([
-      supabase.from("stages").update({ order_index: b.order_index }).eq("id", a.id),
-      supabase.from("stages").update({ order_index: a.order_index }).eq("id", b.id),
+      supabase.from("business_path_stages").update({ order_index: b.order_index }).eq("id", a.id),
+      supabase.from("business_path_stages").update({ order_index: a.order_index }).eq("id", b.id),
     ]);
     refetch();
   };
@@ -785,7 +778,7 @@ export default function StageBuilder() {
   return (
     <div>
       <div className="section-heading">
-        <h1>Stage Builder</h1>
+        <h1>Business Path Builder</h1>
         {!showNewStage && (
           <button type="button" className="btn btn-primary" onClick={() => setShowNewStage(true)}>
             <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
@@ -797,11 +790,10 @@ export default function StageBuilder() {
         Stage → Skill / Business / Freelancing tracks → content. Click a stage to open it — opening another one closes this.
       </p>
 
-      {/* Milestones/Promotions/Progression used to be dead ends reachable
-          only by typing their URL directly — no nav link pointed at any of
-          them. Surfacing them as popups here (rather than three more
-          permanent sidebar entries) keeps the sidebar uncluttered while
-          making them actually reachable. */}
+      {/* Progression used to be a dead end reachable only by typing its URL
+          directly — no nav link pointed at it. Surfacing it as a popup here
+          (rather than a permanent sidebar entry) keeps the sidebar
+          uncluttered while making it actually reachable. */}
       <div className="quick-actions" style={{ marginTop: 0, marginBottom: "24px" }}>
         {TOOL_MODALS.map((tool) => (
           <button key={tool.id} type="button" className="quick-action" onClick={() => setOpenTool(tool.id)}>
@@ -819,7 +811,7 @@ export default function StageBuilder() {
         </Modal>
       ))}
 
-      <RanksPanel ranks={ranks} onChanged={refetchRanks} />
+      <PathLevelsPanel levels={levels} onChanged={refetchLevels} />
 
       {showNewStage && <NewStageForm onCreated={refetch} onDone={() => setShowNewStage(false)} />}
 
@@ -831,8 +823,8 @@ export default function StageBuilder() {
             key={stage.id}
             stage={stage}
             tracks={tracks}
-            ranks={ranks}
-            rankLabel={rankById.get(stage.rank_id)?.label}
+            levels={levels}
+            levelLabel={levelById.get(stage.path_level_id)?.label}
             memberUids={membersByStage.get(stage.id) ?? []}
             isFirst={i === 0}
             isLast={i === stages.length - 1}

@@ -181,7 +181,7 @@ export default function Profile() {
   };
 
   // ---------- This month's goals (member_goals, see 0039) ----------
-  const { data: ranks } = useSupabaseQuery(() => supabase.from("ranks").select("id, label").order("order_index"), []);
+  const { data: levels } = useSupabaseQuery(() => supabase.from("business_path_levels").select("id, label").order("order_index"), []);
   const {
     data: goalsRow,
     refetch: refetchGoals,
@@ -469,12 +469,12 @@ export default function Profile() {
           />
         </div>
         <div className="field">
-          <label htmlFor="targetRank">Rank you want to end the month with</label>
+          <label htmlFor="targetRank">Path Level you want to end the month with</label>
           <select id="targetRank" value={targetRankId} onChange={(e) => setTargetRankId(e.target.value)}>
             <option value="">Not set</option>
-            {ranks?.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.label}
+            {levels?.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
               </option>
             ))}
           </select>

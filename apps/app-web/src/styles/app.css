@@ -155,6 +155,19 @@
 .icon-badge.tone-warning{ background:var(--gold-soft); color:var(--gold); }
 .icon-badge.tone-danger{ background:var(--danger-soft); color:var(--danger); }
 
+/* Categorical identity hues (dataviz skill's validated 8-slot dark set,
+   re-checked against this app's #0A0D14 surface — all pass CVD ΔE >= 8.4,
+   normal-vision ΔE >= 19.3, contrast >= 3:1). For per-item identity color
+   (e.g. one hue per learning path), never for status/state. */
+.icon-badge.hue-blue{ background:rgba(57,135,229,0.16); color:#3987e5; }
+.icon-badge.hue-orange{ background:rgba(217,89,38,0.16); color:#d95926; }
+.icon-badge.hue-aqua{ background:rgba(25,158,112,0.16); color:#199e70; }
+.icon-badge.hue-yellow{ background:rgba(201,133,0,0.16); color:#c98500; }
+.icon-badge.hue-magenta{ background:rgba(213,81,129,0.16); color:#d55181; }
+.icon-badge.hue-green{ background:rgba(0,131,0,0.16); color:#008300; }
+.icon-badge.hue-violet{ background:rgba(144,133,233,0.16); color:#9085e9; }
+.icon-badge.hue-red{ background:rgba(230,103,103,0.16); color:#e66767; }
+
 /* ---------- KPI stat tile ---------- */
 .stat-tile{
   display:flex; align-items:center; gap:14px;
