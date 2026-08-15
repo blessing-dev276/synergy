@@ -5,6 +5,7 @@ import { useAuth } from "../../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Icon from "../../../components/Icon.jsx";
+import Modal from "../../../components/Modal.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 
@@ -26,6 +27,21 @@ const SECTIONS = [
   { key: "nm_business", label: "Network Marketing Business Training", icon: "briefcase" },
   { key: "mind_training", label: "Mind Training", icon: "brain" },
 ];
+
+// A class holds a mix of structured courses (build out modules/lessons in
+// CourseEditor, unchanged) and lightweight standalone resources (a single
+// link is the whole payload — no lesson-building). Author/Host only makes
+// sense for the two "someone made this" types.
+const RESOURCE_TYPES = [
+  { key: "course", label: "Course", icon: "layers" },
+  { key: "video", label: "Video", icon: "video" },
+  { key: "book", label: "Book", icon: "book" },
+  { key: "podcast", label: "Podcast", icon: "podcast" },
+  { key: "link", label: "Link", icon: "link" },
+  { key: "pdf", label: "PDF / Document", icon: "clipboard" },
+];
+const RESOURCE_TYPE_BY_KEY = Object.fromEntries(RESOURCE_TYPES.map((t) => [t.key, t]));
+const HAS_AUTHOR = new Set(["book", "podcast"]);
 
 function NewPathForm({ section, onCreated, onDone }) {
   const { user } = useAuth();
@@ -107,53 +123,91 @@ function EditPathForm({ path, onSaved, onCancel }) {
   );
 }
 
-function NewCourseForm({ pathId, onCreated, onCancel, autoFocus }) {
+function ResourceModal({ pathId, pathTitle, sectionKey, course, onClose, onSaved }) {
   const { user } = useAuth();
   const toast = useToast();
-  const [title, setTitle] = useState("");
+  const isEdit = !!course;
+  const [type, setType] = useState(course?.resource_type ?? (sectionKey === "mind_training" ? "book" : "course"));
+  const [title, setTitle] = useState(course?.title ?? "");
+  const [author, setAuthor] = useState(course?.resource_author ?? "");
+  const [description, setDescription] = useState(course?.description ?? "");
+  const [url, setUrl] = useState(course?.resource_url ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from("courses").insert({
-      path_id: pathId,
+    const payload = {
       title: title.trim(),
-      description: "",
-      order_index: Math.floor(Date.now() / 1000),
-      published: false,
-      created_by: user.id,
-    });
+      description: description.trim(),
+      resource_type: type,
+      resource_url: url.trim(),
+      resource_author: HAS_AUTHOR.has(type) ? author.trim() : "",
+    };
+    const { error } = isEdit
+      ? await supabase.from("courses").update(payload).eq("id", course.id)
+      : await supabase.from("courses").insert({
+          ...payload,
+          path_id: pathId,
+          order_index: Math.floor(Date.now() / 1000),
+          published: false,
+          created_by: user.id,
+        });
     setSaving(false);
     if (error) {
-      toast.error("Couldn't create that course.");
+      toast.error(`Couldn't ${isEdit ? "save" : "create"} that resource.`);
       return;
     }
-    setTitle("");
-    toast.success("Course created (draft).");
-    onCreated?.();
+    toast.success(isEdit ? "Resource updated." : "Resource created (draft).");
+    onSaved();
   };
 
   return (
-    <form onSubmit={submit} style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-      <input
-        className="inline-edit-field"
-        placeholder="New course title"
-        required
-        autoFocus={autoFocus}
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        style={{ flex: 1 }}
-      />
-      <button type="submit" className="btn btn-secondary" disabled={saving}>
-        Add course
-      </button>
-      {onCancel && (
-        <button type="button" className="icon-btn" title="Cancel" onClick={onCancel}>
-          <Icon name="x" size={14} />
-        </button>
-      )}
-    </form>
+    <Modal open onClose={onClose} title={isEdit ? "Edit Resource" : sectionKey === "mind_training" ? "Add Mind Training Resource" : "Add Resource"}>
+      <form onSubmit={submit}>
+        <div className="field">
+          <label>Type</label>
+          <select value={type} onChange={(e) => setType(e.target.value)}>
+            {RESOURCE_TYPES.map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>Title</label>
+          <input required autoFocus placeholder={type === "course" ? "Course title" : "Resource title"} value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        {HAS_AUTHOR.has(type) && (
+          <div className="field">
+            <label>Author / Host (optional)</label>
+            <input placeholder="Author or host name" value={author} onChange={(e) => setAuthor(e.target.value)} />
+          </div>
+        )}
+        <div className="field">
+          <label>Description (optional)</label>
+          <textarea rows={2} placeholder="Brief description" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        {type !== "course" && (
+          <div className="field">
+            <label>URL / Link</label>
+            <input type="url" required placeholder="https://…" value={url} onChange={(e) => setUrl(e.target.value)} />
+          </div>
+        )}
+        <p style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "-6px", marginBottom: "16px" }}>
+          Adding to class <strong style={{ color: "var(--navy)" }}>{pathTitle}</strong>
+        </p>
+        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? "Saving…" : isEdit ? "Save" : "Add Resource"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -173,41 +227,73 @@ function StatTile({ label, value, icon, tone }) {
   );
 }
 
-function CourseRow({ course, isFirst, isLast, onReorder, onChanged }) {
+function CourseRow({ course, isFirst, isLast, onReorder, onEdit, onChanged }) {
   const toast = useToast();
+  const resourceType = course.resource_type ?? "course";
+  const isCourse = resourceType === "course";
+  const typeInfo = RESOURCE_TYPE_BY_KEY[resourceType] ?? RESOURCE_TYPE_BY_KEY.course;
 
   const handleDelete = async (e) => {
     e.preventDefault();
-    if (!window.confirm(`Delete course "${course.title}" and all its modules/lessons?`)) return;
+    if (!window.confirm(isCourse ? `Delete course "${course.title}" and all its modules/lessons?` : `Delete "${course.title}"?`)) return;
     const { error } = await supabase.from("courses").delete().eq("id", course.id);
     if (error) {
-      toast.error("Couldn't delete that course.");
+      toast.error("Couldn't delete that.");
       return;
     }
-    toast.success("Course deleted.");
+    toast.success(isCourse ? "Course deleted." : "Resource deleted.");
     onChanged();
   };
 
+  const meta = isCourse
+    ? `${course.lesson_count ?? 0} lessons`
+    : [typeInfo.label, course.resource_author].filter(Boolean).join(" · ");
+
   return (
     <div className="manage-row" style={{ marginBottom: "6px" }}>
-      <div className="reorder-controls">
-        <button type="button" className="icon-btn" disabled={isFirst} onClick={() => onReorder(-1)} title="Move up">
-          <Icon name="arrow-up" size={12} />
-        </button>
-        <button type="button" className="icon-btn" disabled={isLast} onClick={() => onReorder(1)} title="Move down">
-          <Icon name="arrow-down" size={12} />
-        </button>
-      </div>
-      <Link to={`/admin/content/courses/${course.id}`} style={{ flex: 1, minWidth: 0 }}>
-        <div className="row-title">{course.title}</div>
-        <div className="row-meta">{course.lesson_count ?? 0} lessons</div>
-      </Link>
+      {onReorder && (
+        <div className="reorder-controls">
+          <button type="button" className="icon-btn" disabled={isFirst} onClick={() => onReorder(-1)} title="Move up">
+            <Icon name="arrow-up" size={12} />
+          </button>
+          <button type="button" className="icon-btn" disabled={isLast} onClick={() => onReorder(1)} title="Move down">
+            <Icon name="arrow-down" size={12} />
+          </button>
+        </div>
+      )}
+      {!isCourse && (
+        <span className="icon-btn" style={{ pointerEvents: "none" }} title={typeInfo.label}>
+          <Icon name={typeInfo.icon} size={14} />
+        </span>
+      )}
+      {isCourse ? (
+        <Link to={`/admin/content/courses/${course.id}`} style={{ flex: 1, minWidth: 0 }}>
+          <div className="row-title">{course.title}</div>
+          <div className="row-meta">{meta}</div>
+        </Link>
+      ) : (
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="row-title">{course.title}</div>
+          <div className="row-meta">{meta}</div>
+        </div>
+      )}
       <span className={`badge ${course.published ? "badge-success" : "badge-warning"}`}>{course.published ? "Published" : "Draft"}</span>
       <div className="row-actions">
-        <Link to={`/admin/content/courses/${course.id}`} className="icon-btn" title="Edit content">
-          <Icon name="pencil" size={14} />
-        </Link>
-        <button type="button" className="icon-btn icon-btn-danger" title="Delete course" onClick={handleDelete}>
+        {!isCourse && course.resource_url && (
+          <a href={course.resource_url} target="_blank" rel="noopener noreferrer" className="icon-btn" title="Open link">
+            <Icon name="link" size={14} />
+          </a>
+        )}
+        {isCourse ? (
+          <Link to={`/admin/content/courses/${course.id}`} className="icon-btn" title="Edit content">
+            <Icon name="pencil" size={14} />
+          </Link>
+        ) : (
+          <button type="button" className="icon-btn" title="Edit resource" onClick={() => onEdit(course)}>
+            <Icon name="pencil" size={14} />
+          </button>
+        )}
+        <button type="button" className="icon-btn icon-btn-danger" title={isCourse ? "Delete course" : "Delete resource"} onClick={handleDelete}>
           <Icon name="trash" size={14} />
         </button>
       </div>
@@ -215,10 +301,11 @@ function CourseRow({ course, isFirst, isLast, onReorder, onChanged }) {
   );
 }
 
-function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChanged }) {
+function PathBlock({ path, sectionKey, isOpen, onToggle, isFirst, isLast, onReorder, onChanged }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
-  const [addingCourse, setAddingCourse] = useState(false);
+  const [resourceModal, setResourceModal] = useState(null); // null closed | {} add | course edit
+  const [typeFilter, setTypeFilter] = useState("all");
 
   const { data: courses, loading: coursesLoading, refetch } = useSupabaseQuery(
     () => isOpen && supabase.from("courses").select("*").eq("path_id", path.id).order("order_index", { ascending: true }),
@@ -258,7 +345,7 @@ function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChang
 
   // Course create/delete only touches this path's own course list locally —
   // also nudge the outer paths refetch so the header's course_count (and the
-  // page-level "Total courses" stat) don't go stale while collapsed.
+  // page-level "Total resources" stat) don't go stale while collapsed.
   const refetchAll = () => {
     refetch();
     onChanged();
@@ -266,11 +353,14 @@ function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChang
 
   const courseCount = path.course_count ?? 0;
 
-  const openToAddCourse = (e) => {
+  const openToAddResource = (e) => {
     e.stopPropagation();
     if (!isOpen) onToggle();
-    setAddingCourse(true);
+    setResourceModal({});
   };
+
+  const presentTypes = [...new Set((courses ?? []).map((c) => c.resource_type ?? "course"))];
+  const visibleCourses = typeFilter === "all" ? courses : courses?.filter((c) => (c.resource_type ?? "course") === typeFilter);
 
   return (
     <div className={`card-elevated learning-path-card${isOpen ? " is-open" : ""}`} style={{ marginBottom: "14px" }}>
@@ -282,7 +372,7 @@ function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChang
             <span className={`icon-badge hue-${pathHue(path.id)}`} style={{ width: "56px", height: "56px", borderRadius: "16px" }}>
               <Icon name="layers" size={24} />
             </span>
-            <button type="button" className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "13px" }} onClick={openToAddCourse}>
+            <button type="button" className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "13px" }} onClick={openToAddResource}>
               <Icon name="plus" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
               Add
             </button>
@@ -294,7 +384,7 @@ function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChang
                 {path.title}
               </div>
               <div className="row-meta">
-                {courseCount} course{courseCount === 1 ? "" : "s"}
+                {courseCount} resource{courseCount === 1 ? "" : "s"}
               </div>
             </div>
             <span className="accordion-chevron">
@@ -331,30 +421,60 @@ function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChang
 
           {coursesLoading && <Skeleton variant="card" height="60px" />}
 
-          {!coursesLoading && courses?.length === 0 && !addingCourse && (
-            <div style={{ textAlign: "center", padding: "26px 12px", color: "var(--slate)", fontSize: "13.5px" }}>No courses in this path yet.</div>
+          {!coursesLoading && presentTypes.length > 1 && (
+            <div style={{ display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
+              <button type="button" className={`btn ${typeFilter === "all" ? "btn-primary" : "btn-secondary"}`} style={{ padding: "6px 14px", fontSize: "12.5px" }} onClick={() => setTypeFilter("all")}>
+                All
+              </button>
+              {presentTypes.map((key) => {
+                const t = RESOURCE_TYPE_BY_KEY[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`btn ${typeFilter === key ? "btn-primary" : "btn-secondary"}`}
+                    style={{ padding: "6px 14px", fontSize: "12.5px" }}
+                    onClick={() => setTypeFilter(key)}
+                  >
+                    <Icon name={t.icon} size={12} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
           )}
 
-          {courses?.map((course, i) => (
+          {!coursesLoading && courses?.length === 0 && (
+            <div style={{ textAlign: "center", padding: "26px 12px", color: "var(--slate)", fontSize: "13.5px" }}>No resources in this path yet.</div>
+          )}
+
+          {typeFilter !== "all" && (
+            <p style={{ fontSize: "12.5px", color: "var(--slate)", marginBottom: "8px" }}>Reordering is only available on "All".</p>
+          )}
+
+          {visibleCourses?.map((course, i) => (
             <CourseRow
               key={course.id}
               course={course}
               isFirst={i === 0}
-              isLast={i === courses.length - 1}
-              onReorder={(direction) => reorderCourse(i, direction)}
+              isLast={i === visibleCourses.length - 1}
+              onReorder={typeFilter === "all" ? (direction) => reorderCourse(i, direction) : null}
+              onEdit={setResourceModal}
               onChanged={refetchAll}
             />
           ))}
 
-          {addingCourse && (
-            <NewCourseForm
+          {resourceModal && (
+            <ResourceModal
               pathId={path.id}
-              autoFocus
-              onCreated={() => {
+              pathTitle={path.title}
+              sectionKey={sectionKey}
+              course={resourceModal.id ? resourceModal : null}
+              onClose={() => setResourceModal(null)}
+              onSaved={() => {
                 refetchAll();
-                setAddingCourse(false);
+                setResourceModal(null);
               }}
-              onCancel={() => setAddingCourse(false)}
             />
           )}
         </div>
@@ -409,7 +529,8 @@ export default function ContentBuilder() {
         )}
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "20px" }}>
-        Learning Path → Course → Module → Lesson → Quiz/Assignment. Click a path to open it — opening another one closes this.
+        Each class holds a mix of structured courses and standalone resources (video, book, podcast, link, PDF). Click a class to open it —
+        opening another one closes this.
       </p>
 
       <div style={{ display: "flex", gap: "10px", marginBottom: "24px", flexWrap: "wrap" }}>
@@ -431,7 +552,7 @@ export default function ContentBuilder() {
           <StatTile label="Learning paths" value={paths.length} icon="layers" />
           <StatTile label="Published" value={publishedCount} icon="check" tone="success" />
           <StatTile label="Draft" value={paths.length - publishedCount} icon="pencil" tone="warning" />
-          <StatTile label="Total courses" value={totalCourses} icon="book" />
+          <StatTile label="Total resources" value={totalCourses} icon="book" />
         </div>
       )}
 
@@ -442,7 +563,7 @@ export default function ContentBuilder() {
         <EmptyState
           icon={<Icon name={activeSection.icon} size={26} />}
           title={`No paths in ${activeSection.label} yet`}
-          description="Create the first learning path in this section to start building out courses, modules, and lessons."
+          description="Create the first learning path in this section to start adding courses and resources."
           action={
             <button type="button" className="btn btn-primary" onClick={() => setShowNewPath(true)} style={{ marginTop: "4px" }}>
               <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
@@ -455,6 +576,7 @@ export default function ContentBuilder() {
         <PathBlock
           key={path.id}
           path={path}
+          sectionKey={section}
           isOpen={openPathId === path.id}
           onToggle={() => setOpenPathId((prev) => (prev === path.id ? null : path.id))}
           isFirst={i === 0}

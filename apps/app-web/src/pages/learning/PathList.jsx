@@ -74,7 +74,7 @@ export default function PathList() {
               <Link key={path.id} to={`/learning/${path.id}`} className="card">
                 <div className="card-title">{path.title}</div>
                 <div className="card-subtitle">{path.description}</div>
-                <span className="badge badge-neutral">{path.courseCount ?? 0} courses</span>
+                <span className="badge badge-neutral">{path.courseCount ?? 0} resources</span>
               </Link>
             ),
           )}

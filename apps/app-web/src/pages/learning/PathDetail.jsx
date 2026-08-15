@@ -4,6 +4,13 @@ import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
+import Icon from "../../components/Icon.jsx";
+
+// Mirrors ContentBuilder.jsx's RESOURCE_TYPES -- a course drills into the
+// lesson flow below; every other type has no lessons at all, its
+// resource_url *is* the content, so it opens directly instead.
+const RESOURCE_TYPE_LABEL = { video: "Video", book: "Book", podcast: "Podcast", link: "Link", pdf: "PDF / Document" };
+const RESOURCE_TYPE_ICON = { video: "video", book: "book", podcast: "podcast", link: "link", pdf: "clipboard" };
 
 export default function PathDetail() {
   const { pathId } = useParams();
@@ -52,17 +59,32 @@ export default function PathDetail() {
       {!locked && loadingCourses && <Skeleton variant="card" height="100px" />}
       {!locked && error && <ErrorState description="Couldn't load courses." />}
       {!locked && !loadingCourses && !error && (!courses || courses.length === 0) && (
-        <EmptyState icon="📘" title="No courses published in this path yet" />
+        <EmptyState icon="📘" title="Nothing published in this path yet" />
       )}
       {!locked && courses && courses.length > 0 && (
         <div className="grid grid-2">
-          {courses.map((course) => (
-            <Link key={course.id} to={`/learning/${pathId}/${course.id}`} className="card">
-              <div className="card-title">{course.title}</div>
-              <div className="card-subtitle">{course.description}</div>
-              <span className="badge badge-neutral">{course.lesson_count ?? 0} lessons</span>
-            </Link>
-          ))}
+          {courses.map((course) => {
+            const type = course.resource_type ?? "course";
+            if (type === "course") {
+              return (
+                <Link key={course.id} to={`/learning/${pathId}/${course.id}`} className="card">
+                  <div className="card-title">{course.title}</div>
+                  <div className="card-subtitle">{course.description}</div>
+                  <span className="badge badge-neutral">{course.lesson_count ?? 0} lessons</span>
+                </Link>
+              );
+            }
+            return (
+              <a key={course.id} href={course.resource_url} target="_blank" rel="noopener noreferrer" className="card">
+                <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Icon name={RESOURCE_TYPE_ICON[type]} size={16} />
+                  {course.title}
+                </div>
+                <div className="card-subtitle">{course.description}</div>
+                <span className="badge badge-neutral">{[RESOURCE_TYPE_LABEL[type], course.resource_author].filter(Boolean).join(" · ")}</span>
+              </a>
+            );
+          })}
         </div>
       )}
     </div>
