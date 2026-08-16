@@ -94,7 +94,7 @@ function NewLessonForm({ courseId, moduleId, onCreated }) {
       </div>
       <textarea
         className="inline-edit-field"
-        placeholder={contentType === "text" ? "Lesson content" : "URL"}
+        placeholder={contentType === "text" ? "Lesson content" : contentType === "video" ? "YouTube, Vimeo, or direct video file URL" : "URL"}
         rows={2}
         value={contentBody}
         onChange={(e) => setContentBody(e.target.value)}

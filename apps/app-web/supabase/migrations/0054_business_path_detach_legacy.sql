@@ -7,6 +7,16 @@
 -- individual task assignments -- exactly the feature that must survive this
 -- rebuild untouched. These 4 steps, in this exact order, close that off.
 
+-- 0. public._journey_migration_map (0029, one-time scaffolding for the
+--    0027-0030 content-model backfill, its job finished the moment that
+--    migration ran) holds an FK straight at content_assignments(id) with no
+--    cascade, alongside its FK at tasks(id). Originally this was dropped
+--    later, in 0056 alongside the tasks(id) FK it also blocks -- but step 1
+--    below deletes content_assignments rows first, which fails just as hard
+--    against this table's content_assignment_id FK. Drop it here, before
+--    step 1, not in 0056.
+drop table public._journey_migration_map;
+
 -- 1. Delete every stage_track-scoped content_assignments row -- these are
 --    the placements Business Path now owns via business_path_placements.
 --    Cascades cleanly into their own content_assignment_dependencies/

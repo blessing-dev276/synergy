@@ -321,13 +321,26 @@ $$;
 -- signatures throughout this file) -- no new revoke/grant statements needed.
 
 -- ================= repoint FKs at the new tables =================
--- Both are empty or safe to leave briefly dangling -- clean slate, no real
--- member data yet. Default constraint names (neither was explicitly named
--- when created), confirmed by reading how each was declared originally.
+-- Default constraint names (neither was explicitly named when created),
+-- confirmed by reading how each was declared originally. The new tables
+-- start empty, but the old columns aren't guaranteed to be -- e.g. an admin
+-- had already set a specialization requirement on a real learning_paths row.
+-- Null out anything that would violate the new FK rather than assume a
+-- clean slate, matching the SET NULL semantics this repoint already intends.
+
+update public.member_goals mg
+  set target_rank_id = null
+  where mg.target_rank_id is not null
+    and not exists (select 1 from public.business_path_levels l where l.id = mg.target_rank_id);
 
 alter table public.member_goals drop constraint member_goals_target_rank_id_fkey;
 alter table public.member_goals add constraint member_goals_target_rank_id_fkey
   foreign key (target_rank_id) references public.business_path_levels(id);
+
+update public.learning_paths lp
+  set specialization_id = null
+  where lp.specialization_id is not null
+    and not exists (select 1 from public.business_path_specializations s where s.id = lp.specialization_id);
 
 alter table public.learning_paths drop constraint learning_paths_specialization_id_fkey;
 alter table public.learning_paths add constraint learning_paths_specialization_id_fkey

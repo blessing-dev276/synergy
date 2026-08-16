@@ -7,6 +7,39 @@ import { markLessonComplete } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 
+// A plain <video src="…"> only plays a direct media file -- it can't play a
+// YouTube/Vimeo *page* URL, which is what admins paste into a lesson's video
+// field almost every time (that's the actual bug: the player looked "broken"
+// because it was silently trying to stream an HTML page as video). Route
+// those hosts to their iframe embed instead; anything else (Supabase
+// storage, any other direct .mp4/.webm link) keeps using <video> as-is.
+function youtubeEmbedUrl(u) {
+  const id = u.hostname === "youtu.be" ? u.pathname.slice(1) : u.pathname === "/watch" ? u.searchParams.get("v") : u.pathname.startsWith("/shorts/") ? u.pathname.split("/")[2] : null;
+  if (!id) return null;
+  const start = parseInt(u.searchParams.get("t") || u.searchParams.get("start") || "0", 10);
+  return `https://www.youtube.com/embed/${id}${start ? `?start=${start}` : ""}`;
+}
+
+function vimeoEmbedUrl(u) {
+  const id = u.pathname.split("/").filter(Boolean)[0];
+  return id && /^\d+$/.test(id) ? `https://player.vimeo.com/video/${id}` : null;
+}
+
+function videoEmbedUrl(url) {
+  if (!url) return null;
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.replace(/^www\.|^m\./, "");
+  if (host === "youtu.be" || host === "youtube.com") return youtubeEmbedUrl(u);
+  if (host === "vimeo.com") return vimeoEmbedUrl(u);
+  if (host === "player.vimeo.com" || u.pathname.startsWith("/embed/")) return url;
+  return null;
+}
+
 export default function LessonViewer() {
   const { pathId, courseId, moduleId, lessonId } = useParams();
   const { user } = useAuth();
@@ -48,6 +81,7 @@ export default function LessonViewer() {
 
   const isComplete = progress?.status === "completed";
   const requiresQuiz = lesson?.completion_rule === "quiz_pass";
+  const embedUrl = lesson?.content_type === "video" ? videoEmbedUrl(lesson.content_body) : null;
 
   const handleMarkComplete = async () => {
     setCompleting(true);
@@ -73,7 +107,18 @@ export default function LessonViewer() {
       <h1 style={{ marginTop: "10px" }}>{lesson.title}</h1>
 
       <div className="card" style={{ marginTop: "20px", marginBottom: "20px" }}>
-        {lesson.content_type === "video" && lesson.content_body && (
+        {lesson.content_type === "video" && lesson.content_body && embedUrl && (
+          <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: "10px", overflow: "hidden" }}>
+            <iframe
+              src={embedUrl}
+              title={lesson.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+            />
+          </div>
+        )}
+        {lesson.content_type === "video" && lesson.content_body && !embedUrl && (
           <video controls style={{ width: "100%", borderRadius: "10px" }} src={lesson.content_body} />
         )}
         {lesson.content_type === "text" && <div style={{ whiteSpace: "pre-wrap" }}>{lesson.content_body}</div>}

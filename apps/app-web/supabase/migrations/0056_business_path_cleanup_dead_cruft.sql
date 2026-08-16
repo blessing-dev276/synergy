@@ -16,13 +16,11 @@
 --     anywhere in this codebase's history -- there isn't one), so it's
 --     dropped here too, per the plan's "confirm still exists" instruction.
 --
--- public._journey_migration_map is dropped first, ahead of `tasks` -- it's
--- not in the plan's drop list (it predates this rebuild, created by 0029 as
--- one-time scaffolding for the 0027-0030 cutover's data migration, and was
--- meant to be temporary) but it holds a foreign key straight at tasks(id)
--- with no CASCADE, so `drop table tasks` would fail outright without
--- dropping this first. Confirmed via grep that nothing outside 0029 ever
--- reads it -- its one-time job finished the moment that migration ran.
+-- public._journey_migration_map (0029 one-time backfill scaffolding, FK'd
+-- to tasks(id) and content_assignments(id)) is now dropped in 0054, not
+-- here -- it also blocked 0054's content_assignments cleanup, which runs
+-- before this file, so it had to move earlier. Nothing left to do about it
+-- in this file.
 
 -- ---------- dead functions ----------
 drop function public.is_task_done(uuid, uuid);
@@ -31,7 +29,6 @@ drop function public.complete_task(uuid);
 drop function public.set_member_official_rank(uuid, uuid, text);
 
 -- ---------- dead tables: original task-tracking system ----------
-drop table public._journey_migration_map;
 drop table public.task_completions;
 drop table public.task_dependencies;
 drop table public.tasks;
