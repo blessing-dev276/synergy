@@ -113,7 +113,16 @@ function YouTubeChapterPlayer({ videoId, startSeconds, endSeconds, title, onWatc
       if (cancelled || !containerRef.current) return;
       player = new YT.Player(containerRef.current, {
         videoId,
-        playerVars: { start: startSeconds || 0, ...(endSeconds ? { end: endSeconds } : {}), rel: 0 },
+        playerVars: {
+          start: startSeconds || 0,
+          ...(endSeconds ? { end: endSeconds } : {}),
+          rel: 0, // no related-video suggestions on end
+          modestbranding: 1, // drop the large YouTube logo from the control bar
+          iv_load_policy: 3, // no annotation overlays
+          fs: 1,
+          playsinline: 1,
+          origin: window.location.origin,
+        },
         events: {
           onStateChange: (e) => {
             if (e.data === YT.PlayerState.PLAYING) startPoll();
@@ -189,7 +198,7 @@ export default function LessonViewer() {
     [lessonId],
   );
 
-  const { data: progress, refetch: refetchProgress } = useSupabaseQuery(
+  const { data: progress, loading: loadingProgress, refetch: refetchProgress } = useSupabaseQuery(
     () => user && supabase.from("lesson_progress").select("*").eq("uid", user.id).eq("lesson_id", lessonId).maybeSingle(),
     [user?.id, lessonId],
   );
@@ -227,8 +236,13 @@ export default function LessonViewer() {
   // Mark "in_progress" the first time this lesson is opened — a low-stakes
   // owner-only write, unlike completion which always goes through the
   // mark_lesson_complete RPC so completion rules are enforced server-side.
+  // Must wait for the progress fetch to actually finish (loadingProgress)
+  // rather than just checking `!progress` -- `progress` is null both before
+  // the fetch resolves AND when it resolves to "no row yet", and upserting
+  // on the former was clobbering an already-`completed` row back down to
+  // `in_progress` on revisit (the fetch hadn't landed yet when this fired).
   useEffect(() => {
-    if (!user || !lesson || progress || locked) return;
+    if (!user || !lesson || loadingProgress || progress || locked) return;
     supabase
       .from("lesson_progress")
       .upsert(
@@ -244,7 +258,7 @@ export default function LessonViewer() {
         { onConflict: "uid,lesson_id" },
       )
       .then(() => refetchProgress());
-  }, [user, lesson, progress, locked, lessonId, moduleId, courseId, pathId, refetchProgress]);
+  }, [user, lesson, loadingProgress, progress, locked, lessonId, moduleId, courseId, pathId, refetchProgress]);
 
   // A fresh chapter starts unwatched even if the same component instance
   // stays mounted across a "Next Chapter" navigation (same route, new params).
@@ -357,36 +371,38 @@ export default function LessonViewer() {
         )}
       </div>
 
-      {isComplete && (
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span className="badge badge-success">Completed</span>
-          {nextLessonId && (
-            <Link to={`/learning/${pathId}/${courseId}/${moduleId}/${nextLessonId}`} className="btn btn-secondary">
-              Next Chapter →
-            </Link>
-          )}
-        </div>
-      )}
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+        {isComplete && <span className="badge badge-success">Completed</span>}
 
-      {!isComplete && !requiresQuiz && canMarkComplete && (
-        <button type="button" className="btn btn-primary" onClick={handleMarkComplete} disabled={completing}>
-          {completing ? "Saving…" : "Mark Complete"}
-        </button>
-      )}
+        {!isComplete && !requiresQuiz && canMarkComplete && (
+          <button type="button" className="btn btn-primary" onClick={handleMarkComplete} disabled={completing}>
+            {completing ? "Saving…" : "Mark Complete"}
+          </button>
+        )}
 
-      {!isComplete && !requiresQuiz && !canMarkComplete && (
-        <p style={{ color: "var(--slate)", fontSize: "13.5px" }}>Finish watching — this chapter will complete and move on automatically.</p>
-      )}
+        {!isComplete && !requiresQuiz && !canMarkComplete && (
+          <p style={{ color: "var(--slate)", fontSize: "13.5px" }}>Finish watching — this chapter will complete and move on automatically.</p>
+        )}
 
-      {!isComplete && requiresQuiz && (
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => navigate(`/learning/${pathId}/${courseId}/${moduleId}/${lessonId}/quiz`)}
-        >
-          Take the quiz to complete this lesson
-        </button>
-      )}
+        {!isComplete && requiresQuiz && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => navigate(`/learning/${pathId}/${courseId}/${moduleId}/${lessonId}/quiz`)}
+          >
+            Take the quiz to complete this lesson
+          </button>
+        )}
+
+        {/* Always present, not just after completing -- clicking through to a
+            still-locked next chapter just lands on the lock screen, which
+            explains itself, so there's no harm always offering the link. */}
+        {nextLessonId && (
+          <Link to={`/learning/${pathId}/${courseId}/${moduleId}/${nextLessonId}`} className="btn btn-secondary">
+            Next Chapter →
+          </Link>
+        )}
+      </div>
     </div>
   );
 }
