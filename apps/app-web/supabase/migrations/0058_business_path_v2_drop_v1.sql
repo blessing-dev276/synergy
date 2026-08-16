@@ -73,18 +73,26 @@ drop function public.can_view_business_path(uuid);
 drop function public.compute_business_path_track_progress(uuid, uuid, uuid);
 drop function public.compute_business_path_level_progress(uuid, uuid);
 drop function public.is_business_path_specialization_unlocked(uuid, uuid);
--- 0050's trigger helper, not in the plan's named-RPC list but still a
--- business_path_* function that becomes dead cruft the moment its table
--- (business_path_placements, step 3) is dropped -- its own trigger goes with
--- the table automatically, but the function object itself doesn't.
-drop function public.check_business_path_placement_specialization_track();
 
 -- ================= 3. drop business_path_*/member_business_path_* tables (0050), children before parents =================
 
 drop table public.business_path_evidence_submissions;
 drop table public.member_business_path_progress;
 drop table public.business_path_placement_dependencies;
+
+-- 0052's daily_task_selections carries an FK straight at
+-- business_path_placements(id) with no cascade, so that table can't drop
+-- until this one is gone -- moved ahead of step 3's table drops (was
+-- originally step 4, after) rather than duplicated.
+drop function public.get_or_generate_daily_tasks(uuid, date);
+drop table public.daily_task_selections;
+
 drop table public.business_path_placements;
+-- 0050's trigger helper is dropped here, not with the other functions above
+-- -- its trigger (business_path_placements_specialization_track_check) lives
+-- on the table just dropped, so the trigger is already gone with it; only
+-- now is the function itself free of dependents.
+drop function public.check_business_path_placement_specialization_track();
 drop table public.member_business_path_stage;
 drop table public.member_business_path_specializations;
 drop table public.business_path_specializations;
@@ -92,8 +100,3 @@ drop table public.business_path_stage_tracks;
 drop table public.business_path_stages;
 drop table public.business_path_levels;
 drop table public.business_path_tracks;
-
--- ================= 4. drop 0052's daily-tasks rework: full removal, no replacement =================
-
-drop function public.get_or_generate_daily_tasks(uuid, date);
-drop table public.daily_task_selections;
