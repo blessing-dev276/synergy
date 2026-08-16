@@ -4,37 +4,62 @@ import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
+import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 
-function ModuleSection({ pathId, courseId, moduleId, title }) {
+// progressByLessonId: Map<lessonId, 'in_progress' | 'completed'> for the
+// whole course, fetched once at the CourseDetail level (below) rather than
+// per module -- a sequential module needs to know its own lessons' status
+// to lock/unlock, and a flat single query is cheaper than one per module.
+function ModuleSection({ pathId, courseId, moduleId, title, sequential, progressByLessonId }) {
   const { loading, data: lessons } = useSupabaseQuery(
     () => supabase.from("lessons").select("*").eq("module_id", moduleId).order("order_index", { ascending: true }),
     [moduleId],
   );
 
+  const published = lessons?.filter((l) => l.published) ?? [];
+
   return (
     <div className="card" style={{ marginBottom: "14px" }}>
       <div className="card-title">{title}</div>
       {loading && <Skeleton variant="text" />}
-      {lessons && lessons.length === 0 && (
+      {lessons && published.length === 0 && (
         <div style={{ fontSize: "13.5px", color: "var(--slate)" }}>No lessons yet.</div>
       )}
-      {lessons && lessons.length > 0 && (
+      {published.length > 0 && (
         <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
-          {lessons
-            .filter((l) => l.published)
-            .map((lesson) => (
+          {published.map((lesson, i) => {
+            const isDone = progressByLessonId.get(lesson.id) === "completed";
+            const prevLesson = i > 0 ? published[i - 1] : null;
+            const locked = sequential && prevLesson && progressByLessonId.get(prevLesson.id) !== "completed";
+            const rowStyle = { display: "flex", alignItems: "center", gap: "8px", padding: "8px 0" };
+
+            if (locked) {
+              return (
+                <li key={lesson.id} style={{ ...rowStyle, color: "var(--slate)", cursor: "not-allowed" }} title="Complete the previous chapter first">
+                  <Icon name="lock" size={14} />
+                  <span style={{ flex: 1 }}>{lesson.title}</span>
+                  <span style={{ fontSize: "13px" }}>{lesson.estimated_minutes ?? "—"} min</span>
+                </li>
+              );
+            }
+            return (
               <li key={lesson.id}>
-                <Link
-                  to={`/learning/${pathId}/${courseId}/${moduleId}/${lesson.id}`}
-                  style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}
-                >
-                  <span>{lesson.title}</span>
+                <Link to={`/learning/${pathId}/${courseId}/${moduleId}/${lesson.id}`} style={rowStyle}>
+                  {isDone ? (
+                    <span style={{ color: "var(--success)", flexShrink: 0, display: "flex" }}>
+                      <Icon name="check" size={14} />
+                    </span>
+                  ) : (
+                    <span style={{ width: "14px", flexShrink: 0 }} />
+                  )}
+                  <span style={{ flex: 1 }}>{lesson.title}</span>
                   <span style={{ color: "var(--slate)", fontSize: "13px" }}>{lesson.estimated_minutes ?? "—"} min</span>
                 </Link>
               </li>
-            ))}
+            );
+          })}
         </ul>
       )}
     </div>
@@ -61,6 +86,12 @@ export default function CourseDetail() {
     () => supabase.from("modules").select("*").eq("course_id", courseId).order("order_index", { ascending: true }),
     [courseId],
   );
+
+  const { data: courseProgress } = useSupabaseQuery(
+    () => user && supabase.from("lesson_progress").select("lesson_id, status").eq("uid", user.id).eq("course_id", courseId),
+    [user?.id, courseId],
+  );
+  const progressByLessonId = new Map((courseProgress ?? []).map((p) => [p.lesson_id, p.status]));
 
   const handleEnroll = async () => {
     setEnrolling(true);
@@ -99,7 +130,18 @@ export default function CourseDetail() {
               {enrolling ? "Enrolling…" : "Enroll"}
             </button>
           )}
-          {enrollment && <span className="badge badge-success">{enrollment.progress_percent ?? 0}% complete</span>}
+          {enrollment && (
+            <span className="badge badge-success">
+              {enrollment.status === "completed" ? (
+                <>
+                  <Icon name="check" size={12} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
+                  Completed
+                </>
+              ) : (
+                `${enrollment.progress_percent ?? 0}% complete`
+              )}
+            </span>
+          )}
         </div>
       )}
 
@@ -108,7 +150,15 @@ export default function CourseDetail() {
         <EmptyState icon="🧱" title="No modules published in this course yet" />
       )}
       {modules?.map((module) => (
-        <ModuleSection key={module.id} pathId={pathId} courseId={courseId} moduleId={module.id} title={module.title} />
+        <ModuleSection
+          key={module.id}
+          pathId={pathId}
+          courseId={courseId}
+          moduleId={module.id}
+          title={module.title}
+          sequential={module.sequential}
+          progressByLessonId={progressByLessonId}
+        />
       ))}
     </div>
   );

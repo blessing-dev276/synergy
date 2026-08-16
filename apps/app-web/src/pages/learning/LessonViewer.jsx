@@ -6,6 +6,8 @@ import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { markLessonComplete } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
+import EmptyState from "../../components/state/EmptyState.jsx";
+import Icon from "../../components/Icon.jsx";
 
 // A plain <video src="…"> only plays a direct media file -- it can't play a
 // YouTube/Vimeo *page* URL, which is what admins paste into a lesson's video
@@ -120,21 +122,41 @@ export default function LessonViewer() {
     [user?.id, lessonId],
   );
 
+  // sequential (0062) is opt-in per module -- most modules leave it off and
+  // this whole block is a no-op (module?.sequential is falsy, locked stays
+  // false below).
+  const { data: courseModule } = useSupabaseQuery(
+    () => supabase.from("modules").select("id, sequential").eq("id", moduleId).single(),
+    [moduleId],
+  );
+
   // "Next Chapter" only ever points at the next lesson in this same module
   // (chapters of one video all live in one module) -- not a general
-  // "keep going through the whole course" control.
+  // "keep going through the whole course" control. Also doubles as the
+  // ordered lesson list a sequential module locks against.
   const { data: siblingLessons } = useSupabaseQuery(
-    () => supabase.from("lessons").select("id, order_index").eq("module_id", moduleId).order("order_index", { ascending: true }),
+    () => supabase.from("lessons").select("id, title, order_index").eq("module_id", moduleId).order("order_index", { ascending: true }),
     [moduleId],
   );
   const siblingIndex = siblingLessons?.findIndex((l) => l.id === lessonId) ?? -1;
   const nextLessonId = siblingIndex >= 0 && siblingIndex < (siblingLessons?.length ?? 0) - 1 ? siblingLessons[siblingIndex + 1].id : null;
+  const prevLesson = siblingIndex > 0 ? siblingLessons[siblingIndex - 1] : null;
+
+  const { data: siblingProgress } = useSupabaseQuery(
+    () => user && siblingLessons?.length > 0 && supabase.from("lesson_progress").select("lesson_id, status").eq("uid", user.id).in("lesson_id", siblingLessons.map((l) => l.id)),
+    [user?.id, siblingLessons],
+  );
+  // Default to unlocked while still loading -- a brief false "locked" flash
+  // is worse than a brief false "unlocked" one (the latter just means a
+  // click-through renders normally for a beat before any gate applies).
+  const prevCompleted = !prevLesson || siblingProgress === null || siblingProgress.some((p) => p.lesson_id === prevLesson.id && p.status === "completed");
+  const locked = !!courseModule?.sequential && !prevCompleted;
 
   // Mark "in_progress" the first time this lesson is opened — a low-stakes
   // owner-only write, unlike completion which always goes through the
   // mark_lesson_complete RPC so completion rules are enforced server-side.
   useEffect(() => {
-    if (!user || !lesson || progress) return;
+    if (!user || !lesson || progress || locked) return;
     supabase
       .from("lesson_progress")
       .upsert(
@@ -150,7 +172,7 @@ export default function LessonViewer() {
         { onConflict: "uid,lesson_id" },
       )
       .then(() => refetchProgress());
-  }, [user, lesson, progress, lessonId, moduleId, courseId, pathId, refetchProgress]);
+  }, [user, lesson, progress, locked, lessonId, moduleId, courseId, pathId, refetchProgress]);
 
   // A fresh chapter starts unwatched even if the same component instance
   // stays mounted across a "Next Chapter" navigation (same route, new params).
@@ -164,12 +186,16 @@ export default function LessonViewer() {
   const needsWatch = lesson?.content_type === "video" && !!lesson.content_body && video?.type !== "vimeo";
   const canMarkComplete = !needsWatch || watched;
 
+  const completeLesson = async () => {
+    await markLessonComplete(courseId, moduleId, lessonId);
+    toast.success("Lesson complete!");
+    refetchProgress();
+  };
+
   const handleMarkComplete = async () => {
     setCompleting(true);
     try {
-      await markLessonComplete(courseId, moduleId, lessonId);
-      toast.success("Lesson complete!");
-      refetchProgress();
+      await completeLesson();
     } catch (err) {
       toast.error(err.message ?? "Couldn't mark this lesson complete.");
     } finally {
@@ -177,8 +203,42 @@ export default function LessonViewer() {
     }
   };
 
+  // The auto-advance path: a finished chapter completes itself and moves on
+  // -- no click. Only fires for the video types that can actually detect
+  // "finished" (needsWatch); everything else still needs the manual button
+  // (and, from there, the manual "Next Chapter" link) since there's nothing
+  // to auto-detect.
+  const handleWatched = async () => {
+    setWatched(true);
+    if (!isComplete) {
+      try {
+        await completeLesson();
+      } catch (err) {
+        toast.error(err.message ?? "Couldn't mark this lesson complete.");
+        return;
+      }
+    }
+    if (nextLessonId) navigate(`/learning/${pathId}/${courseId}/${moduleId}/${nextLessonId}`);
+  };
+
   if (loading) return <Skeleton variant="card" height="200px" />;
   if (!lesson) return null;
+
+  if (locked) {
+    return (
+      <div>
+        <Link to={`/learning/${pathId}/${courseId}`} style={{ color: "var(--slate)", fontSize: "13.5px" }}>
+          ← Back to course
+        </Link>
+        <h1 style={{ marginTop: "10px" }}>{lesson.title}</h1>
+        <EmptyState
+          icon={<Icon name="lock" size={26} />}
+          title="Complete the previous chapter first"
+          description={prevLesson ? `Finish "${prevLesson.title}" to unlock this one.` : undefined}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -195,7 +255,7 @@ export default function LessonViewer() {
             startSeconds={lesson.start_seconds}
             endSeconds={lesson.end_seconds}
             title={lesson.title}
-            onWatched={() => setWatched(true)}
+            onWatched={handleWatched}
           />
         )}
         {lesson.content_type === "video" && lesson.content_body && video?.type === "vimeo" && (
@@ -210,7 +270,7 @@ export default function LessonViewer() {
           </div>
         )}
         {lesson.content_type === "video" && lesson.content_body && !video && (
-          <video controls style={{ width: "100%", borderRadius: "10px" }} src={lesson.content_body} onEnded={() => setWatched(true)} />
+          <video controls style={{ width: "100%", borderRadius: "10px" }} src={lesson.content_body} onEnded={handleWatched} />
         )}
         {lesson.content_type === "text" && <div style={{ whiteSpace: "pre-wrap" }}>{lesson.content_body}</div>}
         {lesson.content_type === "pdf" && (
@@ -243,7 +303,7 @@ export default function LessonViewer() {
       )}
 
       {!isComplete && !requiresQuiz && !canMarkComplete && (
-        <p style={{ color: "var(--slate)", fontSize: "13.5px" }}>Finish watching to mark this chapter complete.</p>
+        <p style={{ color: "var(--slate)", fontSize: "13.5px" }}>Finish watching — this chapter will complete and move on automatically.</p>
       )}
 
       {!isComplete && requiresQuiz && (

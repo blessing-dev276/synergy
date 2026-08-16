@@ -292,6 +292,15 @@ function ModuleBlock({ courseId, module, isOpen, onToggle, isFirst, isLast, onRe
     onChanged();
   };
 
+  const toggleSequential = async () => {
+    const { error } = await supabase.from("modules").update({ sequential: !module.sequential }).eq("id", module.id);
+    if (error) {
+      toast.error("Couldn't update.");
+      return;
+    }
+    onChanged();
+  };
+
   const reorderLesson = async (index, direction) => {
     if (!lessons) return;
     const targetIndex = index + direction;
@@ -336,6 +345,15 @@ function ModuleBlock({ courseId, module, isOpen, onToggle, isFirst, isLast, onRe
               </span>
             </button>
             <div className="row-actions">
+              <button
+                type="button"
+                className={`badge ${module.sequential ? "badge-info" : "badge-neutral"}`}
+                onClick={toggleSequential}
+                title="When on, each lesson stays locked until the one before it is completed"
+              >
+                <Icon name="lock" size={11} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
+                Sequential
+              </button>
               <button type="button" className="icon-btn" title="Rename" onClick={() => setEditingTitle(true)}>
                 <Icon name="pencil" size={14} />
               </button>
