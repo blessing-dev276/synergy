@@ -3,13 +3,11 @@ import { supabase } from "../../../supabaseClient.js";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import {
-  adminListRanks,
   adminCreateRank,
   adminUpdateRank,
   adminDeleteRank,
   adminSetRankLearningPaths,
   adminSetMemberRank,
-  adminGetMembersByRank,
 } from "../../../lib/rpc.js";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
@@ -310,12 +308,12 @@ export default function RankBuilder() {
   const [openRankId, setOpenRankId] = useState(null);
   const [showNewRank, setShowNewRank] = useState(false);
 
-  const { loading, data: ranks, refetch } = useSupabaseQuery(() => adminListRanks(), []);
+  const { loading, data: ranks, refetch } = useSupabaseQuery(() => supabase.rpc("admin_list_ranks", {}), []);
   const { data: paths } = useSupabaseQuery(
     () => supabase.from("learning_paths").select("id, title, section, is_skill").eq("published", true).order("title", { ascending: true }),
     [],
   );
-  const { data: members, refetch: refetchMembers } = useSupabaseQuery(() => adminGetMembersByRank(), []);
+  const { data: members, refetch: refetchMembers } = useSupabaseQuery(() => supabase.rpc("admin_get_members_by_rank", {}), []);
 
   const reorder = async (index, direction) => {
     if (!ranks) return;

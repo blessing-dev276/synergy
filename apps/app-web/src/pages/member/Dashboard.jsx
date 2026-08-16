@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
-import { getLearningPaths } from "../../lib/rpc.js";
 import { computeProfileHealth } from "../../lib/profileHealth.js";
 import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
@@ -28,7 +27,7 @@ function RankCard({ profile }) {
     () => profile?.rank_id && supabase.from("ranks").select("id, title").eq("id", profile.rank_id).maybeSingle(),
     [profile?.rank_id],
   );
-  const { loading, data: paths } = useSupabaseQuery(() => getLearningPaths(), []);
+  const { loading, data: paths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths", {}), []);
 
   return (
     <div className="card-elevated" style={{ marginTop: "24px", marginBottom: "24px" }}>

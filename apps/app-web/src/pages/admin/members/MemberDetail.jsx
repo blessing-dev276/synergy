@@ -6,7 +6,6 @@ import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import {
   assignSponsor,
   setMemberStatus,
-  adminListRanks,
   adminSetMemberRank,
   adminSetParticipationPath,
   reviewParticipationPathRequest,
@@ -807,7 +806,7 @@ export default function MemberDetail() {
     () => supabase.from("profiles").select("*").eq("id", uid).single(),
     [uid],
   );
-  const { data: ranks } = useSupabaseQuery(() => adminListRanks(), []);
+  const { data: ranks } = useSupabaseQuery(() => supabase.rpc("admin_list_ranks", {}), []);
 
   if (loading) return <Skeleton variant="card" height="200px" />;
   if (!member) return null;
