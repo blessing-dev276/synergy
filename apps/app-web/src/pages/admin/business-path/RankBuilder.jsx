@@ -15,6 +15,7 @@ import {
   reviewRankTaskSubmission,
 } from "../../../lib/rpc.js";
 import Icon from "../../../components/Icon.jsx";
+import Modal from "../../../components/Modal.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 
