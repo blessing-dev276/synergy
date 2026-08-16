@@ -429,6 +429,7 @@ function MySubmissions({ uid }) {
 // supabase/migrations/0048_admin_log_earning.sql.
 function AdminLogEarningForm({ onLogged }) {
   const toast = useToast();
+  const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState({ selected: null, claimedName: "" });
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -452,6 +453,7 @@ function AdminLogEarningForm({ onLogged }) {
       setPicked({ selected: null, claimedName: "" });
       setAmount("");
       setNote("");
+      setOpen(false);
       onLogged();
     } catch (err) {
       toast.error(err.message ?? "Couldn't log that earning.");
@@ -461,32 +463,42 @@ function AdminLogEarningForm({ onLogged }) {
   };
 
   return (
-    <form onSubmit={submit} className="card-elevated" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-      <div className="card-title">Log an earning for a member</div>
-      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "4px" }}>
-        Entered by an admin, so it's counted right away — no review needed.
-      </p>
-      <div className="field" style={{ marginBottom: 0 }}>
-        <label>Member</label>
-        <SponsorPicker
-          value={picked}
-          onChange={(v) => setPicked({ selected: v.selected, claimedName: "" })}
-        />
-      </div>
-      <div className="field" style={{ marginBottom: 0 }}>
-        <label>Amount ($)</label>
-        <input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-      </div>
-      <div className="field" style={{ marginBottom: 0 }}>
-        <label>Note (optional)</label>
-        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What sale or commission was this?" />
-      </div>
-      <div style={{ display: "flex", gap: "8px" }}>
-        <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? "Logging…" : "Log earning"}
-        </button>
-      </div>
-    </form>
+    <>
+      <button type="button" className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "13px" }} onClick={() => setOpen(true)}>
+        <Icon name="plus" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+        Log earning
+      </button>
+      <Modal open={open} onClose={() => setOpen(false)} title="Log an Earning for a Member">
+        <form onSubmit={submit}>
+          <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "16px" }}>
+            Entered by an admin, so it's counted right away — no review needed.
+          </p>
+          <div className="field">
+            <label>Member</label>
+            <SponsorPicker
+              value={picked}
+              onChange={(v) => setPicked({ selected: v.selected, claimedName: "" })}
+            />
+          </div>
+          <div className="field">
+            <label>Amount ($)</label>
+            <input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+          </div>
+          <div className="field">
+            <label>Note (optional)</label>
+            <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What sale or commission was this?" />
+          </div>
+          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+            <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Logging…" : "Log earning"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 }
 
