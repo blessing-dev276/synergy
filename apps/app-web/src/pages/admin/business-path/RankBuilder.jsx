@@ -164,81 +164,8 @@ function RankMembersPanel({ rank, ranks, members, onChanged }) {
 // waiting on a decision is a separate, cross-rank section further down
 // (PendingRankTaskSubmissions) so an admin doesn't have to open every rank
 // looking for pending work.
-function NewRankTaskForm({ rankId, onCreated, onDone }) {
+function RankTaskRow({ task, onChanged, onEdit }) {
   const toast = useToast();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [recurrence, setRecurrence] = useState("once");
-  const [saving, setSaving] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await adminCreateRankTask(rankId, title.trim(), description.trim(), recurrence);
-      toast.success("Task created.");
-      setTitle("");
-      setDescription("");
-      setRecurrence("once");
-      onCreated();
-      onDone();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't create that task.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <form
-      onSubmit={submit}
-      onClick={(e) => e.stopPropagation()}
-      className="card-elevated"
-      style={{ marginBottom: "12px", display: "flex", flexDirection: "column", gap: "8px" }}
-    >
-      <input className="inline-edit-field" required autoFocus placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <textarea rows={2} placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
-      <select
-        value={recurrence}
-        onChange={(e) => setRecurrence(e.target.value)}
-        style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 10px" }}
-      >
-        <option value="once">One-time</option>
-        <option value="daily">Resets daily</option>
-      </select>
-      <div style={{ display: "flex", gap: "8px" }}>
-        <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? "Creating…" : "Create task"}
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={onDone}>
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function RankTaskRow({ task, onChanged }) {
-  const toast = useToast();
-  const [editing, setEditing] = useState(false);
-  const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description ?? "");
-  const [recurrence, setRecurrence] = useState(task.recurrence);
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await adminUpdateRankTask(task.id, title.trim(), description.trim(), recurrence, task.order_index ?? 0);
-      toast.success("Task updated.");
-      setEditing(false);
-      onChanged();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't save changes.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const remove = async () => {
     if (!window.confirm(`Delete task "${task.title}"? Any submissions for it go with it.`)) return;
@@ -251,31 +178,6 @@ function RankTaskRow({ task, onChanged }) {
     }
   };
 
-  if (editing) {
-    return (
-      <div className="card-elevated" onClick={(e) => e.stopPropagation()} style={{ marginBottom: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
-        <input className="inline-edit-field" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
-        <select
-          value={recurrence}
-          onChange={(e) => setRecurrence(e.target.value)}
-          style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 10px" }}
-        >
-          <option value="once">One-time</option>
-          <option value="daily">Resets daily</option>
-        </select>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => setEditing(false)}>
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="manage-row" onClick={(e) => e.stopPropagation()}>
       <div style={{ minWidth: 0, flex: 1 }}>
@@ -285,7 +187,7 @@ function RankTaskRow({ task, onChanged }) {
         {task.description && <div style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "2px" }}>{task.description}</div>}
       </div>
       <div className="row-actions">
-        <button type="button" className="icon-btn" title="Edit task" onClick={() => setEditing(true)}>
+        <button type="button" className="icon-btn" title="Edit task" onClick={() => onEdit(task)}>
           <Icon name="pencil" size={14} />
         </button>
         <button type="button" className="icon-btn icon-btn-danger" title="Delete task" onClick={remove}>
@@ -296,8 +198,74 @@ function RankTaskRow({ task, onChanged }) {
   );
 }
 
+// Same popup style as ContentBuilder.jsx's ResourceModal / CourseEditor.jsx's
+// ModuleModal -- one modal handles both add and edit, switched on whether
+// `task` is passed in. Scoped per-rank via rankId, mirroring how ModuleModal
+// takes courseId; state for it lives in RankTasksPanel below (the per-rank
+// container), same as ResourceModal's state lives in ContentBuilder.jsx's
+// PathBlock rather than at the page root.
+function RankTaskModal({ rankId, rankTitle, task, onClose, onSaved }) {
+  const toast = useToast();
+  const isEdit = !!task;
+  const [title, setTitle] = useState(task?.title ?? "");
+  const [description, setDescription] = useState(task?.description ?? "");
+  const [recurrence, setRecurrence] = useState(task?.recurrence ?? "once");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (isEdit) {
+        await adminUpdateRankTask(task.id, title.trim(), description.trim(), recurrence, task.order_index ?? 0);
+      } else {
+        await adminCreateRankTask(rankId, title.trim(), description.trim(), recurrence);
+      }
+      toast.success(isEdit ? "Task updated." : "Task created.");
+      onSaved();
+    } catch (err) {
+      toast.error(err.message ?? `Couldn't ${isEdit ? "save" : "create"} that task.`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal open onClose={onClose} title={isEdit ? "Edit Task" : "New Task"}>
+      <form onSubmit={submit}>
+        <div className="field">
+          <label>Title</label>
+          <input required autoFocus placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Description (optional)</label>
+          <textarea rows={2} placeholder="Brief description" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Recurrence</label>
+          <select value={recurrence} onChange={(e) => setRecurrence(e.target.value)}>
+            <option value="once">One-time</option>
+            <option value="daily">Resets daily</option>
+          </select>
+        </div>
+        <p style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "-6px", marginBottom: "16px" }}>
+          {isEdit ? "Editing task in" : "Adding to"} rank <strong style={{ color: "var(--navy)" }}>{rankTitle}</strong>
+        </p>
+        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? "Saving…" : isEdit ? "Save" : "Create Task"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function RankTasksPanel({ rank }) {
-  const [showNew, setShowNew] = useState(false);
+  const [taskModal, setTaskModal] = useState(null); // null closed | {} add | task edit
   const { data: tasks, refetch } = useSupabaseQuery(
     () => supabase.from("rank_tasks").select("*").eq("rank_id", rank.id).order("order_index", { ascending: true }),
     [rank.id],
@@ -307,21 +275,30 @@ function RankTasksPanel({ rank }) {
     <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid var(--line)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
         <div className="row-meta">Tasks for this rank</div>
-        {!showNew && (
-          <button type="button" className="btn btn-secondary" onClick={(e) => { e.stopPropagation(); setShowNew(true); }}>
-            <Icon name="plus" size={12} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
-            New task
-          </button>
-        )}
+        <button type="button" className="btn btn-secondary" onClick={(e) => { e.stopPropagation(); setTaskModal({}); }}>
+          <Icon name="plus" size={12} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+          New task
+        </button>
       </div>
 
-      {showNew && <NewRankTaskForm rankId={rank.id} onCreated={refetch} onDone={() => setShowNew(false)} />}
-
-      {(!tasks || tasks.length === 0) && !showNew && <p style={{ fontSize: "13px", color: "var(--slate)" }}>No tasks yet for this rank.</p>}
+      {(!tasks || tasks.length === 0) && <p style={{ fontSize: "13px", color: "var(--slate)" }}>No tasks yet for this rank.</p>}
 
       {tasks?.map((t) => (
-        <RankTaskRow key={t.id} task={t} onChanged={refetch} />
+        <RankTaskRow key={t.id} task={t} onChanged={refetch} onEdit={setTaskModal} />
       ))}
+
+      {taskModal && (
+        <RankTaskModal
+          rankId={rank.id}
+          rankTitle={rank.title}
+          task={taskModal.id ? taskModal : null}
+          onClose={() => setTaskModal(null)}
+          onSaved={() => {
+            refetch();
+            setTaskModal(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -407,9 +384,8 @@ function PendingRankTaskSubmissions() {
   );
 }
 
-function RankRow({ rank, ranks, paths, members, isFirst, isLast, onChanged, onMembersChanged, onReorder, expanded, onToggle }) {
+function RankRow({ rank, ranks, paths, members, isFirst, isLast, onChanged, onMembersChanged, onReorder, expanded, onToggle, onEdit }) {
   const toast = useToast();
-  const [editing, setEditing] = useState(false);
 
   const memberCount = rank.memberCount ?? 0;
   const pathCount = rank.pathCount ?? 0;
@@ -439,39 +415,33 @@ function RankRow({ rank, ranks, paths, members, isFirst, isLast, onChanged, onMe
           </button>
         </div>
 
-        {editing ? (
-          <EditRankForm rank={rank} onSaved={() => { setEditing(false); onChanged(); }} onCancel={() => setEditing(false)} />
-        ) : (
-          <button type="button" className="accordion-header" onClick={onToggle} style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="card-title" style={{ marginBottom: 0 }}>
-                {rank.title}
-              </div>
-              {!expanded && (
-                <div className="row-meta" style={{ marginTop: "6px" }}>
-                  {memberCount} member{memberCount === 1 ? "" : "s"} · {pathCount} path{pathCount === 1 ? "" : "s"}
-                </div>
-              )}
+        <button type="button" className="accordion-header" onClick={onToggle} style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="card-title" style={{ marginBottom: 0 }}>
+              {rank.title}
             </div>
-            <span className="accordion-chevron">
-              <Icon name={expanded ? "chevron-down" : "chevron-right"} size={16} />
-            </span>
-          </button>
-        )}
-
-        {!editing && (
-          <div className="row-actions" style={{ flexShrink: 0 }}>
-            <button type="button" className="icon-btn" title="Rename rank" onClick={() => setEditing(true)}>
-              <Icon name="pencil" size={14} />
-            </button>
-            <button type="button" className="icon-btn icon-btn-danger" title="Delete rank" onClick={handleDelete}>
-              <Icon name="trash" size={14} />
-            </button>
+            {!expanded && (
+              <div className="row-meta" style={{ marginTop: "6px" }}>
+                {memberCount} member{memberCount === 1 ? "" : "s"} · {pathCount} path{pathCount === 1 ? "" : "s"}
+              </div>
+            )}
           </div>
-        )}
+          <span className="accordion-chevron">
+            <Icon name={expanded ? "chevron-down" : "chevron-right"} size={16} />
+          </span>
+        </button>
+
+        <div className="row-actions" style={{ flexShrink: 0 }}>
+          <button type="button" className="icon-btn" title="Rename rank" onClick={() => onEdit(rank)}>
+            <Icon name="pencil" size={14} />
+          </button>
+          <button type="button" className="icon-btn icon-btn-danger" title="Delete rank" onClick={handleDelete}>
+            <Icon name="trash" size={14} />
+          </button>
+        </div>
       </div>
 
-      {expanded && !editing && (
+      {expanded && (
         <div className="accordion-body">
           <RankPathsPanel rank={rank} paths={paths} />
           <RankTasksPanel rank={rank} />
@@ -482,9 +452,58 @@ function RankRow({ rank, ranks, paths, members, isFirst, isLast, onChanged, onMe
   );
 }
 
+// Same popup style as ContentBuilder.jsx's ResourceModal / CourseEditor.jsx's
+// ModuleModal -- one modal handles both add and edit, switched on whether
+// `rank` is passed in. Ranks are free-form and unscoped to any parent
+// entity (see comment at the top of this file), so unlike ResourceModal/
+// ModuleModal there's no "adding to X" context line -- just the title field.
+function RankModal({ rank, onClose, onSaved }) {
+  const toast = useToast();
+  const isEdit = !!rank;
+  const [title, setTitle] = useState(rank?.title ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (isEdit) {
+        await adminUpdateRank(rank.id, title.trim(), rank.orderIndex ?? 0);
+      } else {
+        await adminCreateRank(title.trim());
+      }
+      toast.success(isEdit ? "Rank updated." : "Rank created.");
+      onSaved();
+    } catch (err) {
+      toast.error(err.message ?? `Couldn't ${isEdit ? "save" : "create"} that rank.`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal open onClose={onClose} title={isEdit ? "Edit Rank" : "New Rank"}>
+      <form onSubmit={submit}>
+        <div className="field">
+          <label>Title</label>
+          <input required autoFocus placeholder="e.g. Bronze, Team Leader, Rank 1…" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? "Saving…" : isEdit ? "Save" : "Create Rank"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 export default function RankBuilder() {
   const [openRankId, setOpenRankId] = useState(null);
-  const [showNewRank, setShowNewRank] = useState(false);
+  const [rankModal, setRankModal] = useState(null); // null closed | {} add | rank edit
 
   const { loading, data: ranks, refetch } = useSupabaseQuery(() => supabase.rpc("admin_list_ranks", {}), []);
   const { data: paths } = useSupabaseQuery(
@@ -510,19 +529,15 @@ export default function RankBuilder() {
     <div>
       <div className="section-heading">
         <h1>Business Path Builder</h1>
-        {!showNewRank && (
-          <button type="button" className="btn btn-primary" onClick={() => setShowNewRank(true)}>
-            <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
-            New Rank
-          </button>
-        )}
+        <button type="button" className="btn btn-primary" onClick={() => setRankModal({})}>
+          <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
+          New Rank
+        </button>
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "16px" }}>
         Ranks are free-form — create as many as you need, attach whole Learning Hub paths to each, and assign members
         directly. Click a rank to open it — opening another one closes this.
       </p>
-
-      {showNewRank && <NewRankForm onCreated={refetch} onDone={() => setShowNewRank(false)} />}
 
       <PendingRankTaskSubmissions />
 
@@ -545,8 +560,20 @@ export default function RankBuilder() {
           onReorder={(direction) => reorder(i, direction)}
           expanded={openRankId === rank.id}
           onToggle={() => setOpenRankId((prev) => (prev === rank.id ? null : rank.id))}
+          onEdit={setRankModal}
         />
       ))}
+
+      {rankModal && (
+        <RankModal
+          rank={rankModal.id ? rankModal : null}
+          onClose={() => setRankModal(null)}
+          onSaved={() => {
+            refetch();
+            setRankModal(null);
+          }}
+        />
+      )}
     </div>
   );
 }

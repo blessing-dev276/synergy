@@ -25,8 +25,9 @@ function isStoragePath(v) {
 }
 
 // uploadFolder scopes where a file lands -- lesson.id once the lesson
-// exists (EditLessonForm), or a client-generated id for a not-yet-created
-// one (NewLessonForm), so two lessons' uploads never collide.
+// exists (LessonModal in edit mode), or a client-generated id for a
+// not-yet-created one (LessonModal in add mode), so two lessons' uploads
+// never collide.
 function VideoSourceField({ contentBody, setContentBody, uploadFolder }) {
   const toast = useToast();
   const [uploading, setUploading] = useState(false);
@@ -121,163 +122,155 @@ function EditCourseForm({ course, onSaved, onCancel }) {
   );
 }
 
-// Shared by New/EditLessonForm -- start/end only matter for video, and only
-// need surfacing when several lessons point at the same YouTube URL as
-// chapters of it (start_seconds/end_seconds, 0061). Left at their column
-// defaults (0 / blank = play to the end), this is just "the whole video."
+// Shared with LessonModal -- start/end only matter for video, and only need
+// surfacing when several lessons point at the same YouTube URL as chapters
+// of it (start_seconds/end_seconds, 0061). Left at their column defaults (0
+// / blank = play to the end), this is just "the whole video."
 function ChapterFields({ startSeconds, setStartSeconds, endSeconds, setEndSeconds }) {
   return (
-    <div className="activity-edit-row">
-      <input
-        type="number"
-        min="0"
-        placeholder="Start (seconds)"
-        value={startSeconds}
-        onChange={(e) => setStartSeconds(e.target.value)}
-        title="Where this chapter starts in the shared video"
-      />
-      <input
-        type="number"
-        min="0"
-        placeholder="End (seconds, optional)"
-        value={endSeconds}
-        onChange={(e) => setEndSeconds(e.target.value)}
-        title="Where this chapter ends -- leave blank to play to the end of the video"
-      />
+    <div className="field">
+      <label>Video chapter (optional)</label>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <input
+          type="number"
+          min="0"
+          placeholder="Start (seconds)"
+          value={startSeconds}
+          onChange={(e) => setStartSeconds(e.target.value)}
+          title="Where this chapter starts in the shared video"
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="End (seconds, optional)"
+          value={endSeconds}
+          onChange={(e) => setEndSeconds(e.target.value)}
+          title="Where this chapter ends -- leave blank to play to the end of the video"
+        />
+      </div>
     </div>
   );
 }
 
-function NewLessonForm({ courseId, moduleId, onCreated }) {
+// Same popup style as ModuleModal (module title/edit) and ResourceModal —
+// one modal handles both "Add Lesson" and "Edit Lesson", switched on
+// whether `lesson` is passed in, same as their `isEdit`. Content type and
+// completion rule were never editable in the old EditLessonForm either (the
+// content-body input's shape is keyed off content_type, and changing it
+// after creation isn't supported by the data model here), so those two
+// selects only show in add mode -- `contentType` stays pinned to the
+// lesson's existing value in edit mode, same as the old form's `isVideo`.
+function LessonModal({ courseId, moduleId, moduleTitle, lesson, onClose, onSaved }) {
   const toast = useToast();
-  const [title, setTitle] = useState("");
-  const [contentType, setContentType] = useState("text");
-  const [contentBody, setContentBody] = useState("");
-  const [completionRule, setCompletionRule] = useState("manual");
-  const [startSeconds, setStartSeconds] = useState("");
-  const [endSeconds, setEndSeconds] = useState("");
+  const isEdit = !!lesson;
+  const [title, setTitle] = useState(lesson?.title ?? "");
+  const [contentType, setContentType] = useState(lesson?.content_type ?? "text");
+  const [contentBody, setContentBody] = useState(lesson?.content_body ?? "");
+  const [completionRule, setCompletionRule] = useState(lesson?.completion_rule ?? "manual");
+  const [startSeconds, setStartSeconds] = useState(isEdit ? String(lesson.start_seconds ?? 0) : "");
+  const [endSeconds, setEndSeconds] = useState(isEdit && lesson.end_seconds != null ? String(lesson.end_seconds) : "");
   const [saving, setSaving] = useState(false);
-  const uploadFolderRef = useRef(crypto.randomUUID());
+  const uploadFolderRef = useRef(lesson?.id ?? crypto.randomUUID());
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from("lessons").insert({
-      module_id: moduleId,
-      course_id: courseId,
-      title: title.trim(),
-      order_index: Math.floor(Date.now() / 1000),
-      content_type: contentType,
-      content_body: contentBody.trim(),
-      estimated_minutes: 10,
-      completion_rule: completionRule,
-      published: true,
-      start_seconds: contentType === "video" && startSeconds !== "" ? parseInt(startSeconds, 10) : 0,
-      end_seconds: contentType === "video" && endSeconds !== "" ? parseInt(endSeconds, 10) : null,
-    });
+    const { error } = isEdit
+      ? await supabase
+          .from("lessons")
+          .update({
+            title: title.trim(),
+            content_body: contentBody.trim(),
+            start_seconds: contentType === "video" && startSeconds !== "" ? parseInt(startSeconds, 10) : 0,
+            end_seconds: contentType === "video" && endSeconds !== "" ? parseInt(endSeconds, 10) : null,
+          })
+          .eq("id", lesson.id)
+      : await supabase.from("lessons").insert({
+          module_id: moduleId,
+          course_id: courseId,
+          title: title.trim(),
+          order_index: Math.floor(Date.now() / 1000),
+          content_type: contentType,
+          content_body: contentBody.trim(),
+          estimated_minutes: 10,
+          completion_rule: completionRule,
+          published: true,
+          start_seconds: contentType === "video" && startSeconds !== "" ? parseInt(startSeconds, 10) : 0,
+          end_seconds: contentType === "video" && endSeconds !== "" ? parseInt(endSeconds, 10) : null,
+        });
     setSaving(false);
     if (error) {
-      toast.error("Couldn't add that lesson.");
+      toast.error(isEdit ? "Couldn't save changes." : "Couldn't add that lesson.");
       return;
     }
-    setTitle("");
-    setContentBody("");
-    setStartSeconds("");
-    setEndSeconds("");
-    toast.success("Lesson added.");
-    onCreated?.();
-  };
-
-  return (
-    <form onSubmit={submit} className="activity-new-form" style={{ marginTop: "10px", padding: "12px", background: "var(--bg)", borderRadius: "12px" }}>
-      <input className="inline-edit-field" placeholder="Lesson title" required value={title} onChange={(e) => setTitle(e.target.value)} />
-      <div className="activity-edit-row">
-        <select value={contentType} onChange={(e) => setContentType(e.target.value)}>
-          <option value="text">Text</option>
-          <option value="video">Video</option>
-          <option value="pdf">PDF URL</option>
-          <option value="link">External link</option>
-        </select>
-        <select value={completionRule} onChange={(e) => setCompletionRule(e.target.value)}>
-          <option value="manual">Mark complete manually</option>
-          <option value="quiz_pass">Requires passing quiz</option>
-        </select>
-      </div>
-      {contentType === "video" ? (
-        <VideoSourceField contentBody={contentBody} setContentBody={setContentBody} uploadFolder={uploadFolderRef.current} />
-      ) : (
-        <textarea
-          className="inline-edit-field"
-          placeholder={contentType === "text" ? "Lesson content" : "URL"}
-          rows={2}
-          value={contentBody}
-          onChange={(e) => setContentBody(e.target.value)}
-        />
-      )}
-      {contentType === "video" && (
-        <ChapterFields startSeconds={startSeconds} setStartSeconds={setStartSeconds} endSeconds={endSeconds} setEndSeconds={setEndSeconds} />
-      )}
-      <button type="submit" className="btn btn-secondary" disabled={saving} style={{ alignSelf: "flex-start" }}>
-        {saving ? "Adding…" : "Add lesson"}
-      </button>
-    </form>
-  );
-}
-
-function EditLessonForm({ lesson, onSaved, onCancel }) {
-  const toast = useToast();
-  const [title, setTitle] = useState(lesson.title);
-  const [contentBody, setContentBody] = useState(lesson.content_body ?? "");
-  const [startSeconds, setStartSeconds] = useState(String(lesson.start_seconds ?? 0));
-  const [endSeconds, setEndSeconds] = useState(lesson.end_seconds != null ? String(lesson.end_seconds) : "");
-  const [saving, setSaving] = useState(false);
-  const isVideo = lesson.content_type === "video";
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    const { error } = await supabase
-      .from("lessons")
-      .update({
-        title: title.trim(),
-        content_body: contentBody.trim(),
-        start_seconds: isVideo && startSeconds !== "" ? parseInt(startSeconds, 10) : 0,
-        end_seconds: isVideo && endSeconds !== "" ? parseInt(endSeconds, 10) : null,
-      })
-      .eq("id", lesson.id);
-    setSaving(false);
-    if (error) {
-      toast.error("Couldn't save changes.");
-      return;
-    }
-    toast.success("Lesson updated.");
+    toast.success(isEdit ? "Lesson updated." : "Lesson added.");
     onSaved();
   };
 
   return (
-    <form onSubmit={submit} className="activity-edit-form" style={{ display: "flex", flexDirection: "column", gap: "6px", flex: 1 }}>
-      <div style={{ display: "flex", gap: "6px" }}>
-        <input className="inline-edit-field" value={title} onChange={(e) => setTitle(e.target.value)} style={{ flex: 1 }} />
-        <button type="submit" className="icon-btn" disabled={saving} title="Save">
-          <Icon name="check" size={14} />
-        </button>
-        <button type="button" className="icon-btn" onClick={onCancel} title="Cancel">
-          <Icon name="x" size={14} />
-        </button>
-      </div>
-      {isVideo && (
-        <>
-          <VideoSourceField contentBody={contentBody} setContentBody={setContentBody} uploadFolder={lesson.id} />
+    <Modal open onClose={onClose} title={isEdit ? "Edit Lesson" : "Add Lesson"}>
+      <form onSubmit={submit}>
+        <div className="field">
+          <label>Title</label>
+          <input required autoFocus placeholder="Lesson title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        {!isEdit && (
+          <div className="field">
+            <label>Content type</label>
+            <select value={contentType} onChange={(e) => setContentType(e.target.value)}>
+              <option value="text">Text</option>
+              <option value="video">Video</option>
+              <option value="pdf">PDF URL</option>
+              <option value="link">External link</option>
+            </select>
+          </div>
+        )}
+        {!isEdit && (
+          <div className="field">
+            <label>Completion rule</label>
+            <select value={completionRule} onChange={(e) => setCompletionRule(e.target.value)}>
+              <option value="manual">Mark complete manually</option>
+              <option value="quiz_pass">Requires passing quiz</option>
+            </select>
+          </div>
+        )}
+        {contentType === "video" ? (
+          <div className="field">
+            <label>Video source</label>
+            <VideoSourceField contentBody={contentBody} setContentBody={setContentBody} uploadFolder={uploadFolderRef.current} />
+          </div>
+        ) : (
+          <div className="field">
+            <label>{contentType === "text" ? "Lesson content" : "URL"}</label>
+            <textarea
+              rows={2}
+              placeholder={contentType === "text" ? "Lesson content" : "URL"}
+              value={contentBody}
+              onChange={(e) => setContentBody(e.target.value)}
+            />
+          </div>
+        )}
+        {contentType === "video" && (
           <ChapterFields startSeconds={startSeconds} setStartSeconds={setStartSeconds} endSeconds={endSeconds} setEndSeconds={setEndSeconds} />
-        </>
-      )}
-    </form>
+        )}
+        <p style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "-6px", marginBottom: "16px" }}>
+          {isEdit ? "Editing lesson in" : "Adding to module"} <strong style={{ color: "var(--navy)" }}>{moduleTitle}</strong>
+        </p>
+        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? "Saving…" : isEdit ? "Save" : "Add Lesson"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
-function LessonRow({ lesson, isFirst, isLast, onReorder, onChanged }) {
+function LessonRow({ lesson, isFirst, isLast, onReorder, onChanged, onEdit }) {
   const toast = useToast();
-  const [editing, setEditing] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
 
   const handleDelete = async () => {
@@ -290,14 +283,6 @@ function LessonRow({ lesson, isFirst, isLast, onReorder, onChanged }) {
     toast.success("Lesson deleted.");
     onChanged();
   };
-
-  if (editing) {
-    return (
-      <li>
-        <EditLessonForm lesson={lesson} onSaved={() => { setEditing(false); onChanged(); }} onCancel={() => setEditing(false)} />
-      </li>
-    );
-  }
 
   return (
     <li>
@@ -323,7 +308,7 @@ function LessonRow({ lesson, isFirst, isLast, onReorder, onChanged }) {
           </button>
         )}
         <div className="row-actions">
-          <button type="button" className="icon-btn" title="Edit" onClick={() => setEditing(true)}>
+          <button type="button" className="icon-btn" title="Edit" onClick={() => onEdit(lesson)}>
             <Icon name="pencil" size={13} />
           </button>
           <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={handleDelete}>
@@ -338,6 +323,7 @@ function LessonRow({ lesson, isFirst, isLast, onReorder, onChanged }) {
 
 function ModuleBlock({ courseId, module, isOpen, onToggle, isFirst, isLast, onReorder, onChanged, onEdit }) {
   const toast = useToast();
+  const [lessonModal, setLessonModal] = useState(null); // null closed | {} add | lesson edit
 
   const { data: lessons, refetch } = useSupabaseQuery(
     () => isOpen && supabase.from("lessons").select("*").eq("module_id", module.id).order("order_index", { ascending: true }),
@@ -416,6 +402,10 @@ function ModuleBlock({ courseId, module, isOpen, onToggle, isFirst, isLast, onRe
 
       {isOpen && (
         <div className="accordion-body">
+          <button type="button" className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "13px", marginBottom: "10px" }} onClick={() => setLessonModal({})}>
+            <Icon name="plus" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            Add Lesson
+          </button>
           <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
             {lessons?.map((lesson, i) => (
               <LessonRow
@@ -425,10 +415,24 @@ function ModuleBlock({ courseId, module, isOpen, onToggle, isFirst, isLast, onRe
                 isLast={i === lessons.length - 1}
                 onReorder={(direction) => reorderLesson(i, direction)}
                 onChanged={refetch}
+                onEdit={setLessonModal}
               />
             ))}
           </ul>
-          <NewLessonForm courseId={courseId} moduleId={module.id} onCreated={refetch} />
+
+          {lessonModal && (
+            <LessonModal
+              courseId={courseId}
+              moduleId={module.id}
+              moduleTitle={module.title}
+              lesson={lessonModal.id ? lessonModal : null}
+              onClose={() => setLessonModal(null)}
+              onSaved={() => {
+                refetch();
+                setLessonModal(null);
+              }}
+            />
+          )}
         </div>
       )}
     </div>

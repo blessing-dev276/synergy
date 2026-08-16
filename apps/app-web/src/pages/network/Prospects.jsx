@@ -98,16 +98,68 @@ function AddProspectModal({ open, onClose, onAdded }) {
   );
 }
 
+function LogActivityModal({ prospectId, onClose, onLogged }) {
+  const toast = useToast();
+  const [activityType, setActivityType] = useState("call");
+  const [activityNote, setActivityNote] = useState("");
+  const [activityFollowUp, setActivityFollowUp] = useState("");
+  const [logging, setLogging] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setLogging(true);
+    try {
+      await logProspectActivity(prospectId, activityType, activityNote.trim(), activityFollowUp || null);
+      toast.success("Activity logged.");
+      onLogged();
+      onClose();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't log that activity.");
+    } finally {
+      setLogging(false);
+    }
+  };
+
+  return (
+    <Modal open onClose={onClose} title="Log Activity">
+      <form onSubmit={submit}>
+        <div className="field">
+          <label>Activity type</label>
+          <select value={activityType} onChange={(e) => setActivityType(e.target.value)}>
+            {ACTIVITY_TYPES.map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>Note (optional)</label>
+          <input value={activityNote} onChange={(e) => setActivityNote(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Next follow-up date</label>
+          <input type="date" value={activityFollowUp} onChange={(e) => setActivityFollowUp(e.target.value)} />
+        </div>
+        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={logging}>
+            {logging ? "Logging…" : "Log activity"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function ProspectRow({ prospect, expanded, onToggle, onChanged }) {
   const toast = useToast();
   const [status, setStatus] = useState(prospect.status);
   const [followUp, setFollowUp] = useState(prospect.next_follow_up_at ?? "");
   const [savingStatus, setSavingStatus] = useState(false);
-
-  const [activityType, setActivityType] = useState("call");
-  const [activityNote, setActivityNote] = useState("");
-  const [activityFollowUp, setActivityFollowUp] = useState("");
-  const [logging, setLogging] = useState(false);
+  const [logModalOpen, setLogModalOpen] = useState(false);
 
   const { data: activities, refetch: refetchActivities } = useSupabaseQuery(
     () => expanded && supabase.from("prospect_activities").select("*").eq("prospect_id", prospect.id).order("created_at", { ascending: false }),
@@ -124,23 +176,6 @@ function ProspectRow({ prospect, expanded, onToggle, onChanged }) {
       toast.error(err.message ?? "Couldn't update status.");
     } finally {
       setSavingStatus(false);
-    }
-  };
-
-  const logActivity = async (e) => {
-    e.preventDefault();
-    setLogging(true);
-    try {
-      await logProspectActivity(prospect.id, activityType, activityNote.trim(), activityFollowUp || null);
-      toast.success("Activity logged.");
-      setActivityNote("");
-      setActivityFollowUp("");
-      refetchActivities();
-      onChanged();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't log that activity.");
-    } finally {
-      setLogging(false);
     }
   };
 
@@ -197,20 +232,21 @@ function ProspectRow({ prospect, expanded, onToggle, onChanged }) {
             ))}
           </ul>
 
-          <form onSubmit={logActivity} style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            <select value={activityType} onChange={(e) => setActivityType(e.target.value)} style={{ minWidth: "130px" }}>
-              {ACTIVITY_TYPES.map((t) => (
-                <option key={t.key} value={t.key}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-            <input value={activityNote} onChange={(e) => setActivityNote(e.target.value)} placeholder="Note (optional)" style={{ flex: 1, minWidth: "160px" }} />
-            <input type="date" value={activityFollowUp} onChange={(e) => setActivityFollowUp(e.target.value)} title="Set next follow-up" />
-            <button type="submit" className="btn btn-primary" disabled={logging}>
-              {logging ? "Logging…" : "Log"}
-            </button>
-          </form>
+          <button type="button" className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "13px" }} onClick={() => setLogModalOpen(true)}>
+            <Icon name="plus" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            Log activity
+          </button>
+
+          {logModalOpen && (
+            <LogActivityModal
+              prospectId={prospect.id}
+              onClose={() => setLogModalOpen(false)}
+              onLogged={() => {
+                refetchActivities();
+                onChanged();
+              }}
+            />
+          )}
         </div>
       )}
     </div>

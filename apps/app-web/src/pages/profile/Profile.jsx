@@ -10,6 +10,7 @@ import { computeProfileHealth } from "../../lib/profileHealth.js";
 import { requestParticipationPath } from "../../lib/rpc.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import Icon from "../../components/Icon.jsx";
+import Modal from "../../components/Modal.jsx";
 import TagListInput from "../../components/TagListInput.jsx";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -37,7 +38,8 @@ function ParticipationPathCard({ profile, uid }) {
 
   const otherPath = profile?.participation_path === "network_marketing_only" ? "full" : "network_marketing_only";
 
-  const submit = async () => {
+  const submit = async (e) => {
+    e.preventDefault();
     setSaving(true);
     try {
       await requestParticipationPath(otherPath, reason.trim());
@@ -66,26 +68,28 @@ function ParticipationPathCard({ profile, uid }) {
         <p style={{ fontSize: "13px", color: "var(--slate)" }}>
           Your request to switch to <strong>{PATH_LABEL[pendingRequest.requested_path]}</strong> is waiting on admin review.
         </p>
-      ) : open ? (
-        <div>
-          <div className="field">
-            <label>Why are you asking to switch to {PATH_LABEL[otherPath]}?</label>
-            <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Optional, but helps your admin decide" />
-          </div>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button type="button" className="btn btn-primary" onClick={submit} disabled={saving}>
-              {saving ? "Sending…" : "Send request"}
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
       ) : (
         <button type="button" className="btn btn-secondary" onClick={() => setOpen(true)}>
           Request: {PATH_LABEL[otherPath]}
         </button>
       )}
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Request Participation Path Change">
+        <form onSubmit={submit}>
+          <div className="field">
+            <label>Why are you asking to switch to {PATH_LABEL[otherPath]}?</label>
+            <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Optional, but helps your admin decide" />
+          </div>
+          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+            <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Sending…" : "Send request"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

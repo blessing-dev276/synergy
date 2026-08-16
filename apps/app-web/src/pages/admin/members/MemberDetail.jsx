@@ -549,168 +549,131 @@ function ParticipationPathPanel({ member, onChanged }) {
   );
 }
 
-// Edits placement-specific settings only (stage/track/type/xp/required) —
-// the content's own title/description live on content_items and are shared
-// across every place it's used, so they're not editable from here.
-function EditActivityForm({ assignment, stages, tracks, onSaved, onCancel }) {
+// Edits placement-specific settings (stage/track/type/xp/required) always;
+// only lets you search-or-create the underlying content when adding a new
+// activity -- the content's own title/description live on content_items and
+// are shared across every place it's used, so they're not editable once
+// assigned. Same isEdit-switch pattern as ContentBuilder.jsx's ResourceModal
+// / CourseEditor.jsx's ModuleModal: one modal, one form, switched on whether
+// `activity` is passed in.
+function ActivityModal({ member, stages, tracks, defaultStageId, activity, onClose, onSaved }) {
+  const { user } = useAuth();
   const toast = useToast();
-  const [stageId, setStageId] = useState(assignment.stage_id ?? "");
-  const [trackId, setTrackId] = useState(assignment.track_id ?? "");
-  const [taskType, setTaskType] = useState(assignment.task_type ?? "practical");
-  const [xpReward, setXpReward] = useState(assignment.xp_reward ?? 0);
-  const [isRequired, setIsRequired] = useState(assignment.is_required ?? true);
+  const isEdit = !!activity;
+  const [content, setContent] = useState(null);
+  const [stageId, setStageId] = useState(isEdit ? activity.stage_id ?? "" : defaultStageId ?? "");
+  const [trackId, setTrackId] = useState(isEdit ? activity.track_id ?? "" : "");
+  const [taskType, setTaskType] = useState(activity?.task_type ?? "practical");
+  const [xpReward, setXpReward] = useState(isEdit ? activity.xp_reward ?? 0 : 10);
+  const [isRequired, setIsRequired] = useState(activity?.is_required ?? true);
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!isEdit && !content) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("content_assignments")
-      .update({
-        stage_id: stageId || null,
-        track_id: trackId || null,
-        task_type: taskType,
-        xp_reward: Number(xpReward) || 0,
-        is_required: isRequired,
-      })
-      .eq("id", assignment.id);
+    const { error } = isEdit
+      ? await supabase
+          .from("content_assignments")
+          .update({
+            stage_id: stageId || null,
+            track_id: trackId || null,
+            task_type: taskType,
+            xp_reward: Number(xpReward) || 0,
+            is_required: isRequired,
+          })
+          .eq("id", activity.id)
+      : await supabase.from("content_assignments").insert({
+          content_item_id: content.id,
+          scope: "individual",
+          assigned_to_uid: member.id,
+          stage_id: stageId || null,
+          track_id: trackId || null,
+          task_type: taskType,
+          xp_reward: Number(xpReward) || 0,
+          is_required: isRequired,
+          created_by: user.id,
+        });
     setSaving(false);
     if (error) {
-      toast.error("Couldn't save changes.");
+      toast.error(isEdit ? "Couldn't save changes." : "Couldn't create that activity.");
       return;
     }
-    toast.success("Activity updated.");
+    toast.success(isEdit ? "Activity updated." : "Activity assigned to member.");
     onSaved();
   };
 
   return (
-    <form onSubmit={submit} className="activity-edit-form">
-      <div style={{ fontWeight: 600, fontSize: "14px" }}>{assignment.label}</div>
-      <div className="activity-edit-row">
-        <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
-          <option value="">No stage</option>
-          {stages?.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.title}
-            </option>
-          ))}
-        </select>
-        <select value={trackId} onChange={(e) => setTrackId(e.target.value)}>
-          <option value="">No track</option>
-          {tracks?.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-        <select value={taskType} onChange={(e) => setTaskType(e.target.value)}>
-          {TASK_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t.replace("_", " ")}
-            </option>
-          ))}
-        </select>
-        <input type="number" min={0} value={xpReward} onChange={(e) => setXpReward(e.target.value)} style={{ width: "70px" }} title="XP reward" />
-        <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px" }}>
+    <Modal open onClose={onClose} title={isEdit ? "Edit Activity" : "Add Activity"}>
+      <form onSubmit={submit}>
+        <div className="field">
+          <label>Content</label>
+          {isEdit ? (
+            <div style={{ fontWeight: 600, fontSize: "14px" }}>{activity.label}</div>
+          ) : (
+            <ContentPicker value={content} onChange={setContent} placeholder="Search or create content for this member…" />
+          )}
+        </div>
+        <div className="field">
+          <label>Stage</label>
+          <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
+            <option value="">No stage</option>
+            {stages?.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.title}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>Track</label>
+          <select value={trackId} onChange={(e) => setTrackId(e.target.value)}>
+            <option value="">No track</option>
+            {tracks?.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>Task type</label>
+          <select value={taskType} onChange={(e) => setTaskType(e.target.value)}>
+            {TASK_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t.replace("_", " ")}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>XP reward</label>
+          <input type="number" min={0} value={xpReward} onChange={(e) => setXpReward(e.target.value)} />
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", marginBottom: "16px" }}>
           <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} />
           Required
         </label>
-      </div>
-      <div style={{ display: "flex", gap: "8px" }}>
-        <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? "Saving…" : "Save"}
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function NewActivityForm({ member, stages, tracks, defaultStageId, onCreated }) {
-  const { user } = useAuth();
-  const toast = useToast();
-  const [content, setContent] = useState(null);
-  const [stageId, setStageId] = useState(defaultStageId ?? "");
-  const [trackId, setTrackId] = useState("");
-  const [taskType, setTaskType] = useState("practical");
-  const [xpReward, setXpReward] = useState(10);
-  const [isRequired, setIsRequired] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!content) return;
-    setSaving(true);
-    const { error } = await supabase.from("content_assignments").insert({
-      content_item_id: content.id,
-      scope: "individual",
-      assigned_to_uid: member.id,
-      stage_id: stageId || null,
-      track_id: trackId || null,
-      task_type: taskType,
-      xp_reward: Number(xpReward) || 0,
-      is_required: isRequired,
-      created_by: user.id,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error("Couldn't create that activity.");
-      return;
-    }
-    setContent(null);
-    toast.success("Activity assigned to member.");
-    onCreated();
-  };
-
-  return (
-    <form onSubmit={submit} className="card-elevated activity-new-form">
-      <div className="card-title">
-        <Icon name="plus" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        Assign a new activity
-      </div>
-      <ContentPicker value={content} onChange={setContent} placeholder="Search or create content for this member…" />
-      <div className="activity-edit-row">
-        <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
-          <option value="">No stage</option>
-          {stages?.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.title}
-            </option>
-          ))}
-        </select>
-        <select value={trackId} onChange={(e) => setTrackId(e.target.value)}>
-          <option value="">No track</option>
-          {tracks?.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-        <select value={taskType} onChange={(e) => setTaskType(e.target.value)}>
-          {TASK_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t.replace("_", " ")}
-            </option>
-          ))}
-        </select>
-        <input type="number" min={0} value={xpReward} onChange={(e) => setXpReward(e.target.value)} style={{ width: "70px" }} title="XP reward" />
-        <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px" }}>
-          <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} />
-          Required
-        </label>
-      </div>
-      <button type="submit" className="btn btn-primary" disabled={saving || !content} style={{ alignSelf: "flex-start" }}>
-        {saving ? "Assigning…" : "Assign activity"}
-      </button>
-    </form>
+        <p style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "-6px", marginBottom: "16px" }}>
+          {isEdit ? "Editing an activity for" : "Adding an activity for"}{" "}
+          <strong style={{ color: "var(--navy)" }}>{member.display_name || member.email}</strong>
+        </p>
+        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={saving || (!isEdit && !content)}>
+            {saving ? "Saving…" : isEdit ? "Save" : "Add Activity"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
 function ActivitiesPanel({ member, stages, tracks, defaultStageId }) {
   const toast = useToast();
-  const [editingId, setEditingId] = useState(null);
+  const [activityModal, setActivityModal] = useState(null); // null closed | {} add | assignment edit
 
   const {
     data: assignments,
@@ -749,9 +712,15 @@ function ActivitiesPanel({ member, stages, tracks, defaultStageId }) {
 
   return (
     <div className="card-elevated" style={{ marginTop: "20px" }}>
-      <div className="card-title">
-        <Icon name="check-square" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        This member's activities
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: activities.length > 0 ? "16px" : 0 }}>
+        <div className="card-title" style={{ marginBottom: 0 }}>
+          <Icon name="check-square" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+          This member's activities
+        </div>
+        <button type="button" className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "13px" }} onClick={() => setActivityModal({})}>
+          <Icon name="plus" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+          Add
+        </button>
       </div>
 
       {activities.length === 0 && (
@@ -759,42 +728,43 @@ function ActivitiesPanel({ member, stages, tracks, defaultStageId }) {
       )}
 
       {activities.length > 0 && (
-        <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px", marginBottom: "18px" }}>
-          {activities.map((assignment) =>
-            editingId === assignment.id ? (
-              <li key={assignment.id}>
-                <EditActivityForm
-                  assignment={assignment}
-                  stages={stages}
-                  tracks={tracks}
-                  onSaved={() => { setEditingId(null); refetch(); }}
-                  onCancel={() => setEditingId(null)}
-                />
-              </li>
-            ) : (
-              <li key={assignment.id} className="activity-row">
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: "14px" }}>{assignment.label}</div>
-                  <div style={{ fontSize: "12.5px", color: "var(--slate)" }}>
-                    {stageTitle(assignment.stage_id)} · {trackLabel(assignment.track_id)} · {assignment.task_type?.replace("_", " ")} · {assignment.xp_reward} XP
-                    {!assignment.is_required && " · optional"}
-                  </div>
+        <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
+          {activities.map((assignment) => (
+            <li key={assignment.id} className="activity-row">
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: "14px" }}>{assignment.label}</div>
+                <div style={{ fontSize: "12.5px", color: "var(--slate)" }}>
+                  {stageTitle(assignment.stage_id)} · {trackLabel(assignment.track_id)} · {assignment.task_type?.replace("_", " ")} · {assignment.xp_reward} XP
+                  {!assignment.is_required && " · optional"}
                 </div>
-                <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-                  <button type="button" className="icon-btn" title="Edit" onClick={() => setEditingId(assignment.id)}>
-                    <Icon name="pencil" size={15} />
-                  </button>
-                  <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(assignment)}>
-                    <Icon name="trash" size={15} />
-                  </button>
-                </div>
-              </li>
-            ),
-          )}
+              </div>
+              <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                <button type="button" className="icon-btn" title="Edit" onClick={() => setActivityModal(assignment)}>
+                  <Icon name="pencil" size={15} />
+                </button>
+                <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={() => handleDelete(assignment)}>
+                  <Icon name="trash" size={15} />
+                </button>
+              </div>
+            </li>
+          ))}
         </ul>
       )}
 
-      <NewActivityForm member={member} stages={stages} tracks={tracks} defaultStageId={defaultStageId} onCreated={refetch} />
+      {activityModal && (
+        <ActivityModal
+          member={member}
+          stages={stages}
+          tracks={tracks}
+          defaultStageId={defaultStageId}
+          activity={activityModal.id ? activityModal : null}
+          onClose={() => setActivityModal(null)}
+          onSaved={() => {
+            setActivityModal(null);
+            refetch();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -103,6 +103,14 @@
 .grid{ display:grid; gap:16px; }
 .grid-2{ grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); }
 .grid-3{ grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); }
+/* Grid items default to min-width:auto -- long unbreakable content (a long
+   name, white-space:nowrap, etc.) refuses to shrink below its own natural
+   width and spills into the next column instead of respecting the track it
+   was given. This is the actual fix for that whole bug class (the
+   leaderboard podium overlapping the next card is one instance of it) --
+   let every grid item shrink to its track, so the overflow:hidden/ellipsis
+   already set on individual bits of text can actually engage. */
+.grid > *{ min-width:0; }
 
 .btn{
   display:inline-flex; align-items:center; justify-content:center; gap:8px;
@@ -434,7 +442,7 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
 
 .leaderboard-podium{ display:flex; align-items:flex-end; justify-content:center; gap:12px; margin:6px 0 22px; }
 .podium-slot{
-  flex:1; max-width:150px; display:flex; flex-direction:column; align-items:center; text-align:center;
+  flex:1; min-width:0; max-width:150px; display:flex; flex-direction:column; align-items:center; text-align:center;
   padding:18px 10px 16px; border-radius:14px; border:1px solid var(--line); background:var(--surface);
   opacity:0; animation:lb-rise .5s ease both;
 }

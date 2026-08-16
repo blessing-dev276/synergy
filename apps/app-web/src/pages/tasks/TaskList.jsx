@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
@@ -7,6 +7,7 @@ import { completeContentAssignment, submitContentEvidence, submitRankTask } from
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
+import Modal from "../../components/Modal.jsx";
 
 // Rank tasks (supabase/migrations/0063_rank_tasks.sql) are a separate,
 // simpler source from the individual tasks below: no evidence, just a
@@ -96,12 +97,13 @@ function RankTasksSection() {
 // (see supabase/migrations/0058_business_path_v2_drop_v1.sql) -- the
 // individual-task feature (content_assignments/content_evidence_submissions)
 // is the only task source left, so there's no more `source` branching here.
-function EvidenceForm({ task, onSubmitted }) {
+function EvidenceForm({ task, onClose, onSubmitted }) {
   const toast = useToast();
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const submit = async () => {
+  const submit = async (e) => {
+    e.preventDefault();
     setSubmitting(true);
     try {
       await submitContentEvidence(task.id, text.trim(), []);
@@ -116,12 +118,21 @@ function EvidenceForm({ task, onSubmitted }) {
   };
 
   return (
-    <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "8px" }}>
-      <textarea rows={3} placeholder="Describe what you did…" value={text} onChange={(e) => setText(e.target.value)} />
-      <button type="button" className="btn btn-primary" style={{ alignSelf: "flex-start" }} onClick={submit} disabled={submitting || !text.trim()}>
-        {submitting ? "Submitting…" : "Submit for review"}
-      </button>
-    </div>
+    <Modal open onClose={onClose} title="Submit Evidence">
+      <form onSubmit={submit}>
+        <div className="field">
+          <textarea rows={3} placeholder="Describe what you did…" value={text} onChange={(e) => setText(e.target.value)} />
+        </div>
+        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={submitting || !text.trim()}>
+            {submitting ? "Submitting…" : "Submit for review"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -182,6 +193,8 @@ export default function TaskList() {
     }
   };
 
+  const evidenceTask = tasks?.find((t) => t.id === openTaskId);
+
   return (
     <div>
       <h1>Tasks</h1>
@@ -204,44 +217,43 @@ export default function TaskList() {
             </thead>
             <tbody>
               {tasks.map((task) => (
-                <Fragment key={task.id}>
-                  <tr>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{task.title}</div>
-                      <div style={{ fontSize: "13px", color: "var(--slate)" }}>{task.description}</div>
-                      {task.evidenceStatus === "needs_revision" && (
-                        <div style={{ fontSize: "12.5px", color: "var(--gold)", marginTop: "4px" }}>
-                          An admin asked for a revision — check your notifications for details.
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {task.taskType?.replace("_", " ") ?? "—"}
-                      {task.xpReward > 0 && ` · ${task.xpReward} XP`}
-                      {!task.isRequired && " · optional"}
-                    </td>
-                    <td>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "—"}</td>
-                    <td>
-                      <TaskStatus
-                        task={task}
-                        open={openTaskId === task.id}
-                        onToggleOpen={() => setOpenTaskId((prev) => (prev === task.id ? null : task.id))}
-                        onSubmitted={markComplete}
-                      />
-                    </td>
-                  </tr>
-                  {openTaskId === task.id && (
-                    <tr>
-                      <td colSpan={4}>
-                        <EvidenceForm task={task} onSubmitted={() => { setOpenTaskId(null); refetch(); }} />
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
+                <tr key={task.id}>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{task.title}</div>
+                    <div style={{ fontSize: "13px", color: "var(--slate)" }}>{task.description}</div>
+                    {task.evidenceStatus === "needs_revision" && (
+                      <div style={{ fontSize: "12.5px", color: "var(--gold)", marginTop: "4px" }}>
+                        An admin asked for a revision — check your notifications for details.
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    {task.taskType?.replace("_", " ") ?? "—"}
+                    {task.xpReward > 0 && ` · ${task.xpReward} XP`}
+                    {!task.isRequired && " · optional"}
+                  </td>
+                  <td>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "—"}</td>
+                  <td>
+                    <TaskStatus
+                      task={task}
+                      open={openTaskId === task.id}
+                      onToggleOpen={() => setOpenTaskId((prev) => (prev === task.id ? null : task.id))}
+                      onSubmitted={markComplete}
+                    />
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {evidenceTask && (
+        <EvidenceForm
+          task={evidenceTask}
+          onClose={() => setOpenTaskId(null)}
+          onSubmitted={() => { setOpenTaskId(null); refetch(); }}
+        />
       )}
     </div>
   );

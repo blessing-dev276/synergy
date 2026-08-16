@@ -43,83 +43,69 @@ const RESOURCE_TYPES = [
 const RESOURCE_TYPE_BY_KEY = Object.fromEntries(RESOURCE_TYPES.map((t) => [t.key, t]));
 const HAS_AUTHOR = new Set(["book", "podcast"]);
 
-function NewPathForm({ section, onCreated, onDone }) {
+// Same popup style as ResourceModal/ModuleModal — one modal handles both
+// "New Learning Path" and "Edit Learning Path", switched on whether `path`
+// is passed in, same as ResourceModal's `isEdit`. A path only ever has
+// title + description (learning_paths table) and its section is fixed at
+// creation (never re-parented in the old inline forms either), so this is
+// just those two fields plus the context line.
+function PathModal({ section, sectionLabel, path, onClose, onSaved }) {
   const { user } = useAuth();
   const toast = useToast();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const isEdit = !!path;
+  const [title, setTitle] = useState(path?.title ?? "");
+  const [description, setDescription] = useState(path?.description ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from("learning_paths").insert({
-      title: title.trim(),
-      description: description.trim(),
-      section,
-      order_index: Math.floor(Date.now() / 1000),
-      published: false,
-      created_by: user.id,
-    });
+    const { error } = isEdit
+      ? await supabase
+          .from("learning_paths")
+          .update({ title: title.trim(), description: description.trim(), updated_at: new Date().toISOString() })
+          .eq("id", path.id)
+      : await supabase.from("learning_paths").insert({
+          title: title.trim(),
+          description: description.trim(),
+          section,
+          order_index: Math.floor(Date.now() / 1000),
+          published: false,
+          created_by: user.id,
+        });
     setSaving(false);
     if (error) {
-      toast.error("Couldn't create that learning path.");
+      toast.error(isEdit ? "Couldn't save changes." : "Couldn't create that learning path.");
       return;
     }
-    toast.success("Learning path created (draft).");
-    onCreated?.();
-    onDone?.();
-  };
-
-  return (
-    <form onSubmit={submit} className="card-elevated" style={{ marginBottom: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-      <div className="card-title">New Learning Path</div>
-      <input className="inline-edit-field" required autoFocus placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <textarea className="inline-edit-field" rows={2} placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-      <div style={{ display: "flex", gap: "8px" }}>
-        <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? "Creating…" : "Create draft"}
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={onDone}>
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function EditPathForm({ path, onSaved, onCancel }) {
-  const toast = useToast();
-  const [title, setTitle] = useState(path.title);
-  const [description, setDescription] = useState(path.description ?? "");
-  const [saving, setSaving] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    const { error } = await supabase.from("learning_paths").update({ title: title.trim(), description: description.trim(), updated_at: new Date().toISOString() }).eq("id", path.id);
-    setSaving(false);
-    if (error) {
-      toast.error("Couldn't save changes.");
-      return;
-    }
-    toast.success("Path updated.");
+    toast.success(isEdit ? "Path updated." : "Learning path created (draft).");
     onSaved();
   };
 
   return (
-    <form onSubmit={submit} onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
-      <input className="inline-edit-field" required value={title} onChange={(e) => setTitle(e.target.value)} />
-      <textarea className="inline-edit-field" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
-      <div style={{ display: "flex", gap: "8px" }}>
-        <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? "Saving…" : "Save"}
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
-    </form>
+    <Modal open onClose={onClose} title={isEdit ? "Edit Learning Path" : "New Learning Path"}>
+      <form onSubmit={submit}>
+        <div className="field">
+          <label>Title</label>
+          <input required autoFocus placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Description (optional)</label>
+          <textarea rows={2} placeholder="Brief description" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <p style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "-6px", marginBottom: "16px" }}>
+          {isEdit ? "Editing path in" : "Adding to"} <strong style={{ color: "var(--navy)" }}>{sectionLabel}</strong>
+        </p>
+        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? "Saving…" : isEdit ? "Save" : "Create draft"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -301,9 +287,8 @@ function CourseRow({ course, isFirst, isLast, onReorder, onEdit, onChanged }) {
   );
 }
 
-function PathBlock({ path, sectionKey, isOpen, onToggle, isFirst, isLast, onReorder, onChanged }) {
+function PathBlock({ path, sectionKey, isOpen, onToggle, isFirst, isLast, onReorder, onChanged, onEdit }) {
   const toast = useToast();
-  const [editing, setEditing] = useState(false);
   const [resourceModal, setResourceModal] = useState(null); // null closed | {} add | course edit
   const [typeFilter, setTypeFilter] = useState("all");
 
@@ -364,58 +349,52 @@ function PathBlock({ path, sectionKey, isOpen, onToggle, isFirst, isLast, onReor
 
   return (
     <div className={`card-elevated learning-path-card${isOpen ? " is-open" : ""}`} style={{ marginBottom: "14px" }}>
-      {editing ? (
-        <EditPathForm path={path} onSaved={() => { setEditing(false); onChanged(); }} onCancel={() => setEditing(false)} />
-      ) : (
-        <>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
-            <span className={`icon-badge hue-${pathHue(path.id)}`} style={{ width: "56px", height: "56px", borderRadius: "16px" }}>
-              <Icon name="layers" size={24} />
-            </span>
-            <button type="button" className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "13px" }} onClick={openToAddResource}>
-              <Icon name="plus" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
-              Add
-            </button>
-          </div>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+        <span className={`icon-badge hue-${pathHue(path.id)}`} style={{ width: "56px", height: "56px", borderRadius: "16px" }}>
+          <Icon name="layers" size={24} />
+        </span>
+        <button type="button" className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "13px" }} onClick={openToAddResource}>
+          <Icon name="plus" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+          Add
+        </button>
+      </div>
 
-          <button type="button" className="accordion-header" onClick={onToggle} style={{ width: "100%", marginTop: "18px" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="card-title" style={{ fontSize: "19px", marginBottom: "4px" }}>
-                {path.title}
-              </div>
-              <div className="row-meta">
-                {courseCount} resource{courseCount === 1 ? "" : "s"}
-              </div>
-            </div>
-            <span className="accordion-chevron">
-              <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={16} />
-            </span>
+      <button type="button" className="accordion-header" onClick={onToggle} style={{ width: "100%", marginTop: "18px" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="card-title" style={{ fontSize: "19px", marginBottom: "4px" }}>
+            {path.title}
+          </div>
+          <div className="row-meta">
+            {courseCount} resource{courseCount === 1 ? "" : "s"}
+          </div>
+        </div>
+        <span className="accordion-chevron">
+          <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={16} />
+        </span>
+      </button>
+
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "14px" }}>
+        <div className="reorder-controls" style={{ flexDirection: "row" }}>
+          <button type="button" className="icon-btn" disabled={isFirst} onClick={() => onReorder(-1)} title="Move up">
+            <Icon name="arrow-up" size={12} />
           </button>
+          <button type="button" className="icon-btn" disabled={isLast} onClick={() => onReorder(1)} title="Move down">
+            <Icon name="arrow-down" size={12} />
+          </button>
+        </div>
+        <button type="button" className={`badge ${path.published ? "badge-success" : "badge-warning"}`} onClick={togglePublished} title="Toggle published status">
+          {path.published ? "Published" : "Draft"}
+        </button>
+        <span style={{ flex: 1 }} />
+        <button type="button" className="icon-btn" title="Edit path" onClick={() => onEdit(path)}>
+          <Icon name="pencil" size={13} />
+        </button>
+        <button type="button" className="icon-btn icon-btn-danger" title="Delete path" onClick={handleDelete}>
+          <Icon name="trash" size={13} />
+        </button>
+      </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "14px" }}>
-            <div className="reorder-controls" style={{ flexDirection: "row" }}>
-              <button type="button" className="icon-btn" disabled={isFirst} onClick={() => onReorder(-1)} title="Move up">
-                <Icon name="arrow-up" size={12} />
-              </button>
-              <button type="button" className="icon-btn" disabled={isLast} onClick={() => onReorder(1)} title="Move down">
-                <Icon name="arrow-down" size={12} />
-              </button>
-            </div>
-            <button type="button" className={`badge ${path.published ? "badge-success" : "badge-warning"}`} onClick={togglePublished} title="Toggle published status">
-              {path.published ? "Published" : "Draft"}
-            </button>
-            <span style={{ flex: 1 }} />
-            <button type="button" className="icon-btn" title="Edit path" onClick={() => setEditing(true)}>
-              <Icon name="pencil" size={13} />
-            </button>
-            <button type="button" className="icon-btn icon-btn-danger" title="Delete path" onClick={handleDelete}>
-              <Icon name="trash" size={13} />
-            </button>
-          </div>
-        </>
-      )}
-
-      {isOpen && !editing && (
+      {isOpen && (
         <div className="accordion-body" style={{ borderTop: "1px solid var(--line)", paddingTop: "16px", marginTop: "16px" }}>
           {path.description && <p style={{ color: "var(--slate)", fontSize: "13.5px", marginBottom: "14px" }}>{path.description}</p>}
 
@@ -486,7 +465,7 @@ function PathBlock({ path, sectionKey, isOpen, onToggle, isFirst, isLast, onReor
 export default function ContentBuilder() {
   const [section, setSection] = useState("skill_set");
   const [openPathId, setOpenPathId] = useState(null);
-  const [showNewPath, setShowNewPath] = useState(false);
+  const [pathModal, setPathModal] = useState(null); // null closed | {} add | path edit
 
   const { loading, data: paths, refetch } = useSupabaseQuery(
     () => supabase.from("learning_paths").select("*").eq("section", section).order("order_index", { ascending: true }),
@@ -496,7 +475,7 @@ export default function ContentBuilder() {
   const changeSection = (key) => {
     setSection(key);
     setOpenPathId(null);
-    setShowNewPath(false);
+    setPathModal(null);
   };
 
   const activeSection = SECTIONS.find((s) => s.key === section);
@@ -521,12 +500,10 @@ export default function ContentBuilder() {
     <div>
       <div className="section-heading">
         <h1>Learning Hub</h1>
-        {!showNewPath && (
-          <button type="button" className="btn btn-primary" onClick={() => setShowNewPath(true)}>
-            <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
-            New Learning Path
-          </button>
-        )}
+        <button type="button" className="btn btn-primary" onClick={() => setPathModal({})}>
+          <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
+          New Learning Path
+        </button>
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "20px" }}>
         Each class holds a mix of structured courses and standalone resources (video, book, podcast, link, PDF). Click a class to open it —
@@ -556,16 +533,14 @@ export default function ContentBuilder() {
         </div>
       )}
 
-      {showNewPath && <NewPathForm section={section} onCreated={refetch} onDone={() => setShowNewPath(false)} />}
-
       {loading && <Skeleton variant="card" height="140px" />}
-      {!loading && !showNewPath && (!paths || paths.length === 0) && (
+      {!loading && (!paths || paths.length === 0) && (
         <EmptyState
           icon={<Icon name={activeSection.icon} size={26} />}
           title={`No paths in ${activeSection.label} yet`}
           description="Create the first learning path in this section to start adding courses and resources."
           action={
-            <button type="button" className="btn btn-primary" onClick={() => setShowNewPath(true)} style={{ marginTop: "4px" }}>
+            <button type="button" className="btn btn-primary" onClick={() => setPathModal({})} style={{ marginTop: "4px" }}>
               <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
               New Learning Path
             </button>
@@ -583,8 +558,22 @@ export default function ContentBuilder() {
           isLast={i === paths.length - 1}
           onReorder={(direction) => reorderPath(i, direction)}
           onChanged={refetch}
+          onEdit={setPathModal}
         />
       ))}
+
+      {pathModal && (
+        <PathModal
+          section={section}
+          sectionLabel={activeSection.label}
+          path={pathModal.id ? pathModal : null}
+          onClose={() => setPathModal(null)}
+          onSaved={() => {
+            refetch();
+            setPathModal(null);
+          }}
+        />
+      )}
     </div>
   );
 }

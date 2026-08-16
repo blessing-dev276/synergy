@@ -18,7 +18,7 @@ const sections = [
   {
     label: "Network",
     items: [
-      { to: "/network", label: "My Network", icon: "network" },
+      { to: "/network", label: "My Network", icon: "network", end: true },
       { to: "/network/prospects", label: "Prospects", icon: "network" },
     ],
   },

@@ -3,6 +3,7 @@ import { supabase } from "../../../supabaseClient.js";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Icon from "../../../components/Icon.jsx";
+import Modal from "../../../components/Modal.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 
 function toDateInputValue(dueDate) {
@@ -57,9 +58,38 @@ function AssignmentFields({ initial, onSubmit, onCancel, submitLabel }) {
   );
 }
 
-function AssignmentRow({ assignment, onChanged }) {
+// Same popup style as ResourceModal/ModuleModal — one modal handles both
+// "New Assignment" and "Edit Assignment", switched on whether `assignment`
+// is passed in, same as ResourceModal's `isEdit`. Reuses AssignmentFields
+// (unchanged) as the modal's field-rendering body, since that component
+// already carries every field (title/instructions/due date/max score) plus
+// its own Save-or-Cancel row -- only the outer wrapper (inline card vs.
+// Modal) changes here.
+function AssignmentModal({ courseId, assignment, onClose, onSaved }) {
   const toast = useToast();
-  const [editing, setEditing] = useState(false);
+  const isEdit = !!assignment;
+
+  const handleSubmit = async (fields) => {
+    const { error } = isEdit
+      ? await supabase.from("assignments").update(fields).eq("id", assignment.id)
+      : await supabase.from("assignments").insert({ ...fields, course_id: courseId, published: false });
+    if (error) {
+      toast.error(isEdit ? "Couldn't save changes." : "Couldn't create that assignment.");
+      return;
+    }
+    toast.success(isEdit ? "Assignment updated." : "Assignment created (draft).");
+    onSaved();
+  };
+
+  return (
+    <Modal open onClose={onClose} title={isEdit ? "Edit Assignment" : "New Assignment"}>
+      <AssignmentFields initial={assignment} onSubmit={handleSubmit} onCancel={onClose} submitLabel={isEdit ? "Save" : "Create assignment"} />
+    </Modal>
+  );
+}
+
+function AssignmentRow({ assignment, onChanged, onEdit }) {
+  const toast = useToast();
 
   const togglePublished = async () => {
     const { error } = await supabase.from("assignments").update({ published: !assignment.published }).eq("id", assignment.id);
@@ -67,17 +97,6 @@ function AssignmentRow({ assignment, onChanged }) {
       toast.error("Couldn't update publish state.");
       return;
     }
-    onChanged();
-  };
-
-  const handleSave = async (fields) => {
-    const { error } = await supabase.from("assignments").update(fields).eq("id", assignment.id);
-    if (error) {
-      toast.error("Couldn't save changes.");
-      return;
-    }
-    toast.success("Assignment updated.");
-    setEditing(false);
     onChanged();
   };
 
@@ -92,14 +111,6 @@ function AssignmentRow({ assignment, onChanged }) {
     onChanged();
   };
 
-  if (editing) {
-    return (
-      <div className="manage-row" style={{ display: "block" }}>
-        <AssignmentFields initial={assignment} onSubmit={handleSave} onCancel={() => setEditing(false)} submitLabel="Save" />
-      </div>
-    );
-  }
-
   return (
     <div className="manage-row">
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -112,7 +123,7 @@ function AssignmentRow({ assignment, onChanged }) {
         {assignment.published ? "Published" : "Draft"}
       </button>
       <div className="row-actions">
-        <button type="button" className="icon-btn" title="Edit" onClick={() => setEditing(true)}>
+        <button type="button" className="icon-btn" title="Edit" onClick={() => onEdit(assignment)}>
           <Icon name="pencil" size={14} />
         </button>
         <button type="button" className="icon-btn icon-btn-danger" title="Delete" onClick={handleDelete}>
@@ -124,40 +135,36 @@ function AssignmentRow({ assignment, onChanged }) {
 }
 
 export default function AssignmentBuilder({ courseId }) {
-  const toast = useToast();
-  const [showNew, setShowNew] = useState(false);
+  const [assignmentModal, setAssignmentModal] = useState(null); // null closed | {} add | assignment edit
 
   const { data: assignments, refetch } = useSupabaseQuery(
     () => supabase.from("assignments").select("*").eq("course_id", courseId).order("due_date", { ascending: true, nullsFirst: false }),
     [courseId],
   );
 
-  const handleCreate = async (fields) => {
-    const { error } = await supabase.from("assignments").insert({ ...fields, course_id: courseId, published: false });
-    if (error) {
-      toast.error("Couldn't create that assignment.");
-      return;
-    }
-    toast.success("Assignment created (draft).");
-    setShowNew(false);
-    refetch();
-  };
-
   return (
     <div>
-      {(!assignments || assignments.length === 0) && !showNew && <EmptyState icon={<Icon name="clipboard" size={24} />} title="No assignments for this course yet" />}
+      {(!assignments || assignments.length === 0) && <EmptyState icon={<Icon name="clipboard" size={24} />} title="No assignments for this course yet" />}
 
       {assignments?.map((a) => (
-        <AssignmentRow key={a.id} assignment={a} onChanged={refetch} />
+        <AssignmentRow key={a.id} assignment={a} onChanged={refetch} onEdit={setAssignmentModal} />
       ))}
 
-      {showNew ? (
-        <AssignmentFields onSubmit={handleCreate} onCancel={() => setShowNew(false)} submitLabel="Create assignment" />
-      ) : (
-        <button type="button" className="btn btn-secondary" onClick={() => setShowNew(true)} style={{ marginTop: "8px" }}>
-          <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
-          New assignment
-        </button>
+      <button type="button" className="btn btn-secondary" onClick={() => setAssignmentModal({})} style={{ marginTop: "8px" }}>
+        <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
+        New assignment
+      </button>
+
+      {assignmentModal && (
+        <AssignmentModal
+          courseId={courseId}
+          assignment={assignmentModal.id ? assignmentModal : null}
+          onClose={() => setAssignmentModal(null)}
+          onSaved={() => {
+            refetch();
+            setAssignmentModal(null);
+          }}
+        />
       )}
     </div>
   );
