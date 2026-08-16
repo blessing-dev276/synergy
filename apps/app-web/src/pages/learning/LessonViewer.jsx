@@ -11,14 +11,13 @@ import Icon from "../../components/Icon.jsx";
 
 // A plain <video src="…"> only plays a direct media file -- it can't play a
 // YouTube/Vimeo *page* URL, which is what admins paste into a lesson's video
-// field almost every time. YouTube gets the full IFrame Player API (below)
-// rather than a bare embed iframe, because that's the only way to know when
-// playback actually finished -- needed both for chapter-clipped lessons
+// field almost every time. YouTube and Vimeo each get their real player SDK
+// (below) rather than a bare embed iframe, because that's the only way to
+// know when playback actually finished, enforce the chapter clip
 // (start_seconds/end_seconds, 0061: several lessons sharing one long video,
-// each one chapter of it) and for gating "Mark Complete" on having watched
-// the thing. Vimeo and any other direct file URL keep working as before,
-// just without that watch-gate (no equivalent signal without pulling in a
-// second player SDK for a case nobody asked for).
+// each one chapter of it), and block scrubbing ahead of what's actually been
+// watched -- gating "Mark Complete" on having watched the thing only means
+// something if the player itself can't be skipped past that point either.
 function parseVideo(url) {
   if (!url) return null;
   let u;
@@ -67,6 +66,22 @@ function loadYouTubeApi() {
     });
   }
   return ytApiPromise;
+}
+
+// Loads https://player.vimeo.com/api/player.js once per page, same pattern
+// as loadYouTubeApi.
+let vimeoApiPromise = null;
+function loadVimeoApi() {
+  if (window.Vimeo?.Player) return Promise.resolve(window.Vimeo);
+  if (!vimeoApiPromise) {
+    vimeoApiPromise = new Promise((resolve) => {
+      const tag = document.createElement("script");
+      tag.src = "https://player.vimeo.com/api/player.js";
+      tag.onload = () => resolve(window.Vimeo);
+      document.head.appendChild(tag);
+    });
+  }
+  return vimeoApiPromise;
 }
 
 // Native controls (play/pause/volume/fullscreen/captions) stay -- only
@@ -151,6 +166,85 @@ function YouTubeChapterPlayer({ videoId, startSeconds, endSeconds, title, onWatc
   return (
     <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: "10px", overflow: "hidden" }}>
       <div ref={containerRef} title={title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+    </div>
+  );
+}
+
+// Same chapter-clipping + anti-skip treatment as YouTubeChapterPlayer, via
+// the Vimeo Player SDK attached to the rendered iframe (works whether
+// parseVideo resolved a bare embed URL or one with a numeric id in it --
+// the SDK just needs an iframe already pointed at player.vimeo.com). Vimeo's
+// timeupdate fires natively and often, so this needs no manual polling
+// timer the way the YouTube postMessage-only API does.
+function VimeoChapterPlayer({ embedUrl, startSeconds, endSeconds, title, onWatched }) {
+  const iframeRef = useRef(null);
+  const maxTimeRef = useRef(startSeconds || 0);
+  const watchedRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let player = null;
+    watchedRef.current = false;
+
+    loadVimeoApi().then((Vimeo) => {
+      if (cancelled || !iframeRef.current) return;
+      player = new Vimeo.Player(iframeRef.current);
+
+      player.ready().then(() => {
+        if (cancelled) return;
+        if (startSeconds) player.setCurrentTime(startSeconds).catch(() => {});
+        player.setPlaybackRate(1).catch(() => {});
+      });
+
+      player.on("timeupdate", ({ seconds }) => {
+        if (watchedRef.current) return;
+        if (endSeconds && seconds >= endSeconds) {
+          watchedRef.current = true;
+          player.pause().catch(() => {});
+          player.setCurrentTime(endSeconds).catch(() => {});
+          onWatched();
+          return;
+        }
+        if (seconds > maxTimeRef.current + SKIP_TOLERANCE_S) {
+          player.setCurrentTime(maxTimeRef.current).catch(() => {});
+        } else {
+          maxTimeRef.current = Math.max(maxTimeRef.current, seconds);
+        }
+      });
+      player.on("ended", () => {
+        if (!watchedRef.current) {
+          watchedRef.current = true;
+          onWatched();
+        }
+      });
+      // Same rationale as YouTube's onPlaybackRateChange guard above.
+      player.on("playbackratechange", ({ playbackRate }) => {
+        if (playbackRate !== 1) player.setPlaybackRate(1).catch(() => {});
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      player?.destroy?.().catch(() => {});
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedUrl, startSeconds, endSeconds]);
+
+  // #t=Xs gives a correct-looking paused first frame at the chapter's start
+  // immediately, rather than showing frame 0 until the SDK's ready() handler
+  // corrects it a beat later.
+  const src = startSeconds ? `${embedUrl}#t=${startSeconds}s` : embedUrl;
+
+  return (
+    <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: "10px", overflow: "hidden" }}>
+      <iframe
+        ref={iframeRef}
+        src={src}
+        title={title}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+      />
     </div>
   );
 }
@@ -244,16 +338,15 @@ export default function LessonViewer() {
     [moduleId],
   );
 
-  // "Next Chapter" only ever points at the next lesson in this same module
-  // (chapters of one video all live in one module) -- not a general
-  // "keep going through the whole course" control. Also doubles as the
-  // ordered lesson list a sequential module locks against.
+  // Scoped to this module on purpose (chapters of one video all live in one
+  // module) -- this is only for the sequential lock, which is a per-module
+  // setting with no cross-module meaning. Nothing here decides "next" for
+  // the button/auto-advance below; see courseModules/courseLessons for that.
   const { data: siblingLessons } = useSupabaseQuery(
     () => supabase.from("lessons").select("id, title, order_index").eq("module_id", moduleId).order("order_index", { ascending: true }),
     [moduleId],
   );
   const siblingIndex = siblingLessons?.findIndex((l) => l.id === lessonId) ?? -1;
-  const nextLessonId = siblingIndex >= 0 && siblingIndex < (siblingLessons?.length ?? 0) - 1 ? siblingLessons[siblingIndex + 1].id : null;
   const prevLesson = siblingIndex > 0 ? siblingLessons[siblingIndex - 1] : null;
 
   const { data: siblingProgress } = useSupabaseQuery(
@@ -265,6 +358,32 @@ export default function LessonViewer() {
   // click-through renders normally for a beat before any gate applies).
   const prevCompleted = !prevLesson || siblingProgress === null || siblingProgress.some((p) => p.lesson_id === prevLesson.id && p.status === "completed");
   const locked = !!courseModule?.sequential && !prevCompleted;
+
+  // The real "what's next" for the Next button + auto-advance: every
+  // published lesson across the whole course, flattened in (module
+  // order_index, lesson order_index) order -- two lessons in different
+  // modules can share the same order_index, so this can't just be one
+  // .order() call, it's grouped by module first. Every lesson genuinely
+  // has a Next control now, not just ones with a sibling left in their own
+  // module -- it just crosses into the next module once this one runs out.
+  const { loading: loadingCourseModules, data: courseModules } = useSupabaseQuery(
+    () => supabase.from("modules").select("id, order_index").eq("course_id", courseId).order("order_index", { ascending: true }),
+    [courseId],
+  );
+  const { loading: loadingCourseLessons, data: courseLessons } = useSupabaseQuery(
+    () =>
+      courseModules?.length > 0 &&
+      supabase.from("lessons").select("id, module_id, order_index, published").in("module_id", courseModules.map((m) => m.id)),
+    [courseModules],
+  );
+  const flattenedLessons = (courseModules ?? []).flatMap((m) =>
+    (courseLessons ?? [])
+      .filter((l) => l.module_id === m.id && l.published)
+      .sort((a, b) => a.order_index - b.order_index),
+  );
+  const flatIndex = flattenedLessons.findIndex((l) => l.id === lessonId);
+  const nextItem = flatIndex >= 0 && flatIndex < flattenedLessons.length - 1 ? flattenedLessons[flatIndex + 1] : null;
+  const navReady = !loadingCourseModules && !loadingCourseLessons;
 
   // Mark "in_progress" the first time this lesson is opened — a low-stakes
   // owner-only write, unlike completion which always goes through the
@@ -302,7 +421,11 @@ export default function LessonViewer() {
   const isComplete = progress?.status === "completed";
   const requiresQuiz = lesson?.completion_rule === "quiz_pass";
   const video = lesson?.content_type === "video" ? parseVideo(lesson.content_body) : null;
-  const needsWatch = lesson?.content_type === "video" && !!lesson.content_body && video?.type !== "vimeo";
+  // Every video type now reports back when it's actually been watched
+  // (YouTube and Vimeo via their player SDKs, direct/uploaded files via the
+  // native <video> onEnded) -- so this no longer needs to carve out an
+  // exception for any particular type.
+  const needsWatch = lesson?.content_type === "video" && !!lesson.content_body;
   const canMarkComplete = !needsWatch || watched;
 
   const completeLesson = async () => {
@@ -324,9 +447,9 @@ export default function LessonViewer() {
 
   // The auto-advance path: a finished chapter completes itself and moves on
   // -- no click. Only fires for the video types that can actually detect
-  // "finished" (needsWatch); everything else still needs the manual button
-  // (and, from there, the manual "Next Chapter" link) since there's nothing
-  // to auto-detect.
+  // "finished" (needsWatch, now every video type); everything else still
+  // needs the manual button (and, from there, the manual Next link) since
+  // there's nothing to auto-detect.
   const handleWatched = async () => {
     setWatched(true);
     if (!isComplete) {
@@ -337,7 +460,7 @@ export default function LessonViewer() {
         return;
       }
     }
-    if (nextLessonId) navigate(`/learning/${pathId}/${courseId}/${moduleId}/${nextLessonId}`);
+    if (nextItem) navigate(`/learning/${pathId}/${courseId}/${nextItem.module_id}/${nextItem.id}`);
   };
 
   if (loading) return <Skeleton variant="card" height="200px" />;
@@ -378,15 +501,14 @@ export default function LessonViewer() {
           />
         )}
         {lesson.content_type === "video" && lesson.content_body && video?.type === "vimeo" && (
-          <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: "10px", overflow: "hidden" }}>
-            <iframe
-              src={video.embedUrl}
-              title={lesson.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
-            />
-          </div>
+          <VimeoChapterPlayer
+            key={lessonId}
+            embedUrl={video.embedUrl}
+            startSeconds={lesson.start_seconds}
+            endSeconds={lesson.end_seconds}
+            title={lesson.title}
+            onWatched={handleWatched}
+          />
         )}
         {lesson.content_type === "video" && lesson.content_body && !video && (
           <NativeVideoPlayer key={lessonId} src={lesson.content_body} onWatched={handleWatched} />
@@ -428,11 +550,21 @@ export default function LessonViewer() {
         )}
 
         {/* Always present, not just after completing -- clicking through to a
-            still-locked next chapter just lands on the lock screen, which
-            explains itself, so there's no harm always offering the link. */}
-        {nextLessonId && (
-          <Link to={`/learning/${pathId}/${courseId}/${moduleId}/${nextLessonId}`} className="btn btn-secondary">
-            Next Chapter →
+            still-locked next lesson just lands on the lock screen, which
+            explains itself, so there's no harm always offering the link.
+            nextItem spans module boundaries, so every lesson gets a working
+            Next control, not just ones with a sibling left in their own
+            module -- and once there's genuinely nothing left in the course,
+            this falls back to a way back to the course instead of just
+            disappearing. */}
+        {navReady && nextItem && (
+          <Link to={`/learning/${pathId}/${courseId}/${nextItem.module_id}/${nextItem.id}`} className="btn btn-secondary">
+            {nextItem.module_id === moduleId ? "Next Chapter →" : "Next Lesson →"}
+          </Link>
+        )}
+        {navReady && !nextItem && (
+          <Link to={`/learning/${pathId}/${courseId}`} className="btn btn-secondary">
+            Back to course
           </Link>
         )}
       </div>
