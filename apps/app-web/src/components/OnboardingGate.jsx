@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/AuthContext.jsx";
-import Skeleton from "./state/Skeleton.jsx";
+import BootLoader from "./state/BootLoader.jsx";
 
 // Only applies to members — admins are provisioned by an admin and skip
 // the "choose your interests/goals" onboarding flow entirely.
@@ -9,11 +9,7 @@ export default function OnboardingGate() {
   const location = useLocation();
 
   if (!ready || (role === "member" && !profile)) {
-    return (
-      <div className="app-content">
-        <Skeleton variant="card" height="160px" />
-      </div>
-    );
+    return <BootLoader />;
   }
 
   const needsOnboarding = role === "member" && !profile?.onboarding?.completed;

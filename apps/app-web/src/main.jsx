@@ -5,19 +5,22 @@ import "./styles/tokens.css";
 import "./styles/app.css";
 import App from "./App.jsx";
 import { AuthProvider } from "./lib/AuthContext.jsx";
+import { ThemeProvider } from "./lib/ThemeContext.jsx";
 import { ToastProvider } from "./components/state/Toast.jsx";
 import ErrorBoundary from "./components/state/ErrorBoundary.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
-        </AuthProvider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,
 );

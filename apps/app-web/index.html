@@ -9,6 +9,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <title>Synergy App</title>
+    <script>
+      // Sets the theme attribute synchronously, before any CSS/React loads,
+      // so the very first paint already matches the user's saved (or system)
+      // preference instead of flashing dark-then-light. Kept in sync with
+      // src/lib/ThemeContext.jsx's storage key and fallback logic.
+      (function () {
+        try {
+          var stored = localStorage.getItem("synergy-theme");
+          var theme =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
+                ? "light"
+                : "dark";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

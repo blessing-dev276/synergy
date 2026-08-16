@@ -1,7 +1,10 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Link, Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
 import { useAuth } from "../lib/AuthContext.jsx";
+import { ROLE_LABEL } from "../lib/roles.js";
 import Icon from "./Icon.jsx";
+import Avatar from "./Avatar.jsx";
+import ThemeToggle from "./ThemeToggle.jsx";
 import Sidebar from "./Sidebar.jsx";
 import BottomNav from "./BottomNav.jsx";
 
@@ -9,7 +12,7 @@ import BottomNav from "./BottomNav.jsx";
 // bottom tab bar. One shell, parameterized by the nav config each role's
 // layout supplies (spec section 32).
 export default function AppShell({ sections, bottomItems, title }) {
-  const { profile, user } = useAuth();
+  const { profile, user, role } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -33,10 +36,15 @@ export default function AppShell({ sections, bottomItems, title }) {
           <div className="display" style={{ fontSize: "17px", fontWeight: 600 }}>
             {title}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "13.5px", color: "var(--slate)" }}>
-              {profile?.display_name ?? user?.email}
-            </span>
+          <div className="topbar-actions">
+            <ThemeToggle />
+            <Link to="/profile" className="topbar-user">
+              <Avatar name={profile?.display_name} photoPath={profile?.photo_url} size={34} />
+              <span className="topbar-user-info">
+                <span className="topbar-user-name">{profile?.display_name ?? user?.email}</span>
+                <span className="topbar-user-role">{ROLE_LABEL[role] ?? role}</span>
+              </span>
+            </Link>
           </div>
         </header>
         <main className="app-content">

@@ -43,6 +43,8 @@ const PATHS = {
   video: <><rect x="3" y="6" width="14" height="12" rx="2" /><path d="M17 10l4-2.5v9L17 14" /></>,
   podcast: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0" /><path d="M12 17.5V21M9 21h6" /></>,
   link: <><path d="M9.5 14.5l5-5" /><path d="M8 12l-2.5 2.5a3.2 3.2 0 0 0 4.5 4.5L12.5 17" /><path d="M16 12l2.5-2.5a3.2 3.2 0 0 0-4.5-4.5L11.5 7" /></>,
+  sun: <><circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2.6M12 18.9v2.6M4.6 4.6l1.85 1.85M17.55 17.55l1.85 1.85M2.5 12h2.6M18.9 12h2.6M4.6 19.4l1.85-1.85M17.55 6.45l1.85-1.85" /></>,
+  moon: <path d="M20.2 14.6A8.6 8.6 0 1 1 9.4 3.8a7 7 0 0 0 10.8 10.8z" />,
 };
 
 export default function Icon({ name, size = 18, strokeWidth = 1.8, className = "", style }) {

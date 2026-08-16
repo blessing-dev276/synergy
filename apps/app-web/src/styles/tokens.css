@@ -1,22 +1,50 @@
-/* Synergy brand tokens — dark premium theme for app.synergyteamm.com.
-   Deliberately its own palette from the root site's src/index.css (which
-   stays a light theme for the public marketing site); the two are related
-   by brand (navy/blue/gold, same type family) but not pixel-identical.
+/* Synergy brand tokens for app.synergyteamm.com — dark theme (the original,
+   still the default) plus a light theme, toggled at runtime by ThemeContext
+   (see src/lib/ThemeContext.jsx) via a `data-theme="dark"|"light"` attribute
+   on <html>. Deliberately its own palette from the root site's
+   src/index.css (which stays permanently light for the public marketing
+   site); the two are related by brand (navy/blue/gold, same type family)
+   but not pixel-identical — the light theme here reuses that site's light
+   palette as its starting point.
 
    Naming note: --navy/--navy-soft/--slate keep their original names (they
-   were the light theme's near-black text colors) but now hold the dark
+   were the light theme's near-black text colors) but hold the *dark*
    theme's near-white text colors instead — renaming them would have meant
    touching every inline style="{ color: 'var(--navy)' }" across the app
    for zero visual benefit, so the token *names* describe "primary/
-   secondary/muted text" by convention now, not literally navy shades. */
+   secondary/muted text" by convention now, not literally navy shades. Both
+   theme blocks below keep that same convention: --navy is always "primary
+   text", whichever literal color that means for the active theme. */
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
 
 :root{
+  /* Theme-independent structural tokens */
+  --radius: 10px;
+
+  /* Reserved for a small number of deliberately "filled" premium surfaces
+     (hero banner, auth panel, primary CTA, stepper "done") — kept to the
+     blue family so it reads as one restrained brand gradient regardless of
+     theme, not several. */
+  --gradient-navy: linear-gradient(160deg, #1B3A73 0%, #2657B8 55%, #4C8DFF 100%);
+  --gradient-gold: linear-gradient(135deg, #C98F3A 0%, #E3A94A 100%);
+}
+
+/* ---------- dark theme (default) ---------- */
+:root, :root[data-theme="dark"]{
+  color-scheme: dark;
+
   /* Structural surfaces */
   --bg: #0A0D14;                         /* page canvas */
   --bg-raised: #12161F;                  /* solid chrome: sidebar, topbars, bottom nav */
   --surface: rgba(255,255,255,0.045);    /* glass content surfaces: cards, inputs */
+  --surface-elevated: rgba(255,255,255,0.055); /* .card-elevated — a touch brighter than --surface */
   --line: rgba(255,255,255,0.09);        /* soft borders, everywhere */
+  --line-strong: rgba(255,255,255,0.16); /* borders that need to read a bit more present (hover states) */
+  --hover-wash: rgba(255,255,255,0.04);  /* neutral hover tint over a --surface/--bg-raised background */
+  --skeleton-shimmer: rgba(255,255,255,0.16);
+  --chip-contrast-bg: rgba(255,255,255,0.16); /* e.g. the leaderboard's silver-medal chip */
+  --chrome-glass: rgba(10,13,20,0.82);        /* topbar backdrop-blur fill */
+  --chrome-glass-strong: rgba(18,22,31,0.92); /* bottom-nav backdrop-blur fill */
 
   /* Text (see naming note above) */
   --navy: #EDF1F8;       /* primary text */
@@ -34,18 +62,46 @@
   --success: #35D68C;
   --success-soft: rgba(53,214,140,0.14);
 
-  --radius: 10px;
-
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
   --shadow-md: 0 14px 36px -12px rgba(0,0,0,0.55);
   --shadow-lg: 0 32px 80px -24px rgba(0,0,0,0.7);
   --shadow-glow: 0 0 0 4px rgba(76,141,255,0.16);
+}
 
-  /* Reserved for a small number of deliberately "filled" premium surfaces
-     (hero banner, auth panel, primary CTA, stepper "done") — kept to the
-     blue family so it reads as one restrained brand gradient, not several. */
-  --gradient-navy: linear-gradient(160deg, #1B3A73 0%, #2657B8 55%, #4C8DFF 100%);
-  --gradient-gold: linear-gradient(135deg, #C98F3A 0%, #E3A94A 100%);
+/* ---------- light theme ---------- */
+:root[data-theme="light"]{
+  color-scheme: light;
+
+  --bg: #F3F6FB;
+  --bg-raised: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --line: #E3E8F0;
+  --line-strong: #CCD5E3;
+  --hover-wash: rgba(11,31,58,0.04);
+  --skeleton-shimmer: rgba(11,31,58,0.08);
+  --chip-contrast-bg: #EDF1F8;
+  --chrome-glass: rgba(255,255,255,0.86);
+  --chrome-glass-strong: rgba(255,255,255,0.94);
+
+  --navy: #0B1F3A;
+  --navy-soft: #3E4C64;
+  --slate: #667289;
+
+  --blue-deep: #0B3E91;
+  --blue: #1E7FE0;
+  --blue-bright: #0A5C93;
+  --gold: #B9791E;
+  --gold-soft: #FBE9CC;
+  --danger: #C23B3B;
+  --danger-soft: #FBE3E3;
+  --success: #12805A;
+  --success-soft: #DCF6EA;
+
+  --shadow-sm: 0 1px 2px rgba(16,24,40,0.06);
+  --shadow-md: 0 14px 36px -12px rgba(16,24,40,0.14);
+  --shadow-lg: 0 32px 80px -24px rgba(16,24,40,0.2);
+  --shadow-glow: 0 0 0 4px rgba(30,127,224,0.16);
 }
 
 *{box-sizing:border-box; margin:0; padding:0;}
@@ -57,6 +113,10 @@ body{
   font-family:'Inter', sans-serif;
   -webkit-font-smoothing:antialiased;
   line-height:1.5;
+  transition:background-color .25s ease, color .25s ease;
+}
+@media (prefers-reduced-motion: reduce){
+  body{ transition:none; }
 }
 h1,h2,h3,.display{
   font-family:'Space Grotesk', sans-serif;
