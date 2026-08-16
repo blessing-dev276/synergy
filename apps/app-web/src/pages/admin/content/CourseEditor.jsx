@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "../../../supabaseClient.js";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { useToast } from "../../../components/state/Toast.jsx";
@@ -13,6 +13,76 @@ function formatSeconds(s) {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return `${m}:${String(sec).padStart(2, "0")}`;
+}
+
+// A lesson's content_body is either a pasted URL (YouTube, Vimeo, direct
+// link) or a path in the private "course-content" storage bucket (0004) --
+// distinguished by shape alone (a bucket path never starts with a scheme),
+// so no schema change was needed to add uploads alongside URLs.
+function isStoragePath(v) {
+  return !!v && !/^https?:\/\//i.test(v);
+}
+
+// uploadFolder scopes where a file lands -- lesson.id once the lesson
+// exists (EditLessonForm), or a client-generated id for a not-yet-created
+// one (NewLessonForm), so two lessons' uploads never collide.
+function VideoSourceField({ contentBody, setContentBody, uploadFolder }) {
+  const toast = useToast();
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("video/")) {
+      toast.error("Please choose a video file.");
+      return;
+    }
+    setUploading(true);
+    const path = `${uploadFolder}/${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from("course-content").upload(path, file, { contentType: file.type });
+    setUploading(false);
+    if (error) {
+      toast.error(error.message || "Couldn't upload that file.");
+      return;
+    }
+    setContentBody(path);
+    toast.success("Video uploaded.");
+  };
+
+  if (isStoragePath(contentBody)) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "9px 12px", border: "1px solid var(--line)", borderRadius: "8px", background: "var(--surface)" }}>
+        <Icon name="check" size={14} style={{ color: "var(--success)", flexShrink: 0 }} />
+        <span style={{ flex: 1, fontSize: "13.5px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          Uploaded: {contentBody.split("/").pop()}
+        </span>
+        <button type="button" className="icon-btn" title="Remove uploaded file" onClick={() => setContentBody("")}>
+          <Icon name="x" size={13} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+      <textarea
+        className="inline-edit-field"
+        placeholder="YouTube, Vimeo, or direct video file URL"
+        rows={2}
+        value={contentBody}
+        onChange={(e) => setContentBody(e.target.value)}
+      />
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <span style={{ fontSize: "12px", color: "var(--slate)" }}>or, to keep it off YouTube entirely</span>
+        <button type="button" className="btn btn-secondary" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+          {uploading ? "Uploading…" : "Upload video file"}
+        </button>
+        <input ref={fileInputRef} type="file" accept="video/*" onChange={handleFile} style={{ display: "none" }} />
+      </div>
+    </div>
+  );
 }
 
 function EditCourseForm({ course, onSaved, onCancel }) {
@@ -86,6 +156,7 @@ function NewLessonForm({ courseId, moduleId, onCreated }) {
   const [startSeconds, setStartSeconds] = useState("");
   const [endSeconds, setEndSeconds] = useState("");
   const [saving, setSaving] = useState(false);
+  const uploadFolderRef = useRef(crypto.randomUUID());
 
   const submit = async (e) => {
     e.preventDefault();
@@ -122,7 +193,7 @@ function NewLessonForm({ courseId, moduleId, onCreated }) {
       <div className="activity-edit-row">
         <select value={contentType} onChange={(e) => setContentType(e.target.value)}>
           <option value="text">Text</option>
-          <option value="video">Video URL</option>
+          <option value="video">Video</option>
           <option value="pdf">PDF URL</option>
           <option value="link">External link</option>
         </select>
@@ -131,13 +202,17 @@ function NewLessonForm({ courseId, moduleId, onCreated }) {
           <option value="quiz_pass">Requires passing quiz</option>
         </select>
       </div>
-      <textarea
-        className="inline-edit-field"
-        placeholder={contentType === "text" ? "Lesson content" : contentType === "video" ? "YouTube, Vimeo, or direct video file URL" : "URL"}
-        rows={2}
-        value={contentBody}
-        onChange={(e) => setContentBody(e.target.value)}
-      />
+      {contentType === "video" ? (
+        <VideoSourceField contentBody={contentBody} setContentBody={setContentBody} uploadFolder={uploadFolderRef.current} />
+      ) : (
+        <textarea
+          className="inline-edit-field"
+          placeholder={contentType === "text" ? "Lesson content" : "URL"}
+          rows={2}
+          value={contentBody}
+          onChange={(e) => setContentBody(e.target.value)}
+        />
+      )}
       {contentType === "video" && (
         <ChapterFields startSeconds={startSeconds} setStartSeconds={setStartSeconds} endSeconds={endSeconds} setEndSeconds={setEndSeconds} />
       )}
@@ -191,7 +266,7 @@ function EditLessonForm({ lesson, onSaved, onCancel }) {
       </div>
       {isVideo && (
         <>
-          <input className="inline-edit-field" value={contentBody} onChange={(e) => setContentBody(e.target.value)} placeholder="YouTube, Vimeo, or direct video file URL" />
+          <VideoSourceField contentBody={contentBody} setContentBody={setContentBody} uploadFolder={lesson.id} />
           <ChapterFields startSeconds={startSeconds} setStartSeconds={setStartSeconds} endSeconds={endSeconds} setEndSeconds={setEndSeconds} />
         </>
       )}

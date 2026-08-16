@@ -155,10 +155,41 @@ function YouTubeChapterPlayer({ videoId, startSeconds, endSeconds, title, onWatc
   );
 }
 
+// A self-hosted lesson (CourseEditor.jsx's "Upload video file") stores a
+// path in the private course-content bucket (0004), not a URL -- content_body
+// never starts with a scheme in that case, mirroring CourseEditor's
+// isStoragePath. The bucket is private on purpose (no public, guessable, or
+// permanently-cached URL for course video), so playback needs a short-lived
+// signed URL fetched fresh each time the lesson opens, same pattern as
+// Profile.jsx's photo_url.
+function isStoragePath(v) {
+  return !!v && !/^https?:\/\//i.test(v);
+}
+
 // Same anti-skip rule as YouTubeChapterPlayer, via the native timeupdate
 // event instead of polling (fires on its own, several times a second).
 function NativeVideoPlayer({ src, onWatched }) {
   const maxTimeRef = useRef(0);
+  const isUpload = isStoragePath(src);
+  const [resolvedSrc, setResolvedSrc] = useState(isUpload ? null : src);
+
+  useEffect(() => {
+    if (!isUpload) {
+      setResolvedSrc(src);
+      return;
+    }
+    let cancelled = false;
+    setResolvedSrc(null);
+    supabase.storage
+      .from("course-content")
+      .createSignedUrl(src, 3600)
+      .then(({ data }) => {
+        if (!cancelled) setResolvedSrc(data?.signedUrl ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [src, isUpload]);
 
   const onTimeUpdate = (e) => {
     const el = e.currentTarget;
@@ -172,12 +203,14 @@ function NativeVideoPlayer({ src, onWatched }) {
     if (e.currentTarget.playbackRate !== 1) e.currentTarget.playbackRate = 1;
   };
 
+  if (!resolvedSrc) return <Skeleton variant="card" height="240px" />;
+
   return (
     <video
       controls
       controlsList="nodownload"
       style={{ width: "100%", borderRadius: "10px" }}
-      src={src}
+      src={resolvedSrc}
       onTimeUpdate={onTimeUpdate}
       onRateChange={onRateChange}
       onEnded={onWatched}
