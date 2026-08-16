@@ -38,6 +38,7 @@ import CourseEditor from "./pages/admin/content/CourseEditor.jsx";
 import RankBuilder from "./pages/admin/business-path/RankBuilder.jsx";
 import MemberDetail from "./pages/admin/members/MemberDetail.jsx";
 import NetworkOverview from "./pages/admin/network/NetworkOverview.jsx";
+import Submissions from "./pages/admin/submissions/Submissions.jsx";
 import SettingsGeneral from "./pages/admin/settings/SettingsGeneral.jsx";
 import SettingsNotifications from "./pages/admin/settings/SettingsNotifications.jsx";
 import SettingsTeam from "./pages/admin/settings/SettingsTeam.jsx";
@@ -100,6 +101,7 @@ function App() {
               <Route path="/admin/content" element={<ContentBuilder />} />
               <Route path="/admin/content/courses/:courseId" element={<CourseEditor />} />
               <Route path="/admin/members/:uid" element={<MemberDetail />} />
+              <Route path="/admin/submissions" element={<Submissions />} />
               <Route path="/admin/leaderboard" element={<Leaderboard />} />
               <Route path="/admin/earnings" element={<Navigate to="/admin/leaderboard" replace />} />
               <Route path="/admin/network" element={<NetworkOverview />} />

@@ -1,0 +1,325 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "../../../supabaseClient.js";
+import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
+import { useToast } from "../../../components/state/Toast.jsx";
+import { gradeAssignment, reviewContentEvidence, reviewRankTaskSubmission } from "../../../lib/rpc.js";
+import Icon from "../../../components/Icon.jsx";
+import Skeleton from "../../../components/state/Skeleton.jsx";
+import EmptyState from "../../../components/state/EmptyState.jsx";
+
+// One home for every kind of member submission an admin has to act on --
+// previously split across an always-open card at the top of RankBuilder.jsx
+// (rank tasks) and a "Review Queue" tab buried under /admin/network (course
+// assignments + task evidence), which meant checking two unrelated pages to
+// know what's pending. Same accordion "Sections" shell as NetworkOverview.jsx.
+
+// Rank tasks with proxy_type='manual' only ever reach 'pending' here --
+// auto-tracked tasks (0065_rank_task_auto_proxies.sql) file straight to
+// 'approved' the moment a member's progress qualifies, so they never need a
+// human decision and never show up in this queue.
+function RankTaskSubmissionsSection() {
+  const toast = useToast();
+  const { loading, data: submissions, refetch } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("rank_task_submissions")
+        .select("*, task:rank_tasks(title, rank:ranks(title)), member:profiles!rank_task_submissions_uid_fkey(display_name, email)")
+        .eq("status", "pending")
+        .order("submitted_at", { ascending: true }),
+    [],
+  );
+  const [busyId, setBusyId] = useState(null);
+  const [notes, setNotes] = useState({});
+
+  const decide = async (submission, decision) => {
+    if (
+      decision === "rejected" &&
+      !window.confirm(`Mark "${submission.task?.title}" not approved for ${submission.member?.display_name || submission.member?.email}?`)
+    )
+      return;
+    setBusyId(submission.id);
+    try {
+      await reviewRankTaskSubmission(submission.id, decision, (notes[submission.id] ?? "").trim());
+      toast.success(decision === "approved" ? "Task approved." : "Marked not approved.");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't review that submission.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      {loading && <Skeleton variant="card" height="140px" />}
+      {!loading && (!submissions || submissions.length === 0) && (
+        <EmptyState icon={<Icon name="compass" size={26} />} title="Nothing pending review" />
+      )}
+      {submissions?.map((s) => (
+        <div key={s.id} className="card" style={{ marginBottom: "14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
+            <div>
+              <Link to={`/admin/members/${s.uid}`} style={{ fontWeight: 600 }}>
+                {s.member?.display_name || s.member?.email}
+              </Link>
+              <span style={{ fontSize: "12.5px", color: "var(--slate)" }}> · {s.task?.rank?.title}</span>
+            </div>
+            <span style={{ fontSize: "12px", color: "var(--slate)" }}>{new Date(s.submitted_at).toLocaleString()}</span>
+          </div>
+          <p style={{ fontSize: "13.5px", marginBottom: "8px" }}>
+            Marked done: <strong>"{s.task?.title}"</strong>
+          </p>
+          <div className="field" style={{ marginBottom: "8px" }}>
+            <input
+              type="text"
+              placeholder="Note (optional, shown to the member if not approved)"
+              value={notes[s.id] ?? ""}
+              onChange={(e) => setNotes((prev) => ({ ...prev, [s.id]: e.target.value }))}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button type="button" className="btn btn-primary" disabled={busyId === s.id} onClick={() => decide(s, "approved")}>
+              Approve
+            </button>
+            <button type="button" className="btn btn-danger" disabled={busyId === s.id} onClick={() => decide(s, "rejected")}>
+              Not approved
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Grading is admin-only (see supabase/migrations/0020_retire_mentor_
+// capability.sql — grade_assignment no longer has a mentor branch), so this
+// shows every pending submission across all members, not scoped to a
+// mentor's assignees the way the old mentor Review Queue was.
+function AssignmentGradingSection() {
+  const toast = useToast();
+  const [feedback, setFeedback] = useState({});
+  const [grade, setGrade] = useState({});
+  const [busyId, setBusyId] = useState(null);
+
+  const { loading, data: submissions, refetch } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("assignment_submissions")
+        .select("*, member:profiles!assignment_submissions_uid_fkey(display_name)")
+        .eq("status", "submitted")
+        .order("submitted_at", { ascending: true }),
+    [],
+  );
+
+  const openAttachment = async (path) => {
+    const { data, error } = await supabase.storage.from("assignment-submissions").createSignedUrl(path, 60);
+    if (error || !data) {
+      toast.error("Couldn't open that attachment.");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const decide = async (submission, decision) => {
+    setBusyId(submission.id);
+    try {
+      const g = grade[submission.id];
+      await gradeAssignment(submission.id, decision, g === undefined || g === "" ? null : Number(g), (feedback[submission.id] ?? "").trim());
+      toast.success(decision === "approved" ? "Approved." : "Sent back for revision.");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't submit that review.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      {loading && <Skeleton variant="card" height="140px" />}
+      {!loading && (!submissions || submissions.length === 0) && (
+        <EmptyState icon={<Icon name="folder" size={26} />} title="Nothing pending review" />
+      )}
+      {submissions?.map((s) => (
+        <div key={s.id} className="card" style={{ marginBottom: "14px" }}>
+          <div className="card-title">Submission from {s.member?.display_name || s.uid}</div>
+          <p style={{ margin: "8px 0" }}>{s.text_response || "(no text response)"}</p>
+          {s.file_urls?.map((path) => (
+            <button key={path} type="button" className="badge badge-neutral" style={{ marginRight: "6px" }} onClick={() => openAttachment(path)}>
+              Attachment
+            </button>
+          ))}
+          <div className="field" style={{ marginTop: "14px" }}>
+            <label>Feedback</label>
+            <textarea
+              rows={2}
+              value={feedback[s.id] ?? ""}
+              onChange={(e) => setFeedback((prev) => ({ ...prev, [s.id]: e.target.value }))}
+            />
+          </div>
+          <div className="field">
+            <label>Grade (optional)</label>
+            <input type="number" value={grade[s.id] ?? ""} onChange={(e) => setGrade((prev) => ({ ...prev, [s.id]: e.target.value }))} />
+          </div>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button type="button" className="btn btn-primary" disabled={busyId === s.id} onClick={() => decide(s, "approved")}>
+              Approve
+            </button>
+            <button type="button" className="btn btn-danger" disabled={busyId === s.id} onClick={() => decide(s, "needs_revision")}>
+              Needs Revision
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Evidence submitted for a bare content_assignment flagged
+// requires_admin_approval (see supabase/migrations/0033_milestones_and_
+// evidence_review.sql) — a sibling queue to course-assignment grading
+// above, not merged into it: different backing table, same review shape.
+function TaskEvidenceSection() {
+  const toast = useToast();
+  const [feedback, setFeedback] = useState({});
+  const [busyId, setBusyId] = useState(null);
+
+  const { loading, data: evidence, refetch } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("content_evidence_submissions")
+        .select(
+          "*, member:profiles!content_evidence_submissions_uid_fkey(display_name), content_assignment:content_assignments(content_item:content_items(title, course:courses(title), assignment:assignments(title)))",
+        )
+        .eq("status", "submitted")
+        .order("submitted_at", { ascending: true }),
+    [],
+  );
+
+  const openAttachment = async (path) => {
+    const { data, error } = await supabase.storage.from("assignment-submissions").createSignedUrl(path, 60);
+    if (error || !data) {
+      toast.error("Couldn't open that attachment.");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const decide = async (submission, decision) => {
+    setBusyId(submission.id);
+    try {
+      await reviewContentEvidence(submission.id, decision, (feedback[submission.id] ?? "").trim());
+      toast.success(decision === "approved" ? "Approved." : "Sent back for revision.");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't submit that review.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      {loading && <Skeleton variant="card" height="140px" />}
+      {!loading && (!evidence || evidence.length === 0) && (
+        <EmptyState icon={<Icon name="check-square" size={26} />} title="Nothing pending review" />
+      )}
+      {evidence?.map((s) => {
+        const title =
+          s.content_assignment?.content_item?.title ??
+          s.content_assignment?.content_item?.course?.title ??
+          s.content_assignment?.content_item?.assignment?.title ??
+          "Task";
+        return (
+          <div key={s.id} className="card" style={{ marginBottom: "14px" }}>
+            <div className="card-title">
+              {title} — {s.member?.display_name || s.uid}
+            </div>
+            <p style={{ margin: "8px 0" }}>{s.text_response || "(no text response)"}</p>
+            {s.file_urls?.map((path) => (
+              <button key={path} type="button" className="badge badge-neutral" style={{ marginRight: "6px" }} onClick={() => openAttachment(path)}>
+                Attachment
+              </button>
+            ))}
+            <div className="field" style={{ marginTop: "14px" }}>
+              <label>Feedback</label>
+              <textarea
+                rows={2}
+                value={feedback[s.id] ?? ""}
+                onChange={(e) => setFeedback((prev) => ({ ...prev, [s.id]: e.target.value }))}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button type="button" className="btn btn-primary" disabled={busyId === s.id} onClick={() => decide(s, "approved")}>
+                Approve
+              </button>
+              <button type="button" className="btn btn-danger" disabled={busyId === s.id} onClick={() => decide(s, "needs_revision")}>
+                Needs Revision
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const SECTIONS = [
+  { id: "rank-tasks", label: "Rank Tasks", icon: "compass", Component: RankTaskSubmissionsSection },
+  { id: "assignments", label: "Course Assignments", icon: "folder", Component: AssignmentGradingSection },
+  { id: "evidence", label: "Task Evidence", icon: "check-square", Component: TaskEvidenceSection },
+];
+
+function SectionBlock({ section, isOpen, onToggle }) {
+  const { label, icon, Component } = section;
+  return (
+    <div className="card-elevated" style={{ marginBottom: "12px" }}>
+      <button type="button" className="accordion-header" onClick={onToggle} style={{ width: "100%" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0 }}>
+          <span className="icon-badge" style={{ width: "34px", height: "34px", flexShrink: 0 }}>
+            <Icon name={icon} size={15} />
+          </span>
+          <div className="card-title" style={{ marginBottom: 0 }}>
+            {label}
+          </div>
+        </div>
+        <span className="accordion-chevron">
+          <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={16} />
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="accordion-body">
+          <Component />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function Submissions() {
+  const [openSection, setOpenSection] = useState("rank-tasks");
+
+  return (
+    <div>
+      <div className="hero-banner">
+        <h1>Submissions</h1>
+        <p>Every kind of member submission waiting on a decision — rank tasks, course assignments, and task evidence — in one place.</p>
+      </div>
+
+      <p style={{ color: "var(--slate)", margin: "20px 0 12px" }}>
+        Click a section to open it — opening another one closes this.
+      </p>
+
+      {SECTIONS.map((section) => (
+        <SectionBlock
+          key={section.id}
+          section={section}
+          isOpen={openSection === section.id}
+          onToggle={() => setOpenSection((prev) => (prev === section.id ? null : section.id))}
+        />
+      ))}
+    </div>
+  );
+}

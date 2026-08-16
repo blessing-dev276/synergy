@@ -11,6 +11,9 @@ const sections = [
     items: [{ to: "/admin/business-path", label: "Business Path", icon: "compass", end: true }],
   },
   {
+    items: [{ to: "/admin/submissions", label: "Submissions", icon: "check-square", end: true }],
+  },
+  {
     items: [{ to: "/admin/network", label: "Network", icon: "network", end: true }],
   },
   {

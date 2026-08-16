@@ -95,12 +95,30 @@ export const adminSetMemberRank = (uid, rankId) =>
 
 export const adminGetMembersByRank = () => call("admin_get_members_by_rank", {});
 
-// ---------- rank tasks (checkbox-complete, admin-reviewed, per rank) ----------
-export const adminCreateRankTask = (rankId, title, description, recurrence) =>
-  call("admin_create_rank_task", { p_rank_id: rankId, p_title: title, p_description: description, p_recurrence: recurrence });
+// ---------- rank tasks (checkbox-complete or auto-tracked, per rank) ----------
+// proxy: { type: 'manual' | 'modules_count' | 'path_complete', pathId, threshold }
+export const adminCreateRankTask = (rankId, title, description, recurrence, proxy) =>
+  call("admin_create_rank_task", {
+    p_rank_id: rankId,
+    p_title: title,
+    p_description: description,
+    p_recurrence: recurrence,
+    p_proxy_type: proxy?.type ?? "manual",
+    p_proxy_path_id: proxy?.pathId ?? null,
+    p_proxy_threshold: proxy?.threshold ?? null,
+  });
 
-export const adminUpdateRankTask = (id, title, description, recurrence, orderIndex) =>
-  call("admin_update_rank_task", { p_id: id, p_title: title, p_description: description, p_recurrence: recurrence, p_order_index: orderIndex });
+export const adminUpdateRankTask = (id, title, description, recurrence, orderIndex, proxy) =>
+  call("admin_update_rank_task", {
+    p_id: id,
+    p_title: title,
+    p_description: description,
+    p_recurrence: recurrence,
+    p_order_index: orderIndex,
+    p_proxy_type: proxy?.type ?? "manual",
+    p_proxy_path_id: proxy?.pathId ?? null,
+    p_proxy_threshold: proxy?.threshold ?? null,
+  });
 
 export const adminDeleteRankTask = (id) => call("admin_delete_rank_task", { p_id: id });
 

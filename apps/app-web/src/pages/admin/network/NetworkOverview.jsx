@@ -2,22 +2,22 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Icon from "../../../components/Icon.jsx";
 import OverviewSection from "./sections/OverviewSection.jsx";
-import ReviewQueueSection from "./sections/ReviewQueueSection.jsx";
 import GoalReviewsSection from "./sections/GoalReviewsSection.jsx";
 import ProspectingSection from "./sections/ProspectingSection.jsx";
 
 // Overview is promoted out of the accordion below — it's the dashboard
 // header (attention queue + KPIs + network explorer), always visible, same
-// treatment as AdminDashboard.jsx's Overview. Review Queue, Goal Reviews,
-// and Prospecting stay as single-open accordion sections underneath, same
-// pattern as ContentBuilder.jsx's Learning Hub: one open at a time, each
-// fetching its own data lazily on open. /admin/members/:uid stays a
-// standalone drill-down route, same as /admin/content/courses/:courseId.
+// treatment as AdminDashboard.jsx's Overview. Goal Reviews and Prospecting
+// stay as single-open accordion sections underneath, same pattern as
+// ContentBuilder.jsx's Learning Hub: one open at a time, each fetching its
+// own data lazily on open. /admin/members/:uid stays a standalone
+// drill-down route, same as /admin/content/courses/:courseId.
 // (Sponsor Requests and Legacy Mentors were removed from this page on
 // request; Members moved out to /admin/settings/team — a team-management
-// concern, not a network-relationships one.)
+// concern, not a network-relationships one. Review Queue moved out to its
+// own page, /admin/submissions, once it grew to cover rank tasks too — it
+// was never really a network-relationships concern either.)
 const SECTIONS = [
-  { id: "reviews", label: "Review Queue", icon: "folder", Component: ReviewQueueSection },
   { id: "goals", label: "Goal Reviews", icon: "target", Component: GoalReviewsSection },
   { id: "prospecting", label: "Prospecting", icon: "network", Component: ProspectingSection },
 ];

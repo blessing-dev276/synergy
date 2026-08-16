@@ -135,6 +135,7 @@ function TeamComposition({ counts }) {
 const QUICK_LINKS = [
   { to: "/admin/content", icon: "layers", label: "Learning Hub" },
   { to: "/admin/business-path", icon: "compass", label: "Business Path" },
+  { to: "/admin/submissions", icon: "check-square", label: "Submissions" },
   { to: "/admin/settings/team", icon: "users", label: "Team" },
   { to: "/admin/network", icon: "network", label: "Network" },
   { to: "/admin/leaderboard", icon: "dollar-sign", label: "Leaderboard" },
@@ -156,7 +157,9 @@ export default function AdminDashboard() {
         newThisMonth,
         coursesPublished,
         coursesTotal,
-        pendingReviews,
+        pendingAssignments,
+        pendingEvidence,
+        pendingRankTasks,
         quizAgg,
         activeNetwork,
         verifiedEarnings,
@@ -177,6 +180,8 @@ export default function AdminDashboard() {
         supabase.from("courses").select("*", { count: "exact", head: true }).eq("published", true),
         supabase.from("courses").select("*", { count: "exact", head: true }),
         supabase.from("assignment_submissions").select("*", { count: "exact", head: true }).eq("status", "submitted"),
+        supabase.from("content_evidence_submissions").select("*", { count: "exact", head: true }).eq("status", "submitted"),
+        supabase.from("rank_task_submissions").select("*", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("quiz_attempts").select("score"),
         supabase.from("sponsor_relationships").select("*", { count: "exact", head: true }).eq("active", true),
         supabase.from("earnings_logs").select("amount").eq("status", "verified"),
@@ -195,7 +200,7 @@ export default function AdminDashboard() {
         newThisMonth: newThisMonth.count ?? 0,
         coursesPublished: coursesPublished.count ?? 0,
         coursesTotal: coursesTotal.count ?? 0,
-        pendingReviews: pendingReviews.count ?? 0,
+        pendingReviews: (pendingAssignments.count ?? 0) + (pendingEvidence.count ?? 0) + (pendingRankTasks.count ?? 0),
         avgQuizScore,
         activeNetwork: activeNetwork.count ?? 0,
         earningsTotal,
@@ -235,7 +240,7 @@ export default function AdminDashboard() {
           ) : (
             <>
               {stats.pendingReviews > 0 && (
-                <AttentionRow icon="folder" count={stats.pendingReviews} label="Assignment submissions awaiting review" to="/admin/network?section=reviews" />
+                <AttentionRow icon="folder" count={stats.pendingReviews} label="Submissions awaiting review" to="/admin/submissions" />
               )}
             </>
           )}

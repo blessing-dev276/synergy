@@ -16,10 +16,18 @@ import Modal from "../../components/Modal.jsx";
 // enough shapes (no due date/xp/type on a rank task, no recurrence on an
 // individual one) that forcing a single row shape would need more
 // branching than just showing them separately.
+//
+// A task can also be auto-tracked (0065_rank_task_auto_proxies.sql,
+// proxyType !== "manual") — the system files and approves the submission
+// itself once the member's real learning progress qualifies, so there's no
+// button to press for one of those, just a status. Approved one-time tasks
+// don't reach this component at all: get_my_rank_tasks drops them from the
+// list once they're done, since there's nothing left to look at.
 function RankTaskRow({ task, onSubmitted }) {
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
   const submission = task.submission;
+  const isManual = task.proxyType === "manual";
 
   const submit = async () => {
     setSubmitting(true);
@@ -45,10 +53,15 @@ function RankTaskRow({ task, onSubmitted }) {
       </td>
       <td>{task.recurrence === "daily" ? "Daily" : "One-time"}</td>
       <td>
-        {(!submission || submission.status === "rejected") && (
+        {isManual && (!submission || submission.status === "rejected") && (
           <button type="button" className="badge badge-neutral" onClick={submit} disabled={submitting}>
             {submitting ? "Submitting…" : submission ? "Resubmit" : "Mark done"}
           </button>
+        )}
+        {!isManual && !submission && (
+          <span className="badge badge-neutral" title="Completes automatically once your progress qualifies">
+            Tracked automatically
+          </span>
         )}
         {submission?.status === "pending" && <span className="badge badge-info">Pending review</span>}
         {submission?.status === "approved" && <span className="badge badge-success">Approved</span>}

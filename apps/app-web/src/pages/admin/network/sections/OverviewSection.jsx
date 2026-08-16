@@ -60,8 +60,10 @@ export default function OverviewSection() {
   );
 
   // Every "needs a human to look at this" queue across the network area,
-  // rolled up in one place — course + activity-evidence submissions,
-  // monthly goal reviews, and overdue prospecting follow-ups. (Sponsor
+  // rolled up in one place — course + activity-evidence + rank-task
+  // submissions (the full breakdown lives at /admin/submissions; this is
+  // just the count), monthly goal reviews, and overdue prospecting
+  // follow-ups. (Sponsor
   // Requests and Legacy Mentors were removed from this page on request —
   // no counts for either are fetched anymore.)
   //
@@ -79,13 +81,14 @@ export default function OverviewSection() {
         safeCount(supabase.from("profiles").select("*", { count: "exact", head: true }).is("sponsor_uid", null).eq("role", "member")),
         safeCount(supabase.from("assignment_submissions").select("*", { count: "exact", head: true }).eq("status", "submitted")),
         safeCount(supabase.from("content_evidence_submissions").select("*", { count: "exact", head: true }).eq("status", "submitted")),
+        safeCount(supabase.from("rank_task_submissions").select("*", { count: "exact", head: true }).eq("status", "pending")),
         safeRows(supabase.rpc("get_admin_goal_overview", { p_period: period })),
         safeRows(supabase.rpc("get_admin_prospecting_overview", {})),
-      ]).then(([sponsoredCount, unsponsoredCount, submittedAssignments, submittedEvidence, goalRows, prospectingRows]) => ({
+      ]).then(([sponsoredCount, unsponsoredCount, submittedAssignments, submittedEvidence, pendingRankTasks, goalRows, prospectingRows]) => ({
         data: {
           sponsoredCount,
           unsponsoredCount,
-          pendingReviewCount: submittedAssignments + submittedEvidence,
+          pendingReviewCount: submittedAssignments + submittedEvidence + pendingRankTasks,
           pendingGoalReviewCount: goalRows.filter((r) => r.status === "submitted").length,
           dueTodayFollowUps: prospectingRows.reduce((sum, r) => sum + (r.dueTodayFollowUps ?? 0), 0),
           overdueFollowUps: prospectingRows.reduce((sum, r) => sum + (r.overdueFollowUps ?? 0), 0),
@@ -120,7 +123,7 @@ export default function OverviewSection() {
           ) : (
             <>
               {counts.pendingReviewCount > 0 && (
-                <AttentionRow icon="folder" count={counts.pendingReviewCount} label="Submissions awaiting review" to="/admin/network?section=reviews" />
+                <AttentionRow icon="folder" count={counts.pendingReviewCount} label="Submissions awaiting review" to="/admin/submissions" />
               )}
               {counts.pendingGoalReviewCount > 0 && (
                 <AttentionRow icon="target" count={counts.pendingGoalReviewCount} label="Monthly goals awaiting review" to="/admin/network?section=goals" />
