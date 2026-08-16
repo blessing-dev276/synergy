@@ -6,6 +6,7 @@ import { useToast } from "../../../components/state/Toast.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
+import Modal from "../../../components/Modal.jsx";
 import QuizBuilder from "./QuizBuilder.jsx";
 import AssignmentBuilder from "./AssignmentBuilder.jsx";
 
@@ -335,26 +336,13 @@ function LessonRow({ lesson, isFirst, isLast, onReorder, onChanged }) {
   );
 }
 
-function ModuleBlock({ courseId, module, isOpen, onToggle, isFirst, isLast, onReorder, onChanged }) {
+function ModuleBlock({ courseId, module, isOpen, onToggle, isFirst, isLast, onReorder, onChanged, onEdit }) {
   const toast = useToast();
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [title, setTitle] = useState(module.title);
 
   const { data: lessons, refetch } = useSupabaseQuery(
     () => isOpen && supabase.from("lessons").select("*").eq("module_id", module.id).order("order_index", { ascending: true }),
     [module.id, isOpen],
   );
-
-  const saveTitle = async (e) => {
-    e.preventDefault();
-    const { error } = await supabase.from("modules").update({ title: title.trim() }).eq("id", module.id);
-    if (error) {
-      toast.error("Couldn't rename module.");
-      return;
-    }
-    setEditingTitle(false);
-    onChanged();
-  };
 
   const handleDeleteModule = async () => {
     if (!window.confirm(`Delete module "${module.title}" and all its lessons?`)) return;
@@ -400,44 +388,30 @@ function ModuleBlock({ courseId, module, isOpen, onToggle, isFirst, isLast, onRe
             <Icon name="arrow-down" size={12} />
           </button>
         </div>
-        {editingTitle ? (
-          <form onSubmit={saveTitle} style={{ display: "flex", gap: "6px", flex: 1 }}>
-            <input className="inline-edit-field" value={title} onChange={(e) => setTitle(e.target.value)} style={{ flex: 1 }} />
-            <button type="submit" className="icon-btn" title="Save">
-              <Icon name="check" size={14} />
-            </button>
-            <button type="button" className="icon-btn" onClick={() => setEditingTitle(false)} title="Cancel">
-              <Icon name="x" size={14} />
-            </button>
-          </form>
-        ) : (
-          <>
-            <button type="button" className="accordion-header" onClick={onToggle} style={{ flex: 1 }}>
-              <span style={{ flex: 1, fontWeight: 600, fontSize: "16px" }}>{module.title}</span>
-              {!isOpen && <span className="badge badge-neutral">{module.lesson_count ?? 0} lessons</span>}
-              <span className="accordion-chevron">
-                <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={16} />
-              </span>
-            </button>
-            <div className="row-actions">
-              <button
-                type="button"
-                className={`badge ${module.sequential ? "badge-info" : "badge-neutral"}`}
-                onClick={toggleSequential}
-                title="When on, each lesson stays locked until the one before it is completed"
-              >
-                <Icon name="lock" size={11} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
-                Sequential
-              </button>
-              <button type="button" className="icon-btn" title="Rename" onClick={() => setEditingTitle(true)}>
-                <Icon name="pencil" size={14} />
-              </button>
-              <button type="button" className="icon-btn icon-btn-danger" title="Delete module" onClick={handleDeleteModule}>
-                <Icon name="trash" size={14} />
-              </button>
-            </div>
-          </>
-        )}
+        <button type="button" className="accordion-header" onClick={onToggle} style={{ flex: 1 }}>
+          <span style={{ flex: 1, fontWeight: 600, fontSize: "16px" }}>{module.title}</span>
+          {!isOpen && <span className="badge badge-neutral">{module.lesson_count ?? 0} lessons</span>}
+          <span className="accordion-chevron">
+            <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={16} />
+          </span>
+        </button>
+        <div className="row-actions">
+          <button
+            type="button"
+            className={`badge ${module.sequential ? "badge-info" : "badge-neutral"}`}
+            onClick={toggleSequential}
+            title="When on, each lesson stays locked until the one before it is completed"
+          >
+            <Icon name="lock" size={11} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
+            Sequential
+          </button>
+          <button type="button" className="icon-btn" title="Edit module" onClick={() => onEdit(module)}>
+            <Icon name="pencil" size={14} />
+          </button>
+          <button type="button" className="icon-btn icon-btn-danger" title="Delete module" onClick={handleDeleteModule}>
+            <Icon name="trash" size={14} />
+          </button>
+        </div>
       </div>
 
       {isOpen && (
@@ -461,44 +435,58 @@ function ModuleBlock({ courseId, module, isOpen, onToggle, isFirst, isLast, onRe
   );
 }
 
-function NewModuleForm({ courseId, onCreated }) {
+// Same popup style as ContentBuilder.jsx's ResourceModal (Learning Hub's
+// "Add/Edit Resource") — one modal handles both add and edit, switched on
+// whether `module` is passed in, same as ResourceModal's `isEdit`. Modules
+// only ever have a title (see modules table, 0001_schema.sql — no
+// description column), so this is just the Title field plus the context
+// line, no Type/Author/URL fields.
+function ModuleModal({ courseId, courseTitle, module, onClose, onSaved }) {
   const toast = useToast();
-  const [title, setTitle] = useState("");
+  const isEdit = !!module;
+  const [title, setTitle] = useState(module?.title ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from("modules").insert({
-      course_id: courseId,
-      title: title.trim(),
-      order_index: Math.floor(Date.now() / 1000),
-      published: true,
-    });
+    const { error } = isEdit
+      ? await supabase.from("modules").update({ title: title.trim() }).eq("id", module.id)
+      : await supabase.from("modules").insert({
+          course_id: courseId,
+          title: title.trim(),
+          order_index: Math.floor(Date.now() / 1000),
+          published: true,
+        });
     setSaving(false);
     if (error) {
-      toast.error("Couldn't add that module.");
+      toast.error(`Couldn't ${isEdit ? "save" : "add"} that module.`);
       return;
     }
-    setTitle("");
-    toast.success("Module added.");
-    onCreated?.();
+    toast.success(isEdit ? "Module updated." : "Module added.");
+    onSaved();
   };
 
   return (
-    <form onSubmit={submit} style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-      <input
-        className="inline-edit-field"
-        placeholder="New module title"
-        required
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        style={{ flex: 1 }}
-      />
-      <button type="submit" className="btn btn-primary" disabled={saving}>
-        Add module
-      </button>
-    </form>
+    <Modal open onClose={onClose} title={isEdit ? "Edit Module" : "Add Module"}>
+      <form onSubmit={submit}>
+        <div className="field">
+          <label>Title</label>
+          <input required autoFocus placeholder="Module title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        <p style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "-6px", marginBottom: "16px" }}>
+          {isEdit ? "Editing module in" : "Adding to course"} <strong style={{ color: "var(--navy)" }}>{courseTitle}</strong>
+        </p>
+        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? "Saving…" : isEdit ? "Save" : "Add Module"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -508,6 +496,7 @@ export default function CourseEditor() {
   const [editingCourse, setEditingCourse] = useState(false);
   const [openModuleId, setOpenModuleId] = useState(null);
   const [assignmentsOpen, setAssignmentsOpen] = useState(false);
+  const [moduleModal, setModuleModal] = useState(null); // null closed | {} add | module edit
 
   const { loading: loadingCourse, data: course, refetch: refetchCourse } = useSupabaseQuery(
     () => supabase.from("courses").select("*").eq("id", courseId).single(),
@@ -570,7 +559,15 @@ export default function CourseEditor() {
         )}
       </div>
 
-      <NewModuleForm courseId={courseId} onCreated={refetchModules} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+        <div className="card-title" style={{ marginBottom: 0 }}>
+          Modules
+        </div>
+        <button type="button" className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "13px" }} onClick={() => setModuleModal({})}>
+          <Icon name="plus" size={13} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+          Add
+        </button>
+      </div>
 
       {modules && modules.length === 0 && <EmptyState icon={<Icon name="layers" size={26} />} title="No modules yet" />}
       {modules?.map((module, i) => (
@@ -584,6 +581,7 @@ export default function CourseEditor() {
           isLast={i === modules.length - 1}
           onReorder={(direction) => reorderModule(i, direction)}
           onChanged={refetchModules}
+          onEdit={setModuleModal}
         />
       ))}
 
@@ -603,6 +601,19 @@ export default function CourseEditor() {
           </div>
         )}
       </div>
+
+      {moduleModal && (
+        <ModuleModal
+          courseId={courseId}
+          courseTitle={course.title}
+          module={moduleModal.id ? moduleModal : null}
+          onClose={() => setModuleModal(null)}
+          onSaved={() => {
+            setModuleModal(null);
+            refetchModules();
+          }}
+        />
+      )}
     </div>
   );
 }
