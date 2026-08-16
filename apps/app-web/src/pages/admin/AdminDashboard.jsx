@@ -297,7 +297,7 @@ export default function AdminDashboard() {
           ) : (
             <>
               <div className="stat-tile-value" style={{ fontSize: "28px", marginTop: "10px" }}>
-                ₦{stats.earningsTotal.toLocaleString()}
+                ${stats.earningsTotal.toLocaleString()}
               </div>
               <div className="row-meta" style={{ marginTop: "6px" }}>
                 Across all members, verified to date
