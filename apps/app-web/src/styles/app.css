@@ -520,6 +520,14 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
 }
 
 .quick-actions{ display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-top:24px; }
+/* Mobile-only: these duplicate the sidebar nav, which is hidden at this
+   width in favor of the bottom tab bar, so they earn their keep here —
+   but on desktop every one of these links already sits one click away
+   in the sidebar, so showing them again on the dashboard is pure
+   redundancy. */
+@media (min-width: 901px){
+  .quick-actions{ display:none; }
+}
 .quick-action{
   display:flex; align-items:center; gap:12px;
   padding:16px; border-radius:12px; border:1px solid var(--line); background:var(--surface);

@@ -7,6 +7,7 @@ import { computeProfileHealth } from "../../lib/profileHealth.js";
 import { completeContentAssignment, submitRankTask } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
+import Avatar from "../../components/Avatar.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
 import ProgressRing from "../../components/ProgressRing.jsx";
@@ -454,6 +455,81 @@ function ProspectFollowUpCard({ uid }) {
   );
 }
 
+// Mirrors the three boards on the full Leaderboard page (get_leaderboards,
+// supabase/migrations/0026_weekly_leaderboard.sql) but only ever shows each
+// board's #1 entry -- a teaser, not a duplicate of that page.
+const LEADER_CATEGORY = {
+  tasks: { icon: "check-square", label: "Task Completion", format: (e) => `${Math.round(e.completionPercent)}%` },
+  prospects: { icon: "network", label: "Prospects", format: (e) => `${e.prospectCount}` },
+  earnings: { icon: "dollar-sign", label: "Top Earner", format: (e) => `$${Math.round(e.totalAmount)}` },
+};
+
+function TopLeadersCard({ uid }) {
+  const { loading, data } = useSupabaseQuery(() => uid && supabase.rpc("get_leaderboards", {}), [uid]);
+
+  return (
+    <div className="card-elevated rise-in" style={{ animationDelay: "0.22s" }}>
+      <div className="card-title" style={{ marginBottom: "4px" }}>
+        <Icon name="trophy" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        This Week's Leaders
+      </div>
+      <p className="card-subtitle">Who's #1 on each board right now.</p>
+
+      {loading && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <Skeleton variant="table-row" />
+          <Skeleton variant="table-row" />
+          <Skeleton variant="table-row" />
+        </div>
+      )}
+
+      {!loading && (
+        <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "12px" }}>
+          {Object.entries(LEADER_CATEGORY).map(([key, meta]) => {
+            const leader = data?.[key]?.[0];
+            return (
+              <li key={key} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ width: 22, flexShrink: 0, display: "flex", justifyContent: "center", color: "var(--slate)" }}>
+                  <Icon name={meta.icon} size={14} />
+                </span>
+                {leader ? (
+                  <>
+                    <Avatar name={leader.displayName} photoPath={leader.photoUrl} size={26} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: "13.5px",
+                          fontWeight: 600,
+                          color: "var(--navy)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {leader.displayName}
+                        {leader.uid === uid && " (you)"}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "var(--slate)" }}>{meta.label}</div>
+                    </div>
+                    <span style={{ fontSize: "15px" }}>🥇</span>
+                    <span style={{ fontWeight: 700, fontSize: "13.5px", flexShrink: 0 }}>{meta.format(leader)}</span>
+                  </>
+                ) : (
+                  <div style={{ flex: 1, fontSize: "13px", color: "var(--slate)" }}>{meta.label} — no one yet this week</div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <Link to="/leaderboard" className="btn btn-secondary" style={{ marginTop: "16px" }}>
+        View full leaderboard
+      </Link>
+    </div>
+  );
+}
+
 const QUICK_ACTIONS = [
   { to: "/learning", icon: "book", label: "Browse Learning" },
   { to: "/assignments", icon: "clipboard", label: "Assignments" },
@@ -514,6 +590,10 @@ export default function Dashboard() {
       <div className="grid grid-2" style={{ marginBottom: "24px" }}>
         <GoalsNudgeCard uid={user?.id} />
         <ProspectFollowUpCard uid={user?.id} />
+      </div>
+
+      <div style={{ marginBottom: "24px" }}>
+        <TopLeadersCard uid={user?.id} />
       </div>
 
       <div className="quick-actions">
