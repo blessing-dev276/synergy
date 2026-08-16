@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
@@ -9,23 +9,15 @@ import Skeleton from "../../components/state/Skeleton.jsx";
 
 // A plain <video src="…"> only plays a direct media file -- it can't play a
 // YouTube/Vimeo *page* URL, which is what admins paste into a lesson's video
-// field almost every time (that's the actual bug: the player looked "broken"
-// because it was silently trying to stream an HTML page as video). Route
-// those hosts to their iframe embed instead; anything else (Supabase
-// storage, any other direct .mp4/.webm link) keeps using <video> as-is.
-function youtubeEmbedUrl(u) {
-  const id = u.hostname === "youtu.be" ? u.pathname.slice(1) : u.pathname === "/watch" ? u.searchParams.get("v") : u.pathname.startsWith("/shorts/") ? u.pathname.split("/")[2] : null;
-  if (!id) return null;
-  const start = parseInt(u.searchParams.get("t") || u.searchParams.get("start") || "0", 10);
-  return `https://www.youtube.com/embed/${id}${start ? `?start=${start}` : ""}`;
-}
-
-function vimeoEmbedUrl(u) {
-  const id = u.pathname.split("/").filter(Boolean)[0];
-  return id && /^\d+$/.test(id) ? `https://player.vimeo.com/video/${id}` : null;
-}
-
-function videoEmbedUrl(url) {
+// field almost every time. YouTube gets the full IFrame Player API (below)
+// rather than a bare embed iframe, because that's the only way to know when
+// playback actually finished -- needed both for chapter-clipped lessons
+// (start_seconds/end_seconds, 0061: several lessons sharing one long video,
+// each one chapter of it) and for gating "Mark Complete" on having watched
+// the thing. Vimeo and any other direct file URL keep working as before,
+// just without that watch-gate (no equivalent signal without pulling in a
+// second player SDK for a case nobody asked for).
+function parseVideo(url) {
   if (!url) return null;
   let u;
   try {
@@ -34,10 +26,80 @@ function videoEmbedUrl(url) {
     return null;
   }
   const host = u.hostname.replace(/^www\.|^m\./, "");
-  if (host === "youtu.be" || host === "youtube.com") return youtubeEmbedUrl(u);
-  if (host === "vimeo.com") return vimeoEmbedUrl(u);
-  if (host === "player.vimeo.com" || u.pathname.startsWith("/embed/")) return url;
+  if (host === "youtu.be" || host === "youtube.com") {
+    const id =
+      host === "youtu.be"
+        ? u.pathname.slice(1)
+        : u.pathname === "/watch"
+          ? u.searchParams.get("v")
+          : u.pathname.startsWith("/shorts/")
+            ? u.pathname.split("/")[2]
+            : null;
+    return id ? { type: "youtube", id } : null;
+  }
+  if (host === "vimeo.com") {
+    const id = u.pathname.split("/").filter(Boolean)[0];
+    return id && /^\d+$/.test(id) ? { type: "vimeo", embedUrl: `https://player.vimeo.com/video/${id}` } : null;
+  }
+  if (host === "player.vimeo.com" || u.pathname.startsWith("/embed/")) {
+    return { type: "vimeo", embedUrl: url };
+  }
   return null;
+}
+
+// Loads https://www.youtube.com/iframe_api once per page (a second lesson
+// visited later in the same session reuses the already-loaded window.YT).
+let ytApiPromise = null;
+function loadYouTubeApi() {
+  if (window.YT?.Player) return Promise.resolve(window.YT);
+  if (!ytApiPromise) {
+    ytApiPromise = new Promise((resolve) => {
+      const prevReady = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        prevReady?.();
+        resolve(window.YT);
+      };
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+    });
+  }
+  return ytApiPromise;
+}
+
+// key={lessonId} on the caller forces a full remount per chapter, so this
+// never has to reconcile a videoId/start/end change mid-life -- new chapter,
+// new player, same div.
+function YouTubeChapterPlayer({ videoId, startSeconds, endSeconds, title, onWatched }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let player = null;
+    loadYouTubeApi().then((YT) => {
+      if (cancelled || !containerRef.current) return;
+      player = new YT.Player(containerRef.current, {
+        videoId,
+        playerVars: { start: startSeconds || 0, ...(endSeconds ? { end: endSeconds } : {}), rel: 0 },
+        events: {
+          onStateChange: (e) => {
+            if (e.data === YT.PlayerState.ENDED) onWatched();
+          },
+        },
+      });
+    });
+    return () => {
+      cancelled = true;
+      player?.destroy?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoId, startSeconds, endSeconds]);
+
+  return (
+    <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: "10px", overflow: "hidden" }}>
+      <div ref={containerRef} title={title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+    </div>
+  );
 }
 
 export default function LessonViewer() {
@@ -46,6 +108,7 @@ export default function LessonViewer() {
   const toast = useToast();
   const navigate = useNavigate();
   const [completing, setCompleting] = useState(false);
+  const [watched, setWatched] = useState(false);
 
   const { loading, data: lesson } = useSupabaseQuery(
     () => supabase.from("lessons").select("*").eq("id", lessonId).single(),
@@ -56,6 +119,16 @@ export default function LessonViewer() {
     () => user && supabase.from("lesson_progress").select("*").eq("uid", user.id).eq("lesson_id", lessonId).maybeSingle(),
     [user?.id, lessonId],
   );
+
+  // "Next Chapter" only ever points at the next lesson in this same module
+  // (chapters of one video all live in one module) -- not a general
+  // "keep going through the whole course" control.
+  const { data: siblingLessons } = useSupabaseQuery(
+    () => supabase.from("lessons").select("id, order_index").eq("module_id", moduleId).order("order_index", { ascending: true }),
+    [moduleId],
+  );
+  const siblingIndex = siblingLessons?.findIndex((l) => l.id === lessonId) ?? -1;
+  const nextLessonId = siblingIndex >= 0 && siblingIndex < (siblingLessons?.length ?? 0) - 1 ? siblingLessons[siblingIndex + 1].id : null;
 
   // Mark "in_progress" the first time this lesson is opened — a low-stakes
   // owner-only write, unlike completion which always goes through the
@@ -79,9 +152,17 @@ export default function LessonViewer() {
       .then(() => refetchProgress());
   }, [user, lesson, progress, lessonId, moduleId, courseId, pathId, refetchProgress]);
 
+  // A fresh chapter starts unwatched even if the same component instance
+  // stays mounted across a "Next Chapter" navigation (same route, new params).
+  useEffect(() => {
+    setWatched(false);
+  }, [lessonId]);
+
   const isComplete = progress?.status === "completed";
   const requiresQuiz = lesson?.completion_rule === "quiz_pass";
-  const embedUrl = lesson?.content_type === "video" ? videoEmbedUrl(lesson.content_body) : null;
+  const video = lesson?.content_type === "video" ? parseVideo(lesson.content_body) : null;
+  const needsWatch = lesson?.content_type === "video" && !!lesson.content_body && video?.type !== "vimeo";
+  const canMarkComplete = !needsWatch || watched;
 
   const handleMarkComplete = async () => {
     setCompleting(true);
@@ -107,10 +188,20 @@ export default function LessonViewer() {
       <h1 style={{ marginTop: "10px" }}>{lesson.title}</h1>
 
       <div className="card" style={{ marginTop: "20px", marginBottom: "20px" }}>
-        {lesson.content_type === "video" && lesson.content_body && embedUrl && (
+        {lesson.content_type === "video" && lesson.content_body && video?.type === "youtube" && (
+          <YouTubeChapterPlayer
+            key={lessonId}
+            videoId={video.id}
+            startSeconds={lesson.start_seconds}
+            endSeconds={lesson.end_seconds}
+            title={lesson.title}
+            onWatched={() => setWatched(true)}
+          />
+        )}
+        {lesson.content_type === "video" && lesson.content_body && video?.type === "vimeo" && (
           <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: "10px", overflow: "hidden" }}>
             <iframe
-              src={embedUrl}
+              src={video.embedUrl}
               title={lesson.title}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -118,8 +209,8 @@ export default function LessonViewer() {
             />
           </div>
         )}
-        {lesson.content_type === "video" && lesson.content_body && !embedUrl && (
-          <video controls style={{ width: "100%", borderRadius: "10px" }} src={lesson.content_body} />
+        {lesson.content_type === "video" && lesson.content_body && !video && (
+          <video controls style={{ width: "100%", borderRadius: "10px" }} src={lesson.content_body} onEnded={() => setWatched(true)} />
         )}
         {lesson.content_type === "text" && <div style={{ whiteSpace: "pre-wrap" }}>{lesson.content_body}</div>}
         {lesson.content_type === "pdf" && (
@@ -134,12 +225,25 @@ export default function LessonViewer() {
         )}
       </div>
 
-      {isComplete && <span className="badge badge-success">Completed</span>}
+      {isComplete && (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span className="badge badge-success">Completed</span>
+          {nextLessonId && (
+            <Link to={`/learning/${pathId}/${courseId}/${moduleId}/${nextLessonId}`} className="btn btn-secondary">
+              Next Chapter →
+            </Link>
+          )}
+        </div>
+      )}
 
-      {!isComplete && !requiresQuiz && (
+      {!isComplete && !requiresQuiz && canMarkComplete && (
         <button type="button" className="btn btn-primary" onClick={handleMarkComplete} disabled={completing}>
           {completing ? "Saving…" : "Mark Complete"}
         </button>
+      )}
+
+      {!isComplete && !requiresQuiz && !canMarkComplete && (
+        <p style={{ color: "var(--slate)", fontSize: "13.5px" }}>Finish watching to mark this chapter complete.</p>
       )}
 
       {!isComplete && requiresQuiz && (

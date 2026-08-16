@@ -9,6 +9,12 @@ import EmptyState from "../../../components/state/EmptyState.jsx";
 import QuizBuilder from "./QuizBuilder.jsx";
 import AssignmentBuilder from "./AssignmentBuilder.jsx";
 
+function formatSeconds(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${String(sec).padStart(2, "0")}`;
+}
+
 function EditCourseForm({ course, onSaved, onCancel }) {
   const toast = useToast();
   const [title, setTitle] = useState(course.title);
@@ -44,12 +50,41 @@ function EditCourseForm({ course, onSaved, onCancel }) {
   );
 }
 
+// Shared by New/EditLessonForm -- start/end only matter for video, and only
+// need surfacing when several lessons point at the same YouTube URL as
+// chapters of it (start_seconds/end_seconds, 0061). Left at their column
+// defaults (0 / blank = play to the end), this is just "the whole video."
+function ChapterFields({ startSeconds, setStartSeconds, endSeconds, setEndSeconds }) {
+  return (
+    <div className="activity-edit-row">
+      <input
+        type="number"
+        min="0"
+        placeholder="Start (seconds)"
+        value={startSeconds}
+        onChange={(e) => setStartSeconds(e.target.value)}
+        title="Where this chapter starts in the shared video"
+      />
+      <input
+        type="number"
+        min="0"
+        placeholder="End (seconds, optional)"
+        value={endSeconds}
+        onChange={(e) => setEndSeconds(e.target.value)}
+        title="Where this chapter ends -- leave blank to play to the end of the video"
+      />
+    </div>
+  );
+}
+
 function NewLessonForm({ courseId, moduleId, onCreated }) {
   const toast = useToast();
   const [title, setTitle] = useState("");
   const [contentType, setContentType] = useState("text");
   const [contentBody, setContentBody] = useState("");
   const [completionRule, setCompletionRule] = useState("manual");
+  const [startSeconds, setStartSeconds] = useState("");
+  const [endSeconds, setEndSeconds] = useState("");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
@@ -65,6 +100,8 @@ function NewLessonForm({ courseId, moduleId, onCreated }) {
       estimated_minutes: 10,
       completion_rule: completionRule,
       published: true,
+      start_seconds: contentType === "video" && startSeconds !== "" ? parseInt(startSeconds, 10) : 0,
+      end_seconds: contentType === "video" && endSeconds !== "" ? parseInt(endSeconds, 10) : null,
     });
     setSaving(false);
     if (error) {
@@ -73,6 +110,8 @@ function NewLessonForm({ courseId, moduleId, onCreated }) {
     }
     setTitle("");
     setContentBody("");
+    setStartSeconds("");
+    setEndSeconds("");
     toast.success("Lesson added.");
     onCreated?.();
   };
@@ -99,6 +138,9 @@ function NewLessonForm({ courseId, moduleId, onCreated }) {
         value={contentBody}
         onChange={(e) => setContentBody(e.target.value)}
       />
+      {contentType === "video" && (
+        <ChapterFields startSeconds={startSeconds} setStartSeconds={setStartSeconds} endSeconds={endSeconds} setEndSeconds={setEndSeconds} />
+      )}
       <button type="submit" className="btn btn-secondary" disabled={saving} style={{ alignSelf: "flex-start" }}>
         {saving ? "Adding…" : "Add lesson"}
       </button>
@@ -109,12 +151,24 @@ function NewLessonForm({ courseId, moduleId, onCreated }) {
 function EditLessonForm({ lesson, onSaved, onCancel }) {
   const toast = useToast();
   const [title, setTitle] = useState(lesson.title);
+  const [contentBody, setContentBody] = useState(lesson.content_body ?? "");
+  const [startSeconds, setStartSeconds] = useState(String(lesson.start_seconds ?? 0));
+  const [endSeconds, setEndSeconds] = useState(lesson.end_seconds != null ? String(lesson.end_seconds) : "");
   const [saving, setSaving] = useState(false);
+  const isVideo = lesson.content_type === "video";
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from("lessons").update({ title: title.trim() }).eq("id", lesson.id);
+    const { error } = await supabase
+      .from("lessons")
+      .update({
+        title: title.trim(),
+        content_body: contentBody.trim(),
+        start_seconds: isVideo && startSeconds !== "" ? parseInt(startSeconds, 10) : 0,
+        end_seconds: isVideo && endSeconds !== "" ? parseInt(endSeconds, 10) : null,
+      })
+      .eq("id", lesson.id);
     setSaving(false);
     if (error) {
       toast.error("Couldn't save changes.");
@@ -125,14 +179,22 @@ function EditLessonForm({ lesson, onSaved, onCancel }) {
   };
 
   return (
-    <form onSubmit={submit} style={{ display: "flex", gap: "6px", flex: 1 }}>
-      <input className="inline-edit-field" value={title} onChange={(e) => setTitle(e.target.value)} style={{ flex: 1 }} />
-      <button type="submit" className="icon-btn" disabled={saving} title="Save">
-        <Icon name="check" size={14} />
-      </button>
-      <button type="button" className="icon-btn" onClick={onCancel} title="Cancel">
-        <Icon name="x" size={14} />
-      </button>
+    <form onSubmit={submit} className="activity-edit-form" style={{ display: "flex", flexDirection: "column", gap: "6px", flex: 1 }}>
+      <div style={{ display: "flex", gap: "6px" }}>
+        <input className="inline-edit-field" value={title} onChange={(e) => setTitle(e.target.value)} style={{ flex: 1 }} />
+        <button type="submit" className="icon-btn" disabled={saving} title="Save">
+          <Icon name="check" size={14} />
+        </button>
+        <button type="button" className="icon-btn" onClick={onCancel} title="Cancel">
+          <Icon name="x" size={14} />
+        </button>
+      </div>
+      {isVideo && (
+        <>
+          <input className="inline-edit-field" value={contentBody} onChange={(e) => setContentBody(e.target.value)} placeholder="YouTube, Vimeo, or direct video file URL" />
+          <ChapterFields startSeconds={startSeconds} setStartSeconds={setStartSeconds} endSeconds={endSeconds} setEndSeconds={setEndSeconds} />
+        </>
+      )}
     </form>
   );
 }
@@ -173,6 +235,11 @@ function LessonRow({ lesson, isFirst, isLast, onReorder, onChanged }) {
           </button>
         </div>
         <span style={{ flex: 1 }}>{lesson.title}</span>
+        {lesson.content_type === "video" && (lesson.start_seconds > 0 || lesson.end_seconds != null) && (
+          <span className="badge badge-neutral mono">
+            {formatSeconds(lesson.start_seconds)}–{lesson.end_seconds != null ? formatSeconds(lesson.end_seconds) : "end"}
+          </span>
+        )}
         <span className="badge badge-neutral">{lesson.content_type}</span>
         {lesson.completion_rule === "quiz_pass" && (
           <button type="button" className="btn btn-secondary" onClick={() => setQuizOpen((v) => !v)}>
