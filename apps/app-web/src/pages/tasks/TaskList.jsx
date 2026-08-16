@@ -3,10 +3,91 @@ import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
-import { completeContentAssignment, submitContentEvidence } from "../../lib/rpc.js";
+import { completeContentAssignment, submitContentEvidence, submitRankTask } from "../../lib/rpc.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
+
+// Rank tasks (supabase/migrations/0063_rank_tasks.sql) are a separate,
+// simpler source from the individual tasks below: no evidence, just a
+// checkbox, and an admin approves/rejects afterward. Kept as its own
+// section rather than merged into one table — the two have different
+// enough shapes (no due date/xp/type on a rank task, no recurrence on an
+// individual one) that forcing a single row shape would need more
+// branching than just showing them separately.
+function RankTaskRow({ task, onSubmitted }) {
+  const toast = useToast();
+  const [submitting, setSubmitting] = useState(false);
+  const submission = task.submission;
+
+  const submit = async () => {
+    setSubmitting(true);
+    try {
+      await submitRankTask(task.id);
+      toast.success("Marked done — an admin will review it.");
+      onSubmitted();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't submit that task.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <tr>
+      <td>
+        <div style={{ fontWeight: 600 }}>{task.title}</div>
+        {task.description && <div style={{ fontSize: "13px", color: "var(--slate)" }}>{task.description}</div>}
+        {submission?.status === "rejected" && submission.reviewNote && (
+          <div style={{ fontSize: "12.5px", color: "var(--warning)", marginTop: "4px" }}>{submission.reviewNote}</div>
+        )}
+      </td>
+      <td>{task.recurrence === "daily" ? "Daily" : "One-time"}</td>
+      <td>
+        {(!submission || submission.status === "rejected") && (
+          <button type="button" className="badge badge-neutral" onClick={submit} disabled={submitting}>
+            {submitting ? "Submitting…" : submission ? "Resubmit" : "Mark done"}
+          </button>
+        )}
+        {submission?.status === "pending" && <span className="badge badge-info">Pending review</span>}
+        {submission?.status === "approved" && <span className="badge badge-success">Approved</span>}
+      </td>
+    </tr>
+  );
+}
+
+function RankTasksSection() {
+  const { loading, data: tasks, refetch } = useSupabaseQuery(() => supabase.rpc("get_my_rank_tasks", {}), []);
+
+  if (!loading && (!tasks || tasks.length === 0)) return null;
+
+  return (
+    <div style={{ marginBottom: "28px" }}>
+      <div className="card-title" style={{ marginBottom: "12px" }}>
+        Your Rank Tasks
+      </div>
+      {loading && <Skeleton variant="card" height="100px" />}
+      {tasks && tasks.length > 0 && (
+        <div className="card">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Frequency</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.map((t) => (
+                <RankTaskRow key={t.id} task={t} onSubmitted={refetch} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Shown for a bare task flagged requires_admin_approval — self-attesting is
 // blocked server-side for these (see complete_content_assignment), so this
@@ -104,6 +185,7 @@ export default function TaskList() {
   return (
     <div>
       <h1>Tasks</h1>
+      <RankTasksSection />
       {loading && <Skeleton variant="card" height="100px" />}
       {error && <ErrorState description="Couldn't load your tasks." />}
       {!loading && !error && (!tasks || tasks.length === 0) && (

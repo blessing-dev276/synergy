@@ -69,15 +69,46 @@ function loadYouTubeApi() {
   return ytApiPromise;
 }
 
+// Native controls (play/pause/volume/fullscreen/captions) stay -- only
+// dragging the scrub bar ahead is blocked, by polling getCurrentTime() and
+// snapping back the instant it jumps further than real playback could have
+// carried it since the last poll. maxTimeRef is a high-water mark, not "last
+// seen time" -- rewinding to rewatch is always fine, and doesn't lower the
+// point you're allowed to be at.
+const SKIP_POLL_MS = 1000;
+const SKIP_TOLERANCE_S = 1.5;
+
 // key={lessonId} on the caller forces a full remount per chapter, so this
 // never has to reconcile a videoId/start/end change mid-life -- new chapter,
 // new player, same div.
 function YouTubeChapterPlayer({ videoId, startSeconds, endSeconds, title, onWatched }) {
   const containerRef = useRef(null);
+  const maxTimeRef = useRef(startSeconds || 0);
 
   useEffect(() => {
     let cancelled = false;
     let player = null;
+    let pollId = null;
+
+    const stopPoll = () => {
+      if (pollId) {
+        clearInterval(pollId);
+        pollId = null;
+      }
+    };
+    const startPoll = () => {
+      stopPoll();
+      pollId = setInterval(() => {
+        if (!player?.getCurrentTime) return;
+        const current = player.getCurrentTime();
+        if (current > maxTimeRef.current + SKIP_TOLERANCE_S) {
+          player.seekTo(maxTimeRef.current, true);
+        } else {
+          maxTimeRef.current = Math.max(maxTimeRef.current, current);
+        }
+      }, SKIP_POLL_MS);
+    };
+
     loadYouTubeApi().then((YT) => {
       if (cancelled || !containerRef.current) return;
       player = new YT.Player(containerRef.current, {
@@ -85,13 +116,24 @@ function YouTubeChapterPlayer({ videoId, startSeconds, endSeconds, title, onWatc
         playerVars: { start: startSeconds || 0, ...(endSeconds ? { end: endSeconds } : {}), rel: 0 },
         events: {
           onStateChange: (e) => {
+            if (e.data === YT.PlayerState.PLAYING) startPoll();
+            else stopPoll();
             if (e.data === YT.PlayerState.ENDED) onWatched();
+          },
+          // A 2x playback rate covers ~2s of video per 1s poll tick, which
+          // reads as a "skip" against the 1.5s tolerance above and fights
+          // the snapback -- looks like the player freezing, not a clean
+          // block. Pin the rate instead of just widening the tolerance, so
+          // skip detection stays tight either way.
+          onPlaybackRateChange: (e) => {
+            if (e.data !== 1) player?.setPlaybackRate(1);
           },
         },
       });
     });
     return () => {
       cancelled = true;
+      stopPoll();
       player?.destroy?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,6 +143,36 @@ function YouTubeChapterPlayer({ videoId, startSeconds, endSeconds, title, onWatc
     <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: "10px", overflow: "hidden" }}>
       <div ref={containerRef} title={title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
     </div>
+  );
+}
+
+// Same anti-skip rule as YouTubeChapterPlayer, via the native timeupdate
+// event instead of polling (fires on its own, several times a second).
+function NativeVideoPlayer({ src, onWatched }) {
+  const maxTimeRef = useRef(0);
+
+  const onTimeUpdate = (e) => {
+    const el = e.currentTarget;
+    if (el.currentTime > maxTimeRef.current + SKIP_TOLERANCE_S) {
+      el.currentTime = maxTimeRef.current;
+    } else {
+      maxTimeRef.current = Math.max(maxTimeRef.current, el.currentTime);
+    }
+  };
+  const onRateChange = (e) => {
+    if (e.currentTarget.playbackRate !== 1) e.currentTarget.playbackRate = 1;
+  };
+
+  return (
+    <video
+      controls
+      controlsList="nodownload"
+      style={{ width: "100%", borderRadius: "10px" }}
+      src={src}
+      onTimeUpdate={onTimeUpdate}
+      onRateChange={onRateChange}
+      onEnded={onWatched}
+    />
   );
 }
 
@@ -270,7 +342,7 @@ export default function LessonViewer() {
           </div>
         )}
         {lesson.content_type === "video" && lesson.content_body && !video && (
-          <video controls style={{ width: "100%", borderRadius: "10px" }} src={lesson.content_body} onEnded={handleWatched} />
+          <NativeVideoPlayer key={lessonId} src={lesson.content_body} onWatched={handleWatched} />
         )}
         {lesson.content_type === "text" && <div style={{ whiteSpace: "pre-wrap" }}>{lesson.content_body}</div>}
         {lesson.content_type === "pdf" && (

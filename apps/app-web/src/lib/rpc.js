@@ -95,6 +95,20 @@ export const adminSetMemberRank = (uid, rankId) =>
 
 export const adminGetMembersByRank = () => call("admin_get_members_by_rank", {});
 
+// ---------- rank tasks (checkbox-complete, admin-reviewed, per rank) ----------
+export const adminCreateRankTask = (rankId, title, description, recurrence) =>
+  call("admin_create_rank_task", { p_rank_id: rankId, p_title: title, p_description: description, p_recurrence: recurrence });
+
+export const adminUpdateRankTask = (id, title, description, recurrence, orderIndex) =>
+  call("admin_update_rank_task", { p_id: id, p_title: title, p_description: description, p_recurrence: recurrence, p_order_index: orderIndex });
+
+export const adminDeleteRankTask = (id) => call("admin_delete_rank_task", { p_id: id });
+
+export const submitRankTask = (rankTaskId) => call("submit_rank_task", { p_rank_task_id: rankTaskId });
+
+export const reviewRankTaskSubmission = (submissionId, decision, note) =>
+  call("review_rank_task_submission", { p_submission_id: submissionId, p_decision: decision, p_note: note });
+
 // ---------- participation path ----------
 export const requestParticipationPath = (requestedPath, reason) =>
   call("request_participation_path", { p_requested_path: requestedPath, p_reason: reason });

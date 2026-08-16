@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../../../supabaseClient.js";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { useToast } from "../../../components/state/Toast.jsx";
@@ -8,6 +9,10 @@ import {
   adminDeleteRank,
   adminSetRankLearningPaths,
   adminSetMemberRank,
+  adminCreateRankTask,
+  adminUpdateRankTask,
+  adminDeleteRankTask,
+  reviewRankTaskSubmission,
 } from "../../../lib/rpc.js";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
@@ -230,6 +235,255 @@ function RankMembersPanel({ rank, ranks, members, onChanged }) {
   );
 }
 
+// Checkbox-complete, admin-reviewed tasks scoped to one rank (see
+// supabase/migrations/0063_rank_tasks.sql). CRUD lives here per-rank,
+// mirroring RankPathsPanel above — the review queue for submissions
+// waiting on a decision is a separate, cross-rank section further down
+// (PendingRankTaskSubmissions) so an admin doesn't have to open every rank
+// looking for pending work.
+function NewRankTaskForm({ rankId, onCreated, onDone }) {
+  const toast = useToast();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [recurrence, setRecurrence] = useState("once");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await adminCreateRankTask(rankId, title.trim(), description.trim(), recurrence);
+      toast.success("Task created.");
+      setTitle("");
+      setDescription("");
+      setRecurrence("once");
+      onCreated();
+      onDone();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't create that task.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={submit}
+      onClick={(e) => e.stopPropagation()}
+      className="card-elevated"
+      style={{ marginBottom: "12px", display: "flex", flexDirection: "column", gap: "8px" }}
+    >
+      <input className="inline-edit-field" required autoFocus placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <textarea rows={2} placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+      <select
+        value={recurrence}
+        onChange={(e) => setRecurrence(e.target.value)}
+        style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 10px" }}
+      >
+        <option value="once">One-time</option>
+        <option value="daily">Resets daily</option>
+      </select>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? "Creating…" : "Create task"}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onDone}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function RankTaskRow({ task, onChanged }) {
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(task.title);
+  const [description, setDescription] = useState(task.description ?? "");
+  const [recurrence, setRecurrence] = useState(task.recurrence);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await adminUpdateRankTask(task.id, title.trim(), description.trim(), recurrence, task.order_index ?? 0);
+      toast.success("Task updated.");
+      setEditing(false);
+      onChanged();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't save changes.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!window.confirm(`Delete task "${task.title}"? Any submissions for it go with it.`)) return;
+    try {
+      await adminDeleteRankTask(task.id);
+      toast.success("Task deleted.");
+      onChanged();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't delete that task.");
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="card-elevated" onClick={(e) => e.stopPropagation()} style={{ marginBottom: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+        <input className="inline-edit-field" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <select
+          value={recurrence}
+          onChange={(e) => setRecurrence(e.target.value)}
+          style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 10px" }}
+        >
+          <option value="once">One-time</option>
+          <option value="daily">Resets daily</option>
+        </select>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => setEditing(false)}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="manage-row" onClick={(e) => e.stopPropagation()}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontWeight: 600, fontSize: "13.5px" }}>
+          {task.title} <span className="badge badge-neutral">{task.recurrence === "daily" ? "Daily" : "One-time"}</span>
+        </div>
+        {task.description && <div style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "2px" }}>{task.description}</div>}
+      </div>
+      <div className="row-actions">
+        <button type="button" className="icon-btn" title="Edit task" onClick={() => setEditing(true)}>
+          <Icon name="pencil" size={14} />
+        </button>
+        <button type="button" className="icon-btn icon-btn-danger" title="Delete task" onClick={remove}>
+          <Icon name="trash" size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RankTasksPanel({ rank }) {
+  const [showNew, setShowNew] = useState(false);
+  const { data: tasks, refetch } = useSupabaseQuery(
+    () => supabase.from("rank_tasks").select("*").eq("rank_id", rank.id).order("order_index", { ascending: true }),
+    [rank.id],
+  );
+
+  return (
+    <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid var(--line)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+        <div className="row-meta">Tasks for this rank</div>
+        {!showNew && (
+          <button type="button" className="btn btn-secondary" onClick={(e) => { e.stopPropagation(); setShowNew(true); }}>
+            <Icon name="plus" size={12} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            New task
+          </button>
+        )}
+      </div>
+
+      {showNew && <NewRankTaskForm rankId={rank.id} onCreated={refetch} onDone={() => setShowNew(false)} />}
+
+      {(!tasks || tasks.length === 0) && !showNew && <p style={{ fontSize: "13px", color: "var(--slate)" }}>No tasks yet for this rank.</p>}
+
+      {tasks?.map((t) => (
+        <RankTaskRow key={t.id} task={t} onChanged={refetch} />
+      ))}
+    </div>
+  );
+}
+
+// Cross-rank so an admin sees everything waiting on a decision in one
+// place, rather than opening each rank looking for pending submissions.
+// Direct client select (not an RPC) — rank_task_submissions_select's RLS
+// policy already lets an admin read every row, same pattern
+// SponsorRequestsSection uses for sponsor_requests.
+function PendingRankTaskSubmissions() {
+  const toast = useToast();
+  const { loading, data: submissions, refetch } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("rank_task_submissions")
+        .select("*, task:rank_tasks(title, rank:ranks(title)), member:profiles!rank_task_submissions_uid_fkey(display_name, email)")
+        .eq("status", "pending")
+        .order("submitted_at", { ascending: true }),
+    [],
+  );
+  const [busyId, setBusyId] = useState(null);
+  const [notes, setNotes] = useState({});
+
+  const decide = async (submission, decision) => {
+    if (
+      decision === "rejected" &&
+      !window.confirm(`Mark "${submission.task?.title}" not approved for ${submission.member?.display_name || submission.member?.email}?`)
+    )
+      return;
+    setBusyId(submission.id);
+    try {
+      await reviewRankTaskSubmission(submission.id, decision, (notes[submission.id] ?? "").trim());
+      toast.success(decision === "approved" ? "Task approved." : "Marked not approved.");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't review that submission.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  if (!loading && (!submissions || submissions.length === 0)) return null;
+
+  return (
+    <div className="card-elevated" style={{ marginBottom: "20px" }}>
+      <div className="card-title" style={{ marginBottom: "10px" }}>
+        Pending task submissions
+      </div>
+      {loading && <Skeleton variant="text" width="220px" height="20px" />}
+      {submissions?.map((s) => (
+        <div key={s.id} style={{ padding: "12px 0", borderTop: "1px solid var(--line)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
+            <div>
+              <Link to={`/admin/members/${s.uid}`} style={{ fontWeight: 600 }}>
+                {s.member?.display_name || s.member?.email}
+              </Link>
+              <span style={{ fontSize: "12.5px", color: "var(--slate)" }}> · {s.task?.rank?.title}</span>
+            </div>
+            <span style={{ fontSize: "12px", color: "var(--slate)" }}>{new Date(s.submitted_at).toLocaleString()}</span>
+          </div>
+          <p style={{ fontSize: "13.5px", marginBottom: "8px" }}>
+            Marked done: <strong>"{s.task?.title}"</strong>
+          </p>
+          <div className="field" style={{ marginBottom: "8px" }}>
+            <input
+              type="text"
+              placeholder="Note (optional, shown to the member if not approved)"
+              value={notes[s.id] ?? ""}
+              onChange={(e) => setNotes((prev) => ({ ...prev, [s.id]: e.target.value }))}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button type="button" className="btn btn-primary" disabled={busyId === s.id} onClick={() => decide(s, "approved")}>
+              Approve
+            </button>
+            <button type="button" className="btn btn-danger" disabled={busyId === s.id} onClick={() => decide(s, "rejected")}>
+              Not approved
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RankRow({ rank, ranks, paths, members, isFirst, isLast, onChanged, onMembersChanged, onReorder, expanded, onToggle }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
@@ -297,6 +551,7 @@ function RankRow({ rank, ranks, paths, members, isFirst, isLast, onChanged, onMe
       {expanded && !editing && (
         <div className="accordion-body">
           <RankPathsPanel rank={rank} paths={paths} />
+          <RankTasksPanel rank={rank} />
           <RankMembersPanel rank={rank} ranks={ranks} members={members} onChanged={onMembersChanged} />
         </div>
       )}
@@ -345,6 +600,8 @@ export default function RankBuilder() {
       </p>
 
       {showNewRank && <NewRankForm onCreated={refetch} onDone={() => setShowNewRank(false)} />}
+
+      <PendingRankTaskSubmissions />
 
       {loading && <Skeleton variant="card" height="80px" />}
       {!loading && (!ranks || ranks.length === 0) && (
