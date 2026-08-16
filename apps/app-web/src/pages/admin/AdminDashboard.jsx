@@ -4,6 +4,7 @@ import { supabase } from "../../supabaseClient.js";
 import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
+import StatusSplitBar from "../../components/StatusSplitBar.jsx";
 
 // Categorical triple validated against the dark surface with the dataviz
 // skill's validator (all six checks pass) — kept separate from the lighter
@@ -163,6 +164,7 @@ export default function AdminDashboard() {
         quizAgg,
         activeNetwork,
         verifiedEarnings,
+        statusRows,
       ] = await Promise.all([
         supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "member"),
         supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "mentor"),
@@ -185,12 +187,15 @@ export default function AdminDashboard() {
         supabase.from("quiz_attempts").select("score"),
         supabase.from("sponsor_relationships").select("*", { count: "exact", head: true }).eq("active", true),
         supabase.from("earnings_logs").select("amount").eq("status", "verified"),
+        supabase.from("profiles").select("status"),
       ]);
       if (cancelled) return;
 
       const scores = quizAgg.data ?? [];
       const avgQuizScore = scores.length > 0 ? Math.round(scores.reduce((sum, r) => sum + r.score, 0) / scores.length) : null;
       const earningsTotal = (verifiedEarnings.data ?? []).reduce((sum, r) => sum + Number(r.amount ?? 0), 0);
+      const activeStatusCount = (statusRows.data ?? []).filter((r) => r.status === "active").length;
+      const totalAccounts = (statusRows.data ?? []).length;
 
       setStats({
         members: members.count ?? 0,
@@ -204,6 +209,9 @@ export default function AdminDashboard() {
         avgQuizScore,
         activeNetwork: activeNetwork.count ?? 0,
         earningsTotal,
+        totalAccounts,
+        activeAccounts: activeStatusCount,
+        nonActiveAccounts: totalAccounts - activeStatusCount,
       });
     })();
     (async () => {
@@ -262,6 +270,21 @@ export default function AdminDashboard() {
             Team composition
           </div>
           {!stats ? <Skeleton variant="card" height="60px" /> : <TeamComposition counts={{ member: stats.members, mentor: stats.mentors, admin: stats.admins }} />}
+        </div>
+
+        <div className="card-elevated">
+          <div className="card-title" style={{ marginBottom: "4px" }}>
+            <Icon name="activity" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+            Team status
+          </div>
+          <p className="card-subtitle" style={{ marginBottom: "12px" }}>
+            {stats ? `${stats.totalAccounts} account${stats.totalAccounts === 1 ? "" : "s"} total` : "Loading…"}
+          </p>
+          {!stats ? (
+            <Skeleton variant="card" height="60px" />
+          ) : (
+            <StatusSplitBar active={stats.activeAccounts} inactive={stats.nonActiveAccounts} />
+          )}
         </div>
 
         <div className="card-elevated">

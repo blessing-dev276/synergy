@@ -10,7 +10,9 @@ import Icon from "../../components/Icon.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
+import EmptyState from "../../components/state/EmptyState.jsx";
 import ProgressRing from "../../components/ProgressRing.jsx";
+import StatusSplitBar from "../../components/StatusSplitBar.jsx";
 
 function greeting() {
   const hour = new Date().getHours();
@@ -418,6 +420,47 @@ function GoalsNudgeCard({ uid }) {
   );
 }
 
+// Sponsor-network snapshot (get_network_overview, same RPC NetworkDashboard.jsx
+// and admin's OverviewSection.jsx already read) -- the active/non-active split
+// mirrors AdminDashboard.jsx's "Team status" card, just scoped to this
+// member's own downline instead of the whole roster.
+function MyNetworkCard({ uid }) {
+  const { loading, data: overview } = useSupabaseQuery(
+    () => uid && supabase.rpc("get_network_overview", { p_uid: uid }),
+    [uid],
+  );
+
+  const networkSize = overview?.networkSize ?? 0;
+
+  return (
+    <div className="card-elevated rise-in" style={{ animationDelay: "0.16s" }}>
+      <div className="card-title" style={{ marginBottom: "4px" }}>
+        <Icon name="network" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        My Network
+      </div>
+      <p className="card-subtitle" style={{ marginBottom: "12px" }}>
+        {loading ? "Loading…" : `${networkSize} member${networkSize === 1 ? "" : "s"} in your network`}
+      </p>
+
+      {loading && <Skeleton variant="card" height="60px" />}
+
+      {!loading && networkSize === 0 && (
+        <EmptyState
+          icon={<Icon name="network" size={24} />}
+          title="Your network is empty so far"
+          description="Once people join using your referral link, they'll show up here."
+        />
+      )}
+
+      {!loading && networkSize > 0 && <StatusSplitBar active={overview.activeCount} inactive={overview.inactiveCount} />}
+
+      <Link to="/network" className="btn btn-secondary" style={{ marginTop: "16px" }}>
+        View network
+      </Link>
+    </div>
+  );
+}
+
 // Follow-up-due count from the prospecting CRM (supabase/migrations/0046_prospecting_crm.sql).
 function ProspectFollowUpCard({ uid }) {
   const { data: dueProspects } = useSupabaseQuery(
@@ -588,6 +631,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-2" style={{ marginBottom: "24px" }}>
+        <MyNetworkCard uid={user?.id} />
         <GoalsNudgeCard uid={user?.id} />
         <ProspectFollowUpCard uid={user?.id} />
       </div>
