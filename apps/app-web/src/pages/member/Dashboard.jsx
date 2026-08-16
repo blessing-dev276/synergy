@@ -502,8 +502,8 @@ function ProspectFollowUpCard({ uid }) {
 // supabase/migrations/0026_weekly_leaderboard.sql) but only ever shows each
 // board's #1 entry -- a teaser, not a duplicate of that page.
 const LEADER_CATEGORY = {
-  tasks: { icon: "check-square", label: "Task Completion", format: (e) => `${Math.round(e.completionPercent)}%` },
-  prospects: { icon: "network", label: "Prospects", format: (e) => `${e.prospectCount}` },
+  tasks: { icon: "check-square", label: "Improved Players", format: (e) => `${Math.round(e.completionPercent)}%` },
+  prospects: { icon: "network", label: "Top Team Production", format: (e) => `${e.prospectCount}` },
   earnings: { icon: "dollar-sign", label: "Top Earner", format: (e) => `$${Math.round(e.totalAmount)}` },
 };
 

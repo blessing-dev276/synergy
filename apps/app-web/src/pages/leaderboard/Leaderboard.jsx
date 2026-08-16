@@ -13,8 +13,8 @@ import ErrorState from "../../components/state/ErrorState.jsx";
 import SponsorPicker from "../../components/SponsorPicker.jsx";
 
 const CATEGORY = {
-  tasks: { icon: "check-square", label: "Task Completion", format: (s) => `${Math.round(s)}%` },
-  prospects: { icon: "network", label: "Prospects", format: (s) => `${Math.round(s)}` },
+  tasks: { icon: "check-square", label: "Improved Players", format: (s) => `${Math.round(s)}%` },
+  prospects: { icon: "network", label: "Top Team Production", format: (s) => `${Math.round(s)}` },
   earnings: { icon: "dollar-sign", label: "Top Earner", format: (s) => `$${Math.round(s)}` },
 };
 
