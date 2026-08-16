@@ -6,6 +6,7 @@ import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { logEarning, adminLogEarning, reviewEarning } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
+import Modal from "../../components/Modal.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
@@ -348,34 +349,33 @@ function LogEarningForm({ onLogged }) {
     }
   };
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}>
         <Icon name="dollar-sign" size={14} />
         Log an earning
       </button>
-    );
-  }
-
-  return (
-    <form onSubmit={submit} className="card-elevated" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-      <div className="field" style={{ marginBottom: 0 }}>
-        <label>Amount ($)</label>
-        <input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" autoFocus />
-      </div>
-      <div className="field" style={{ marginBottom: 0 }}>
-        <label>Note (optional)</label>
-        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What sale or commission was this?" />
-      </div>
-      <div style={{ display: "flex", gap: "8px" }}>
-        <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? "Submitting…" : "Submit for review"}
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
-          Cancel
-        </button>
-      </div>
-    </form>
+      <Modal open={open} onClose={() => setOpen(false)} title="Log an Earning">
+        <form onSubmit={submit}>
+          <div className="field">
+            <label>Amount ($)</label>
+            <input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" autoFocus />
+          </div>
+          <div className="field">
+            <label>Note (optional)</label>
+            <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What sale or commission was this?" />
+          </div>
+          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+            <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Submitting…" : "Submit for review"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 }
 

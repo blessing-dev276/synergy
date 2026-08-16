@@ -140,7 +140,7 @@ export default function NetworkDashboard() {
       </div>
 
       {!loadingOverview && (overview?.membersWithOverdueTasks ?? 0) > 0 && (
-        <div className="card-elevated" style={{ marginBottom: "24px", borderLeft: "3px solid var(--warning, #d97706)" }}>
+        <div className="card-elevated" style={{ marginBottom: "24px", borderLeft: "3px solid var(--gold)" }}>
           <div className="card-title">Network Development</div>
           <p style={{ fontSize: "13.5px" }}>
             {overview.membersWithOverdueTasks} member{overview.membersWithOverdueTasks === 1 ? "" : "s"} in your network{" "}

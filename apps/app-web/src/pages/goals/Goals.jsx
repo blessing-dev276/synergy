@@ -231,7 +231,7 @@ export default function Goals() {
         </div>
 
         {status === "needs_revision" && row?.admin_comment && (
-          <div style={{ padding: "12px", borderRadius: "10px", background: "var(--warning-soft, #fff7ed)", border: "1px solid var(--warning, #d97706)", marginBottom: "16px", fontSize: "13.5px" }}>
+          <div style={{ padding: "12px", borderRadius: "10px", background: "var(--gold-soft)", border: "1px solid var(--gold)", marginBottom: "16px", fontSize: "13.5px" }}>
             <strong>Admin feedback:</strong> {row.admin_comment}
           </div>
         )}

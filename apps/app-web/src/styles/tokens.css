@@ -68,10 +68,22 @@ a{color:inherit; text-decoration:none;}
 img{max-width:100%; display:block;}
 button{font:inherit;}
 input, textarea, select{font:inherit; color:inherit;}
-/* Unlike input/textarea, a bare <select> (not wrapped in .field, which sets
-   its own background) keeps the browser's native white control background —
-   combined with color:inherit above (this theme's near-white text), that's
-   invisible text-on-white. Force the dark surface here so every select is
-   readable by default, .field select's own background stays as an override. */
-select{ background:var(--surface); color:var(--navy); }
+/* A bare input/textarea/select -- one not wrapped in .field or one of the
+   .activity-*-form/.inline-edit-field patterns, which set their own
+   background -- keeps the browser's native white control background.
+   Combined with color:inherit above (this theme's near-white text), that's
+   either invisible text-on-white or a jarring white box (the actual bug:
+   any page that adds a raw <input> without remembering one of those wrapper
+   classes gets this by default). Force the dark surface + border here so
+   every field is readable and on-brand out of the box; checkboxes/radios/
+   etc. are excluded on purpose -- this is only the text-entry types, and
+   anything already wrapped in .field/.inline-edit-field/.activity-*-form
+   keeps using its own (identical) styling as a no-op override. */
+input[type="text"], input[type="email"], input[type="password"], input[type="number"],
+input[type="url"], input[type="tel"], input[type="search"], input[type="date"],
+input[type="datetime-local"], input:not([type]), textarea, select{
+  background:var(--surface); color:var(--navy); border:1px solid var(--line);
+  border-radius:8px; padding:8px 11px;
+}
+input::placeholder, textarea::placeholder{ color:var(--slate); }
 ::selection{ background:rgba(76,141,255,0.35); color:#fff; }

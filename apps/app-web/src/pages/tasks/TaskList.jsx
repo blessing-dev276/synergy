@@ -39,7 +39,7 @@ function RankTaskRow({ task, onSubmitted }) {
         <div style={{ fontWeight: 600 }}>{task.title}</div>
         {task.description && <div style={{ fontSize: "13px", color: "var(--slate)" }}>{task.description}</div>}
         {submission?.status === "rejected" && submission.reviewNote && (
-          <div style={{ fontSize: "12.5px", color: "var(--warning)", marginTop: "4px" }}>{submission.reviewNote}</div>
+          <div style={{ fontSize: "12.5px", color: "var(--danger)", marginTop: "4px" }}>{submission.reviewNote}</div>
         )}
       </td>
       <td>{task.recurrence === "daily" ? "Daily" : "One-time"}</td>
@@ -210,7 +210,7 @@ export default function TaskList() {
                       <div style={{ fontWeight: 600 }}>{task.title}</div>
                       <div style={{ fontSize: "13px", color: "var(--slate)" }}>{task.description}</div>
                       {task.evidenceStatus === "needs_revision" && (
-                        <div style={{ fontSize: "12.5px", color: "var(--warning)", marginTop: "4px" }}>
+                        <div style={{ fontSize: "12.5px", color: "var(--gold)", marginTop: "4px" }}>
                           An admin asked for a revision — check your notifications for details.
                         </div>
                       )}
