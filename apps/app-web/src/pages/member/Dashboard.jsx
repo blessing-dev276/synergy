@@ -5,6 +5,7 @@ import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { computeProfileHealth } from "../../lib/profileHealth.js";
 import { completeContentAssignment, submitRankTask } from "../../lib/rpc.js";
+import { rankTaskActionLink } from "../../lib/rankTaskLinks.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
 import Avatar from "../../components/Avatar.jsx";
@@ -70,6 +71,7 @@ function useTodayTasks(uid) {
     done: Boolean(t.submission) && t.submission.status !== "rejected",
     pending: t.submission?.status === "pending",
     manual: t.proxyType === "manual",
+    actionLink: rankTaskActionLink(t.proxyType, t.proxyPathId),
   }));
 
   // Overdue and not-done first (most urgent), done items sink to the
@@ -152,9 +154,16 @@ function TodayTaskRow({ item, busy, onComplete, index }) {
       );
     } else {
       cta = (
-        <span className="badge badge-neutral" title="Completes automatically as you make progress">
-          Auto-tracked
-        </span>
+        <>
+          {item.actionLink && (
+            <Link to={item.actionLink.to} className="badge badge-neutral">
+              {item.actionLink.label}
+            </Link>
+          )}
+          <span className="badge badge-neutral" title="Completes automatically as you make progress">
+            Auto-tracked
+          </span>
+        </>
       );
     }
     rightContent = (

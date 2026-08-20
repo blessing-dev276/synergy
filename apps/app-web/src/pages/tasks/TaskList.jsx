@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import { completeContentAssignment, submitContentEvidence, submitRankTask } from "../../lib/rpc.js";
+import { rankTaskActionLink } from "../../lib/rankTaskLinks.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
@@ -28,6 +30,7 @@ function RankTaskRow({ task, onSubmitted }) {
   const [submitting, setSubmitting] = useState(false);
   const submission = task.submission;
   const isManual = task.proxyType === "manual";
+  const actionLink = rankTaskActionLink(task.proxyType, task.proxyPathId);
 
   const submit = async () => {
     setSubmitting(true);
@@ -59,9 +62,16 @@ function RankTaskRow({ task, onSubmitted }) {
           </button>
         )}
         {!isManual && !submission && (
-          <span className="badge badge-neutral" title="Completes automatically once your progress qualifies">
-            Tracked automatically
-          </span>
+          <>
+            {actionLink && (
+              <Link to={actionLink.to} className="badge badge-neutral">
+                {actionLink.label}
+              </Link>
+            )}
+            <span className="badge badge-neutral" title="Completes automatically once your progress qualifies">
+              Tracked automatically
+            </span>
+          </>
         )}
         {submission?.status === "pending" && <span className="badge badge-info">Pending review</span>}
         {submission?.status === "approved" && <span className="badge badge-success">Approved</span>}
