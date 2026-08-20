@@ -98,7 +98,7 @@ function TransactionDetailModal({ txn, onClose }) {
           <DetailLine label="Requested" value={formatMoney(txn.requestedAmount, txn.requestedCurrency)} />
           {txn.status === "paid" && (
             <>
-              <DetailLine label="Paid out" value={formatMoney(txn.netAmount, txn.netCurrency)} />
+              <DetailLine label="Paid out" value={formatMoney(Number(txn.netAmount) - Number(txn.chargesAmount || 0), txn.netCurrency)} />
               <DetailLine label="Charges" value={Number(txn.chargesAmount) > 0 ? formatMoney(txn.chargesAmount, txn.netCurrency) : null} />
               <DetailLine label="Exchange rate used" value={txn.exchangeRate ? `₦${Number(txn.exchangeRate).toLocaleString()} per $1` : null} />
               <DetailLine label="USD equivalent" value={txn.usdEquivalent != null ? formatMoney(txn.usdEquivalent, "USD") : null} />
