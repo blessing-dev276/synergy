@@ -10,10 +10,9 @@ import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 
 const RESOURCE_TYPES = [
-  { key: "book", label: "Book", icon: "book" },
+  { key: "pdf", label: "PDF", icon: "clipboard" },
   { key: "podcast", label: "Podcast", icon: "podcast" },
   { key: "video", label: "Video", icon: "video" },
-  { key: "pdf", label: "PDF", icon: "clipboard" },
   { key: "workbook", label: "Workbook", icon: "clipboard" },
   { key: "article", label: "Article", icon: "link" },
   { key: "template", label: "Template", icon: "clipboard" },
@@ -23,23 +22,10 @@ const TYPE_BY_KEY = Object.fromEntries(RESOURCE_TYPES.map((t) => [t.key, t]));
 
 // Not every resource type needs the same fields (Part 7) -- author/host/
 // creator is one column (pd_resources.author) relabeled per type, and
-// duration/page-count/file-upload only show where they're meaningful. Book
-// gets both a (now explicitly optional) purchase/read link AND a file
-// upload -- a book resource is really just a PDF/workbook with a nicer
-// name, so there's no reason it shouldn't also support "upload the file
-// instead of linking out to buy it" the same way pdf/workbook already do.
+// duration/page-count/file-upload only show where they're meaningful.
 // Neither externalUrl nor the uploaded file has ever been a required field
-// in the form below -- only the label wording used to imply otherwise for
-// book specifically.
+// in the form below.
 const TYPE_FIELDS = {
-  book: {
-    authorLabel: "Author",
-    urlLabel: "Purchase / Read Link (optional)",
-    showDuration: false,
-    showPageCount: false,
-    showFile: true,
-    fileLabel: "Book file — PDF or EPUB (optional)",
-  },
   podcast: { authorLabel: "Host", urlLabel: "Episode Link", showDuration: true, showPageCount: false, showFile: false },
   video: { authorLabel: "Creator", urlLabel: "Video URL", showDuration: true, showPageCount: false, showFile: false },
   pdf: { authorLabel: "Author", urlLabel: "External Link (optional)", showDuration: false, showPageCount: true, showFile: true, fileLabel: "Uploaded file (optional)" },
@@ -164,7 +150,7 @@ function ResourceModal({ resource, allTags, mindTrainingPaths, refetchTags, onCl
   const isEdit = !!resource;
   const [title, setTitle] = useState(resource?.title ?? "");
   const [description, setDescription] = useState(resource?.description ?? "");
-  const [type, setType] = useState(resource?.resource_type ?? "book");
+  const [type, setType] = useState(resource?.resource_type ?? "pdf");
   const [thumbnailUrl, setThumbnailUrl] = useState(resource?.thumbnail_url ?? "");
   const [author, setAuthor] = useState(resource?.author ?? "");
   const [externalUrl, setExternalUrl] = useState(resource?.external_url ?? "");
@@ -432,7 +418,7 @@ export default function PersonalDevelopmentManager() {
         </button>
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "20px" }}>
-        Books, podcasts, videos and resources — tag them for discovery, and link them into Mind Training paths where relevant.
+        PDFs, podcasts, videos and resources — tag them for discovery, and link them into Mind Training paths where relevant.
       </p>
 
       <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap", alignItems: "center" }}>

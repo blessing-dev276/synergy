@@ -6,9 +6,9 @@ import Skeleton from "../../components/state/Skeleton.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
 import Icon from "../../components/Icon.jsx";
 
-const TYPE_ICON = { book: "book", podcast: "podcast", video: "video", pdf: "clipboard", workbook: "clipboard", article: "link", template: "clipboard", other: "folder" };
-const TYPE_LABEL = { book: "Book", podcast: "Podcast", video: "Video", pdf: "PDF", workbook: "Workbook", article: "Article", template: "Template", other: "Resource" };
-const OPEN_LABEL = { book: "Read", podcast: "Listen", video: "Watch" };
+const TYPE_ICON = { podcast: "podcast", video: "video", pdf: "clipboard", workbook: "clipboard", article: "link", template: "clipboard", other: "folder" };
+const TYPE_LABEL = { podcast: "Podcast", video: "Video", pdf: "PDF", workbook: "Workbook", article: "Article", template: "Template", other: "Resource" };
+const OPEN_LABEL = { pdf: "Read", podcast: "Listen", video: "Watch" };
 
 function useSignedFileUrl(path) {
   const [url, setUrl] = useState(null);

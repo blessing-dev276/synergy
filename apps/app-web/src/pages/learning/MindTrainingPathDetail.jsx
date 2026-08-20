@@ -120,6 +120,20 @@ function ModuleBlock({ pathId, levelId, module: m }) {
   );
 }
 
+// A level is "unlocked" once every requirement its own summary tracks is
+// met -- generalizes past Level 1 automatically: a future level with no
+// challenge days at all (challengeTotal = 0) still unlocks correctly, since
+// 0 === 0 doesn't block it.
+function isMilestoneUnlocked(summary) {
+  if (!summary || (summary.lessonsTotal ?? 0) === 0) return false;
+  return (
+    summary.lessonsDone === summary.lessonsTotal &&
+    summary.tasksDone === summary.tasksTotal &&
+    summary.challengeDone === summary.challengeTotal &&
+    (!summary.assessmentExists || summary.assessmentPassed)
+  );
+}
+
 export default function MindTrainingPathDetail() {
   const { pathId } = useParams();
 
@@ -127,6 +141,20 @@ export default function MindTrainingPathDetail() {
     () => supabase.rpc("get_my_mind_training_path", { p_path_id: pathId }),
     [pathId],
   );
+
+  // For the "Next Level" teaser shown once a milestone unlocks -- the next
+  // Mind Training *path* in sequence (Level 1 here is a level inside the
+  // "Mindset Foundation" path; "Learning Path 2" is a sibling path, per
+  // the section=mind_training ordering already used everywhere else).
+  const { data: mtPaths } = useSupabaseQuery(
+    () => supabase.from("learning_paths").select("id, title, order_index").eq("section", "mind_training").eq("published", true).order("order_index", { ascending: true }),
+    [],
+  );
+  const nextPathTitle = (() => {
+    if (!mtPaths) return null;
+    const idx = mtPaths.findIndex((p) => p.id === pathId);
+    return idx >= 0 && idx < mtPaths.length - 1 ? mtPaths[idx + 1].title : null;
+  })();
 
   if (loading) {
     return (
@@ -175,6 +203,8 @@ export default function MindTrainingPathDetail() {
       {data.levels.map((level) => {
         const c = countLevel(level);
         const levelPercent = c.total === 0 ? 0 : Math.round((c.done / c.total) * 100);
+        const s = level.summary ?? {};
+        const unlocked = isMilestoneUnlocked(s);
         return (
           <div key={level.id} className="card-elevated mt-level">
             <div className="mt-level-header">
@@ -182,12 +212,62 @@ export default function MindTrainingPathDetail() {
               <div className="mt-level-percent">{c.total > 0 ? `${levelPercent}%` : "—"}</div>
             </div>
             {level.description && <p className="mt-level-desc">{level.description}</p>}
+
+            <div className="mt-level-summary">
+              <div className="mt-level-summary-row">
+                <Icon name="book" size={13} />
+                Lessons completed: <strong>{s.lessonsDone ?? 0}/{s.lessonsTotal ?? 0}</strong>
+              </div>
+              <div className="mt-level-summary-row">
+                <Icon name="target" size={13} />
+                Practical tasks: <strong>{s.tasksDone ?? 0}/{s.tasksTotal ?? 0}</strong>
+              </div>
+              <div className="mt-level-summary-row">
+                <Icon name="compass" size={13} />
+                Challenge: <strong>{s.challengeDone ?? 0}/{s.challengeTotal ?? 0} days</strong>
+              </div>
+              {s.assessmentExists && (
+                <div className="mt-level-summary-row">
+                  <Icon name="award" size={13} />
+                  Assessment: <strong>{s.assessmentPassed ? "Passed" : "Not Passed"}</strong>
+                </div>
+              )}
+              {level.milestone && (
+                <div className="mt-level-summary-row">
+                  <Icon name="trophy" size={13} />
+                  Milestone: <strong>{unlocked ? "Unlocked" : "Locked"}</strong>
+                </div>
+              )}
+            </div>
+
             {level.modules.length === 0 && (
               <p style={{ color: "var(--slate)", fontSize: "13.5px" }}>No modules published yet.</p>
             )}
             {level.modules.map((m) => (
               <ModuleBlock key={m.id} pathId={pathId} levelId={level.id} module={m} />
             ))}
+
+            {level.milestone && (
+              <div className={`mt-milestone-card${unlocked ? " unlocked" : ""}`}>
+                <div className="mt-milestone-icon">{level.milestone.icon}</div>
+                <div>
+                  {unlocked ? (
+                    <>
+                      <div className="mt-milestone-title">Congratulations! You've completed {level.title}.</div>
+                      {level.milestone.description && <div className="mt-milestone-desc">{level.milestone.description}</div>}
+                      {nextPathTitle && <div className="mt-milestone-next">Next Level: {nextPathTitle}</div>}
+                    </>
+                  ) : (
+                    <>
+                      <div className="mt-milestone-title">{level.milestone.title} — Locked</div>
+                      <div className="mt-milestone-desc">
+                        Complete every lesson, practical task and challenge day, then pass the final assessment to unlock this milestone.
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         );
       })}

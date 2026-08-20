@@ -10,16 +10,17 @@ import Icon from "../../components/Icon.jsx";
 
 const TYPE_FILTERS = [
   { key: "all", label: "All" },
-  { key: "book", label: "Books" },
+  { key: "pdf", label: "PDFs" },
   { key: "podcast", label: "Podcasts" },
   { key: "video", label: "Videos" },
   { key: "resource", label: "Resources" },
 ];
-// "Resources" bundles everything that isn't a book/podcast/video into one
-// filter tab, per Part 13's 5-tab spec (All/Books/Podcasts/Videos/Resources).
-const BUNDLED_RESOURCE_TYPES = new Set(["pdf", "workbook", "article", "template", "other"]);
-const TYPE_ICON = { book: "book", podcast: "podcast", video: "video", pdf: "clipboard", workbook: "clipboard", article: "link", template: "clipboard", other: "folder" };
-const TYPE_LABEL = { book: "Book", podcast: "Podcast", video: "Video", pdf: "PDF", workbook: "Workbook", article: "Article", template: "Template", other: "Resource" };
+// "Resources" bundles everything that isn't a pdf/podcast/video into one
+// filter tab, per Part 13's 5-tab spec (originally All/Books/Podcasts/
+// Videos/Resources -- Books was later dropped in favor of PDF, 0071).
+const BUNDLED_RESOURCE_TYPES = new Set(["workbook", "article", "template", "other"]);
+const TYPE_ICON = { podcast: "podcast", video: "video", pdf: "clipboard", workbook: "clipboard", article: "link", template: "clipboard", other: "folder" };
+const TYPE_LABEL = { podcast: "Podcast", video: "Video", pdf: "PDF", workbook: "Workbook", article: "Article", template: "Template", other: "Resource" };
 
 export default function PersonalDevelopmentLibrary() {
   const [typeFilter, setTypeFilter] = useState("all");
@@ -64,7 +65,7 @@ export default function PersonalDevelopmentLibrary() {
     <div>
       <h1>Personal Development</h1>
       <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "22px" }}>
-        Explore books, podcasts, videos and resources designed to help you grow beyond your training.
+        Explore PDFs, podcasts, videos and resources designed to help you grow beyond your training.
       </p>
 
       <div className="pd-toolbar">

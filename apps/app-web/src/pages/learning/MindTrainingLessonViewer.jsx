@@ -48,7 +48,7 @@ export default function MindTrainingLessonViewer() {
       user &&
       supabase
         .from("mind_training_lesson_progress")
-        .select("id")
+        .select("id, response")
         .eq("uid", user.id)
         .eq("lesson_id", lessonId)
         .maybeSingle(),
@@ -57,11 +57,20 @@ export default function MindTrainingLessonViewer() {
 
   const pdfUrl = useSignedFileUrl(lesson?.pdf_path);
   const isComplete = !!progress;
+  const reflections = lesson?.reflection_questions ?? [];
+
+  // One answer per reflection question, in the same order -- seeded from
+  // whatever was saved last time (progress.response), blank otherwise.
+  const [answers, setAnswers] = useState([]);
+  useEffect(() => {
+    setAnswers(reflections.map((_, i) => progress?.response?.[i] ?? ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessonId, progress?.response]);
 
   const handleComplete = async () => {
     setCompleting(true);
     try {
-      await markMindTrainingLessonComplete(lessonId);
+      await markMindTrainingLessonComplete(lessonId, reflections.length > 0 ? answers : null);
       toast.success("Lesson complete!");
       refetchProgress();
     } catch (err) {
@@ -74,7 +83,6 @@ export default function MindTrainingLessonViewer() {
   if (loading) return <Skeleton variant="card" height="240px" />;
   if (!lesson) return null;
 
-  const reflections = lesson.reflection_questions ?? [];
   const takeaways = lesson.key_takeaways ?? [];
 
   return (
@@ -83,10 +91,15 @@ export default function MindTrainingLessonViewer() {
         ← Back to path
       </Link>
       <h1 style={{ marginTop: "10px" }}>{lesson.title}</h1>
-      {lesson.estimated_minutes > 0 && (
-        <p style={{ color: "var(--slate)", fontSize: "13px", marginTop: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
-          <Icon name="clock" size={13} />
-          {lesson.estimated_minutes} min read
+      {(lesson.estimated_minutes > 0 || lesson.xp_reward > 0) && (
+        <p style={{ color: "var(--slate)", fontSize: "13px", marginTop: "4px", display: "flex", alignItems: "center", gap: "12px" }}>
+          {lesson.estimated_minutes > 0 && (
+            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <Icon name="clock" size={13} />
+              {lesson.estimated_minutes} min read
+            </span>
+          )}
+          {lesson.xp_reward > 0 && <span className="badge badge-neutral">+{lesson.xp_reward} XP</span>}
         </p>
       )}
 
@@ -113,11 +126,24 @@ export default function MindTrainingLessonViewer() {
             Reflection
           </div>
           <div className="mt-reflection-list">
-            {reflections.map((q, i) => (
-              <div key={i} className="mt-reflection-item">
-                {q}
-              </div>
-            ))}
+            {reflections.map((q, i) =>
+              isComplete ? (
+                <div key={i} className="mt-reflection-item">
+                  <div style={{ fontWeight: 600, marginBottom: answers[i] ? "6px" : 0 }}>{q}</div>
+                  {answers[i] && <div style={{ color: "var(--navy-soft)", whiteSpace: "pre-wrap" }}>{answers[i]}</div>}
+                </div>
+              ) : (
+                <div key={i} className="field" style={{ marginBottom: 0 }}>
+                  <label>{q}</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Write your answer…"
+                    value={answers[i] ?? ""}
+                    onChange={(e) => setAnswers((prev) => prev.map((a, idx) => (idx === i ? e.target.value : a)))}
+                  />
+                </div>
+              ),
+            )}
           </div>
         </div>
       )}

@@ -16,12 +16,13 @@ function AssessmentModal({ moduleId, assessment, onClose, onSaved }) {
   const isEdit = !!assessment;
   const [title, setTitle] = useState(assessment?.title ?? "Module Assessment");
   const [passScore, setPassScore] = useState(assessment?.pass_score_percent ?? 70);
+  const [xpReward, setXpReward] = useState(assessment?.xp_reward ?? 0);
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const payload = { title: title.trim(), pass_score_percent: Number(passScore) || 70 };
+    const payload = { title: title.trim(), pass_score_percent: Number(passScore) || 70, xp_reward: Number(xpReward) || 0 };
     const { error } = isEdit
       ? await supabase.from("mind_training_assessments").update(payload).eq("id", assessment.id)
       : await supabase.from("mind_training_assessments").insert({ ...payload, module_id: moduleId });
@@ -41,9 +42,15 @@ function AssessmentModal({ moduleId, assessment, onClose, onSaved }) {
           <label>Title</label>
           <input required autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
-        <div className="field">
-          <label>Pass mark %</label>
-          <input type="number" min={1} max={100} value={passScore} onChange={(e) => setPassScore(e.target.value)} />
+        <div style={{ display: "flex", gap: "12px" }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Pass mark %</label>
+            <input type="number" min={1} max={100} value={passScore} onChange={(e) => setPassScore(e.target.value)} />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>XP reward (optional)</label>
+            <input type="number" min={0} value={xpReward} onChange={(e) => setXpReward(e.target.value)} />
+          </div>
         </div>
         <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
           <button type="button" className="btn btn-secondary" onClick={onClose}>

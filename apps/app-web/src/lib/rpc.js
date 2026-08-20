@@ -184,11 +184,11 @@ export const getAdminProspectingOverview = () => call("get_admin_prospecting_ove
 // (same split this file already has for get_learning_paths -- a plain
 // wrapper here for the declarative-loading-state call sites would just be
 // dead code) -- only the imperative write/attempt calls need a wrapper.
-export const markMindTrainingLessonComplete = (lessonId) =>
-  call("mark_mind_training_lesson_complete", { p_lesson_id: lessonId });
+export const markMindTrainingLessonComplete = (lessonId, response = null) =>
+  call("mark_mind_training_lesson_complete", { p_lesson_id: lessonId, p_response: response });
 
-export const markMindTrainingActivityComplete = (activityId) =>
-  call("mark_mind_training_activity_complete", { p_activity_id: activityId });
+export const markMindTrainingActivityComplete = (activityId, response = null) =>
+  call("mark_mind_training_activity_complete", { p_activity_id: activityId, p_response: response });
 
 export const getMindTrainingAssessmentForAttempt = (moduleId) =>
   call("get_mind_training_assessment_for_attempt", { p_module_id: moduleId });

@@ -213,20 +213,34 @@ function LevelModal({ pathId, level, onClose, onSaved }) {
   const isEdit = !!level;
   const [title, setTitle] = useState(level?.title ?? "");
   const [description, setDescription] = useState(level?.description ?? "");
+  const [milestoneTitle, setMilestoneTitle] = useState(level?.milestone_title ?? "");
+  const [milestoneIcon, setMilestoneIcon] = useState(level?.milestone_icon ?? "🏆");
+  const [milestoneDescription, setMilestoneDescription] = useState(level?.milestone_description ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    // A milestone is optional -- leaving the title blank means this level
+    // has no milestone card at all (get_my_mind_training_path only builds
+    // one when milestone_title is set), same as it worked before this
+    // level had any milestone concept.
+    const milestonePayload = {
+      milestone_key: milestoneTitle.trim() ? milestoneTitle.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_") : null,
+      milestone_title: milestoneTitle.trim() || null,
+      milestone_icon: milestoneIcon.trim() || "🏆",
+      milestone_description: milestoneDescription.trim(),
+    };
     const { error } = isEdit
       ? await supabase
           .from("mind_training_levels")
-          .update({ title: title.trim(), description: description.trim(), updated_at: new Date().toISOString() })
+          .update({ title: title.trim(), description: description.trim(), ...milestonePayload, updated_at: new Date().toISOString() })
           .eq("id", level.id)
       : await supabase.from("mind_training_levels").insert({
           path_id: pathId,
           title: title.trim(),
           description: description.trim(),
+          ...milestonePayload,
           order_index: Math.floor(Date.now() / 1000),
           published: true,
         });
@@ -250,6 +264,27 @@ function LevelModal({ pathId, level, onClose, onSaved }) {
           <label>Description (optional)</label>
           <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
+        <div className="field">
+          <label>Milestone title (optional — leave blank for no milestone)</label>
+          <input placeholder="e.g. Mindset Starter" value={milestoneTitle} onChange={(e) => setMilestoneTitle(e.target.value)} />
+        </div>
+        {milestoneTitle.trim() && (
+          <>
+            <div className="field">
+              <label>Milestone icon (one emoji)</label>
+              <input value={milestoneIcon} onChange={(e) => setMilestoneIcon(e.target.value)} style={{ maxWidth: "80px" }} />
+            </div>
+            <div className="field">
+              <label>Milestone description</label>
+              <textarea
+                rows={2}
+                placeholder="Shown when a member unlocks this milestone"
+                value={milestoneDescription}
+                onChange={(e) => setMilestoneDescription(e.target.value)}
+              />
+            </div>
+          </>
+        )}
         <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancel
@@ -332,6 +367,7 @@ function LessonModal({ moduleId, levelId, pathId, moduleTitle, lesson, onClose, 
   const [actionTask, setActionTask] = useState(lesson?.action_task ?? "");
   const [keyTakeaways, setKeyTakeaways] = useState(lesson?.key_takeaways ?? []);
   const [estimatedMinutes, setEstimatedMinutes] = useState(lesson?.estimated_minutes ?? 5);
+  const [xpReward, setXpReward] = useState(lesson?.xp_reward ?? 0);
   const [pdfPath, setPdfPath] = useState(lesson?.pdf_path ?? null);
   const [saving, setSaving] = useState(false);
   const uploadFolderRef = useRef(lesson?.id ?? crypto.randomUUID());
@@ -348,6 +384,7 @@ function LessonModal({ moduleId, levelId, pathId, moduleTitle, lesson, onClose, 
       action_task: actionTask.trim(),
       key_takeaways: keyTakeaways.filter((k) => k.trim()),
       estimated_minutes: Number(estimatedMinutes) || 0,
+      xp_reward: Number(xpReward) || 0,
       pdf_path: pdfPath,
     };
     const { error } = isEdit
@@ -403,9 +440,15 @@ function LessonModal({ moduleId, levelId, pathId, moduleTitle, lesson, onClose, 
           <label>Key Takeaways (optional)</label>
           <StringListEditor items={keyTakeaways} setItems={setKeyTakeaways} placeholder="A key takeaway" addLabel="Add takeaway" />
         </div>
-        <div className="field">
-          <label>Estimated reading time (minutes)</label>
-          <input type="number" min={0} value={estimatedMinutes} onChange={(e) => setEstimatedMinutes(e.target.value)} />
+        <div style={{ display: "flex", gap: "12px" }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Estimated reading time (minutes)</label>
+            <input type="number" min={0} value={estimatedMinutes} onChange={(e) => setEstimatedMinutes(e.target.value)} />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>XP reward (optional)</label>
+            <input type="number" min={0} value={xpReward} onChange={(e) => setXpReward(e.target.value)} />
+          </div>
         </div>
         <div className="field">
           <label>PDF attachment (optional)</label>
@@ -427,17 +470,48 @@ function LessonModal({ moduleId, levelId, pathId, moduleTitle, lesson, onClose, 
   );
 }
 
+const ACTIVITY_CATEGORIES = [
+  { key: "activity", label: "Generic Activity" },
+  { key: "practical_task", label: "Practical Task" },
+  { key: "challenge_day", label: "Challenge Day" },
+];
+
+// input_fields (structured member input -- Practical Application tasks, 7-Day
+// Challenge days) is a raw-JSON field rather than a field-by-field builder --
+// pragmatic scope call: it's an array of {key, label, type}, editable by an
+// admin who can read that shape, without building a whole dynamic form
+// designer for what's so far only used by Level 1's seeded content
+// (supabase/seed-mind-training-level-1.mjs is the reference for the shape).
 function ActivityModal({ moduleId, moduleTitle, activity, onClose, onSaved }) {
   const toast = useToast();
   const isEdit = !!activity;
   const [title, setTitle] = useState(activity?.title ?? "");
   const [instructions, setInstructions] = useState(activity?.instructions ?? []);
+  const [category, setCategory] = useState(activity?.category ?? "activity");
+  const [isRequired, setIsRequired] = useState(activity?.is_required ?? true);
+  const [xpReward, setXpReward] = useState(activity?.xp_reward ?? 0);
+  const [inputFieldsText, setInputFieldsText] = useState(JSON.stringify(activity?.input_fields ?? [], null, 2));
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
+    let inputFields;
+    try {
+      inputFields = JSON.parse(inputFieldsText || "[]");
+      if (!Array.isArray(inputFields)) throw new Error("must be an array");
+    } catch {
+      toast.error("Input fields must be valid JSON — an array of {key, label, type}.");
+      return;
+    }
     setSaving(true);
-    const payload = { title: title.trim(), instructions: instructions.filter(isBlockNonEmpty) };
+    const payload = {
+      title: title.trim(),
+      instructions: instructions.filter(isBlockNonEmpty),
+      category,
+      is_required: isRequired,
+      xp_reward: Number(xpReward) || 0,
+      input_fields: inputFields,
+    };
     const { error } = isEdit
       ? await supabase
           .from("mind_training_activities")
@@ -465,9 +539,41 @@ function ActivityModal({ moduleId, moduleTitle, activity, onClose, onSaved }) {
           <label>Title</label>
           <input required autoFocus placeholder="Activity title" value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
+        <div style={{ display: "flex", gap: "12px" }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Category</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              {ACTIVITY_CATEGORIES.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>XP reward (optional)</label>
+            <input type="number" min={0} value={xpReward} onChange={(e) => setXpReward(e.target.value)} />
+          </div>
+        </div>
+        <div className="field">
+          <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} />
+            Required for level completion
+          </label>
+        </div>
         <div className="field">
           <label>Instructions</label>
           <BlockEditor blocks={instructions} setBlocks={setInstructions} />
+        </div>
+        <div className="field">
+          <label>Input fields (optional — JSON array of {"{key, label, type}"}, type is "text" or "textarea")</label>
+          <textarea
+            className="mono"
+            rows={6}
+            value={inputFieldsText}
+            onChange={(e) => setInputFieldsText(e.target.value)}
+            placeholder='[{"key":"answer","label":"Your answer","type":"textarea"}]'
+          />
         </div>
         <p style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "-6px", marginBottom: "16px" }}>
           {isEdit ? "Editing activity in" : "Adding to module"} <strong style={{ color: "var(--navy)" }}>{moduleTitle}</strong>
@@ -553,7 +659,13 @@ function ActivityRow({ activity, isFirst, isLast, onReorder, onChanged, onEdit }
         </button>
       </div>
       <span style={{ flex: 1 }}>{activity.title}</span>
-      <span className="badge badge-neutral">Activity</span>
+      {!activity.is_required && <span className="badge badge-neutral">Optional</span>}
+      {activity.input_fields?.length > 0 && (
+        <span className="badge badge-neutral" title={`${activity.input_fields.length} input field(s)`}>
+          <Icon name="clipboard" size={11} />
+        </span>
+      )}
+      <span className="badge badge-neutral">{ACTIVITY_CATEGORIES.find((c) => c.key === activity.category)?.label ?? "Activity"}</span>
       <div className="row-actions">
         <button type="button" className="icon-btn" title="Edit" onClick={() => onEdit(activity)}>
           <Icon name="pencil" size={13} />

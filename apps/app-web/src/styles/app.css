@@ -769,6 +769,30 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
    idea as a today's-tasks row: a check state, a title, trailing meta. */
 .mt-item-row .today-task-title{ display:flex; align-items:center; gap:8px; }
 
+.mt-level-summary{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px;
+  margin:14px 0 18px; padding:14px 16px; background:var(--surface); border:1px solid var(--line); border-radius:12px;
+}
+.mt-level-summary-row{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--navy-soft); }
+.mt-level-summary-row strong{ color:var(--navy); font-weight:700; }
+
+.mt-milestone-card{
+  margin-top:18px; padding:18px 20px; border-radius:14px; border:1px solid var(--line);
+  display:flex; align-items:center; gap:16px; background:var(--surface);
+}
+.mt-milestone-card.unlocked{ background:var(--gradient-gold); border-color:transparent; }
+.mt-milestone-icon{
+  width:48px; height:48px; border-radius:14px; flex-shrink:0; font-size:24px;
+  display:flex; align-items:center; justify-content:center; background:var(--bg);
+}
+.mt-milestone-card.unlocked .mt-milestone-icon{ background:rgba(255,255,255,0.2); }
+.mt-milestone-title{ font-weight:700; font-size:15px; color:var(--navy); }
+.mt-milestone-card.unlocked .mt-milestone-title{ color:#fff; }
+.mt-milestone-desc{ font-size:13px; color:var(--slate); margin-top:2px; }
+.mt-milestone-card.unlocked .mt-milestone-desc{ color:rgba(255,255,255,0.85); }
+.mt-milestone-next{ font-size:12.5px; margin-top:6px; font-weight:700; color:var(--navy); }
+.mt-milestone-card.unlocked .mt-milestone-next{ color:#fff; }
+
 .mt-resources{ margin-top:28px; }
 .mt-resources-group{ margin-bottom:22px; }
 .mt-resources-group-title{ display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; color:var(--navy-soft); margin-bottom:10px; }

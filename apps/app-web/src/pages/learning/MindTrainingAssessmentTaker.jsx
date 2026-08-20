@@ -77,21 +77,73 @@ export default function MindTrainingAssessmentTaker() {
   }
 
   if (result) {
+    // result.results carries the correct option's id/text but not the
+    // member's own selected option's text -- look that up from the
+    // questions already loaded in `assessment`, still in state.
+    const optionTextById = new Map();
+    for (const q of assessment.questions) for (const o of q.options) optionTextById.set(o.id, o.text);
+
+    const retake = () => {
+      setResult(null);
+      setAnswers({});
+    };
+
     return (
-      <div className="card" style={{ maxWidth: "480px" }}>
-        <div className="card-title">{result.passed ? "You passed! 🎉" : "Not quite there yet"}</div>
-        <p className="card-subtitle">
-          Score: {result.score}% (pass mark {assessment.passScorePercent}%)
-        </p>
-        {result.passed ? (
-          <button type="button" className="btn btn-primary" onClick={() => navigate(`/learning/mind-training/${pathId}`)}>
-            Back to path
-          </button>
-        ) : (
-          <button type="button" className="btn btn-secondary" onClick={() => window.location.reload()}>
-            Try again
-          </button>
+      <div style={{ maxWidth: "620px" }}>
+        <div className="card" style={{ marginBottom: "18px" }}>
+          <div className="card-title">{result.passed ? "You passed! 🎉" : "Not quite there yet"}</div>
+          <p className="card-subtitle" style={{ marginBottom: 0 }}>
+            Score: {result.score}% (pass mark {assessment.passScorePercent}%)
+          </p>
+        </div>
+
+        {/* Not shown on a pass -- reviewing what you got right isn't the
+            point there. On a failure, this is the "explain incorrect
+            answers" requirement: every question, your answer next to the
+            correct one. */}
+        {!result.passed && (
+          <div style={{ marginBottom: "18px" }}>
+            {result.results.map((r, i) => (
+              <div key={r.questionId} className="card" style={{ marginBottom: "10px", borderColor: r.correct ? undefined : "var(--danger)" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                  <span className={`badge ${r.correct ? "badge-success" : "badge-danger"}`} style={{ flexShrink: 0, marginTop: "2px" }}>
+                    <Icon name={r.correct ? "check" : "x"} size={11} />
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: "14px" }}>
+                      {i + 1}. {r.prompt}
+                    </div>
+                    {!r.correct && (
+                      <div style={{ fontSize: "13px", marginTop: "6px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                        <span style={{ color: "var(--danger)" }}>
+                          Your answer: {r.selectedOptionId ? (optionTextById.get(r.selectedOptionId) ?? "—") : "Not answered"}
+                        </span>
+                        <span style={{ color: "var(--success)" }}>Correct answer: {r.correctText}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
+
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          {result.passed ? (
+            <button type="button" className="btn btn-primary" onClick={() => navigate(`/learning/mind-training/${pathId}`)}>
+              Back to path
+            </button>
+          ) : (
+            <>
+              <button type="button" className="btn btn-primary" onClick={retake}>
+                Try again
+              </button>
+              <Link to={`/learning/mind-training/${pathId}`} className="btn btn-secondary">
+                Review lessons
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     );
   }
