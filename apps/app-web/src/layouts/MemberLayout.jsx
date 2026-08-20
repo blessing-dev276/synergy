@@ -5,7 +5,6 @@ const sections = [
     items: [{ to: "/dashboard", label: "Dashboard", icon: "home", end: true }],
   },
   {
-    label: "Learning",
     items: [{ to: "/learning", label: "My Learning", icon: "book" }],
   },
   {
