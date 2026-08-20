@@ -27,8 +27,118 @@
         } catch (e) {}
       })();
     </script>
+    <style>
+      /* Covers the real gap: between the browser parsing this document and
+         main.jsx finishing download/parse/mount -- on a slow connection or
+         cold cache, that's a multi-second blank white screen no React
+         component can touch, since React hasn't run yet. This has to be
+         inline (not an external stylesheet, which is itself part of what's
+         still loading) and dependency-free (no image request) so it paints
+         on the very first frame. Mirrors BootLoader.jsx's ring/glow visual
+         language (src/components/state/BootLoader.jsx) so the handoff to
+         the real app -- whether straight into content or into BootLoader
+         still finishing the auth check -- reads as one continuous loader,
+         not two different ones. Colors are hardcoded (tokens.css hasn't
+         loaded yet) but kept in sync with tokens.css's --bg/--blue/
+         --blue-bright/--gold/--navy values by hand.
+         Removed by main.jsx immediately after React mounts. */
+      #pre-boot {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #0a0d14;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      :root[data-theme="light"] #pre-boot {
+        background: #f3f6fb;
+      }
+      #pre-boot .orb {
+        position: relative;
+        width: 60px;
+        height: 60px;
+      }
+      #pre-boot .orb::before {
+        content: "";
+        position: absolute;
+        inset: -22px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(76, 141, 255, 0.3) 0%,
+          rgba(76, 141, 255, 0) 70%
+        );
+        animation: pb-glow 2.4s ease-in-out infinite;
+      }
+      #pre-boot .ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 2.5px solid transparent;
+        border-top-color: #4c8dff;
+        border-right-color: #6fd1ff;
+        animation: pb-spin 1.1s linear infinite;
+      }
+      #pre-boot .ring2 {
+        inset: 9px;
+        border-top-color: #e3a94a;
+        border-right-color: transparent;
+        border-left-color: #e3a94a;
+        animation: pb-spin-rev 1.6s linear infinite;
+        opacity: 0.75;
+      }
+      #pre-boot .word {
+        font-size: 14.5px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: #edf1f8;
+      }
+      :root[data-theme="light"] #pre-boot .word {
+        color: #0b1f3a;
+      }
+      @keyframes pb-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes pb-spin-rev {
+        to {
+          transform: rotate(-360deg);
+        }
+      }
+      @keyframes pb-glow {
+        0%,
+        100% {
+          opacity: 0.55;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.12);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #pre-boot .orb::before,
+        #pre-boot .ring,
+        #pre-boot .ring2 {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="pre-boot" aria-hidden="true">
+      <div class="orb">
+        <span class="ring"></span>
+        <span class="ring ring2"></span>
+      </div>
+      <div class="word">Synergy</div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

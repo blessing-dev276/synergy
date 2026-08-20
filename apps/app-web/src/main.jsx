@@ -24,3 +24,9 @@ createRoot(document.getElementById("root")).render(
     </ErrorBoundary>
   </StrictMode>,
 );
+
+// index.html's inline #pre-boot loader has done its job the moment React
+// has mounted enough to paint something of its own (even just
+// ProtectedRoute's BootLoader) -- remove it now rather than leaving it
+// sitting on top of the real app forever.
+document.getElementById("pre-boot")?.remove();
