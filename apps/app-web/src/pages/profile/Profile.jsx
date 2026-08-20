@@ -4,7 +4,6 @@ import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
-import { INTERESTS, toggleOption } from "../../lib/onboardingOptions.js";
 import { ROLE_LABEL } from "../../lib/roles.js";
 import { computeProfileHealth } from "../../lib/profileHealth.js";
 import { requestParticipationPath } from "../../lib/rpc.js";
@@ -132,7 +131,6 @@ export default function Profile() {
 
   const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
   const [bio, setBio] = useState(profile?.bio ?? "");
-  const [interests, setInterests] = useState(profile?.onboarding?.interests ?? []);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [signedPhotoUrl, setSignedPhotoUrl] = useState(null);
@@ -147,7 +145,6 @@ export default function Profile() {
   useEffect(() => {
     setDisplayName(profile?.display_name ?? "");
     setBio(profile?.bio ?? "");
-    setInterests(profile?.onboarding?.interests ?? []);
   }, [profile]);
 
   // ---------- Why's for joining (member_whys, see 0039) ----------
@@ -302,7 +299,6 @@ export default function Profile() {
       .update({
         display_name: displayName.trim(),
         bio: bio.trim(),
-        onboarding: { ...(profile?.onboarding ?? {}), interests },
         last_active_at: new Date().toISOString(),
       })
       .eq("id", user.id);
@@ -397,27 +393,6 @@ export default function Profile() {
         <div className="field">
           <label htmlFor="bio">About you</label>
           <textarea id="bio" rows={4} value={bio} onChange={(e) => setBio(e.target.value)} />
-        </div>
-
-        <div className="field">
-          <label>What are you interested in?</label>
-          <div className="option-grid">
-            {INTERESTS.map((interest) => {
-              const selected = interests.includes(interest.label);
-              return (
-                <button
-                  key={interest.label}
-                  type="button"
-                  className={`option-card ${selected ? "selected" : ""}`}
-                  onClick={() => setInterests((prev) => toggleOption(prev, interest.label))}
-                >
-                  <span aria-hidden="true">{interest.icon}</span>
-                  <span style={{ flex: 1 }}>{interest.label}</span>
-                  <span className="option-check">✓</span>
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         <button type="submit" className="btn btn-primary" disabled={saving}>
