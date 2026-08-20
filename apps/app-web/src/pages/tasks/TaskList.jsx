@@ -45,10 +45,20 @@ function RankTaskRow({ task, onSubmitted }) {
     }
   };
 
+  // Auto-tracked tasks with a known destination guide the member there the
+  // moment they click the task itself, not just the small badge on the right.
+  const guideTo = !isManual && !submission ? actionLink?.to : null;
+
   return (
     <tr>
       <td>
-        <div style={{ fontWeight: 600 }}>{task.title}</div>
+        {guideTo ? (
+          <Link to={guideTo} style={{ display: "block", fontWeight: 600 }}>
+            {task.title}
+          </Link>
+        ) : (
+          <div style={{ fontWeight: 600 }}>{task.title}</div>
+        )}
         {task.description && <div style={{ fontSize: "13px", color: "var(--slate)" }}>{task.description}</div>}
         {submission?.status === "rejected" && submission.reviewNote && (
           <div style={{ fontSize: "12.5px", color: "var(--danger)", marginTop: "4px" }}>{submission.reviewNote}</div>

@@ -97,6 +97,11 @@ function useTodayTasks(uid) {
 
 function TodayTaskRow({ item, busy, onComplete, index }) {
   const { kind, title, description, done } = item;
+  // Auto-tracked rank tasks (path_complete/prospects_count/etc.) know where
+  // a member should go to actually make progress -- the whole row guides
+  // them there, not just the small badge, same as MindTrainingPathDetail's
+  // ItemRow wraps its body in a Link rather than relying on a side button.
+  const bodyLinkTo = !done && kind === "rank" && !item.manual && !item.pending ? item.actionLink?.to : null;
   let rightContent;
 
   if (done) {
@@ -179,10 +184,17 @@ function TodayTaskRow({ item, busy, onComplete, index }) {
       <span className={`today-task-check${done ? " done" : ""}`} aria-hidden="true">
         {done && <Icon name="check" size={13} />}
       </span>
-      <div className="today-task-body">
-        <div className="today-task-title">{title}</div>
-        {description && <div className="today-task-desc">{description}</div>}
-      </div>
+      {bodyLinkTo ? (
+        <Link to={bodyLinkTo} className="today-task-body">
+          <div className="today-task-title">{title}</div>
+          {description && <div className="today-task-desc">{description}</div>}
+        </Link>
+      ) : (
+        <div className="today-task-body">
+          <div className="today-task-title">{title}</div>
+          {description && <div className="today-task-desc">{description}</div>}
+        </div>
+      )}
       <div className="today-task-meta">{rightContent}</div>
     </li>
   );
