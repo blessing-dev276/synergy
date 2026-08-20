@@ -38,12 +38,21 @@ export default function MindTrainingAssessmentTaker() {
     setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
   };
 
+  const writeAnswer = (questionId, text) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: text }));
+  };
+
+  const answeredCount = Object.values(answers).filter((v) => v !== "" && v != null).length;
+
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      const questionTypeById = new Map(assessment.questions.map((q) => [q.id, q.questionType]));
       const res = await submitMindTrainingAssessmentAttempt(
         assessment.id,
-        Object.entries(answers).map(([questionId, optionId]) => ({ questionId, optionId })),
+        Object.entries(answers).map(([questionId, value]) =>
+          questionTypeById.get(questionId) === "written" ? { questionId, text: value } : { questionId, optionId: value },
+        ),
       );
       setResult(res);
     } catch (err) {
@@ -83,6 +92,9 @@ export default function MindTrainingAssessmentTaker() {
     const optionTextById = new Map();
     for (const q of assessment.questions) for (const o of q.options) optionTextById.set(o.id, o.text);
 
+    const mcResults = result.results.filter((r) => r.questionType !== "written");
+    const writtenResults = result.results.filter((r) => r.questionType === "written");
+
     const retake = () => {
       setResult(null);
       setAnswers({});
@@ -103,7 +115,7 @@ export default function MindTrainingAssessmentTaker() {
             correct one. */}
         {!result.passed && (
           <div style={{ marginBottom: "18px" }}>
-            {result.results.map((r, i) => (
+            {mcResults.map((r, i) => (
               <div key={r.questionId} className="card" style={{ marginBottom: "10px", borderColor: r.correct ? undefined : "var(--danger)" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
                   <span className={`badge ${r.correct ? "badge-success" : "badge-danger"}`} style={{ flexShrink: 0, marginTop: "2px" }}>
@@ -125,6 +137,27 @@ export default function MindTrainingAssessmentTaker() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Practical/written questions aren't graded right or wrong, so they
+            get shown every time (pass or fail) as a simple record of what
+            was submitted, not folded into the pass/fail review above. */}
+        {writtenResults.length > 0 && (
+          <div className="card" style={{ marginBottom: "18px" }}>
+            <div className="card-title" style={{ marginBottom: "10px" }}>
+              Your practical answers
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {writtenResults.map((r) => (
+                <div key={r.questionId}>
+                  <div style={{ fontWeight: 600, fontSize: "13.5px" }}>{r.prompt}</div>
+                  <div style={{ color: "var(--navy-soft)", fontSize: "13.5px", marginTop: "4px", whiteSpace: "pre-wrap" }}>
+                    {r.writtenResponse || "—"}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -160,27 +193,32 @@ export default function MindTrainingAssessmentTaker() {
           <div className="card-title">
             {index + 1}. {question.prompt}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
-            {question.options.map((option) => (
-              <label key={option.id} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <input
-                  type="radio"
-                  name={question.id}
-                  checked={answers[question.id] === option.id}
-                  onChange={() => selectAnswer(question.id, option.id)}
-                />
-                {option.text}
-              </label>
-            ))}
-          </div>
+          {question.questionType === "written" ? (
+            <textarea
+              rows={3}
+              placeholder="Write your answer…"
+              style={{ marginTop: "10px" }}
+              value={answers[question.id] ?? ""}
+              onChange={(e) => writeAnswer(question.id, e.target.value)}
+            />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
+              {question.options.map((option) => (
+                <label key={option.id} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <input
+                    type="radio"
+                    name={question.id}
+                    checked={answers[question.id] === option.id}
+                    onChange={() => selectAnswer(question.id, option.id)}
+                  />
+                  {option.text}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       ))}
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={handleSubmit}
-        disabled={submitting || Object.keys(answers).length < assessment.questions.length}
-      >
+      <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={submitting || answeredCount < assessment.questions.length}>
         {submitting ? "Submitting…" : "Submit assessment"}
       </button>
     </div>

@@ -717,6 +717,11 @@ function ModuleBlock({ module: m, levelId, pathId, isOpen, onToggle, isFirst, is
     onChanged();
   };
 
+  const toggleSequential = async () => {
+    await supabase.from("mind_training_modules").update({ sequential: !m.sequential }).eq("id", m.id);
+    onChanged();
+  };
+
   const reorderLesson = async (index, direction) => {
     if (!lessons) return;
     const targetIndex = index + direction;
@@ -761,6 +766,15 @@ function ModuleBlock({ module: m, levelId, pathId, isOpen, onToggle, isFirst, is
           </span>
         </button>
         <div className="row-actions">
+          <button
+            type="button"
+            className={`badge ${m.sequential ? "badge-info" : "badge-neutral"}`}
+            onClick={toggleSequential}
+            title="When on, each lesson stays locked until the one before it is completed"
+          >
+            <Icon name="lock" size={11} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
+            Sequential
+          </button>
           <button type="button" className={`badge ${m.published ? "badge-success" : "badge-warning"}`} onClick={togglePublished} title="Toggle published status">
             {m.published ? "Published" : "Draft"}
           </button>

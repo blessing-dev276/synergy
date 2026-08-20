@@ -68,6 +68,7 @@ function AssessmentModal({ moduleId, assessment, onClose, onSaved }) {
 function QuestionModal({ assessmentId, nextOrder, onClose, onSaved }) {
   const toast = useToast();
   const [prompt, setPrompt] = useState("");
+  const [questionType, setQuestionType] = useState("multiple_choice");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
@@ -76,6 +77,7 @@ function QuestionModal({ assessmentId, nextOrder, onClose, onSaved }) {
     const { error } = await supabase.from("mind_training_assessment_questions").insert({
       assessment_id: assessmentId,
       prompt: prompt.trim(),
+      question_type: questionType,
       order_index: nextOrder,
     });
     setSaving(false);
@@ -83,13 +85,20 @@ function QuestionModal({ assessmentId, nextOrder, onClose, onSaved }) {
       toast.error("Couldn't add that question.");
       return;
     }
-    toast.success("Question added — add its answer options below.");
+    toast.success(questionType === "written" ? "Question added." : "Question added — add its answer options below.");
     onSaved();
   };
 
   return (
     <Modal open onClose={onClose} title="Add Question">
       <form onSubmit={submit}>
+        <div className="field">
+          <label>Type</label>
+          <select value={questionType} onChange={(e) => setQuestionType(e.target.value)}>
+            <option value="multiple_choice">Multiple choice (scored)</option>
+            <option value="written">Written / practical (free response, not scored)</option>
+          </select>
+        </div>
         <div className="field">
           <label>Prompt</label>
           <input required autoFocus placeholder="New question…" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
@@ -240,6 +249,7 @@ function QuestionBlock({ question, isFirst, isLast, onReorder, onChanged }) {
     onChanged();
   };
 
+  const isWritten = question.question_type === "written";
   const hasCorrectAnswer = (options ?? []).some((o) => o.is_correct);
 
   return (
@@ -266,7 +276,8 @@ function QuestionBlock({ question, isFirst, isLast, onReorder, onChanged }) {
         ) : (
           <>
             <div style={{ flex: 1, fontWeight: 600, fontSize: "14px" }}>{question.prompt}</div>
-            {!hasCorrectAnswer && (options ?? []).length > 0 && <span className="badge badge-warning">No correct answer set</span>}
+            {isWritten && <span className="badge badge-neutral">Written</span>}
+            {!isWritten && !hasCorrectAnswer && (options ?? []).length > 0 && <span className="badge badge-warning">No correct answer set</span>}
             <div className="row-actions">
               <button type="button" className="icon-btn" title="Edit question" onClick={() => setEditingPrompt(true)}>
                 <Icon name="pencil" size={13} />
@@ -279,23 +290,29 @@ function QuestionBlock({ question, isFirst, isLast, onReorder, onChanged }) {
         )}
       </div>
 
-      <div style={{ marginLeft: "34px", marginTop: "8px" }}>
-        {options?.map((option) => (
-          <OptionRow key={option.id} option={option} questionId={question.id} onChanged={refetch} />
-        ))}
-        <form onSubmit={addOption} style={{ display: "flex", gap: "6px", marginTop: "6px" }}>
-          <input
-            className="inline-edit-field"
-            placeholder="Add an answer option…"
-            value={newOptionText}
-            onChange={(e) => setNewOptionText(e.target.value)}
-            style={{ flex: 1, fontSize: "13px" }}
-          />
-          <button type="submit" className="icon-btn" title="Add option">
-            <Icon name="plus" size={13} />
-          </button>
-        </form>
-      </div>
+      {isWritten ? (
+        <p style={{ marginLeft: "34px", marginTop: "8px", fontSize: "12.5px", color: "var(--slate)" }}>
+          Open-ended — members type a free response. Saved with their attempt, not scored right/wrong.
+        </p>
+      ) : (
+        <div style={{ marginLeft: "34px", marginTop: "8px" }}>
+          {options?.map((option) => (
+            <OptionRow key={option.id} option={option} questionId={question.id} onChanged={refetch} />
+          ))}
+          <form onSubmit={addOption} style={{ display: "flex", gap: "6px", marginTop: "6px" }}>
+            <input
+              className="inline-edit-field"
+              placeholder="Add an answer option…"
+              value={newOptionText}
+              onChange={(e) => setNewOptionText(e.target.value)}
+              style={{ flex: 1, fontSize: "13px" }}
+            />
+            <button type="submit" className="icon-btn" title="Add option">
+              <Icon name="plus" size={13} />
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

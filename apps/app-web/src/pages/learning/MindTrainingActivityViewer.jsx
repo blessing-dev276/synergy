@@ -28,6 +28,7 @@ export default function MindTrainingActivityViewer() {
   const { user } = useAuth();
   const toast = useToast();
   const [completing, setCompleting] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const { loading, data: activity } = useSupabaseQuery(
     () => supabase.from("mind_training_activities").select("*").eq("id", activityId).single(),
@@ -64,17 +65,29 @@ export default function MindTrainingActivityViewer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activityId, progress?.response, fields.length]);
 
+  useEffect(() => {
+    setEditing(false);
+  }, [activityId]);
+
   const handleComplete = async () => {
     setCompleting(true);
     try {
       await markMindTrainingActivityComplete(activityId, fields.length > 0 ? values : null);
       toast.success(fields.length > 0 ? "Saved!" : "Activity complete!");
+      setEditing(false);
       refetchProgress();
     } catch (err) {
       toast.error(err.message ?? "Couldn't save this activity.");
     } finally {
       setCompleting(false);
     }
+  };
+
+  const cancelEdit = () => {
+    const seed = {};
+    for (const f of fields) seed[f.key] = progress?.response?.[f.key] ?? "";
+    setValues(seed);
+    setEditing(false);
   };
 
   if (loading) return <Skeleton variant="card" height="200px" />;
@@ -104,7 +117,7 @@ export default function MindTrainingActivityViewer() {
 
       {fields.length > 0 && (
         <div className="mt-lesson-section">
-          {isComplete ? (
+          {isComplete && !editing ? (
             <div className="mt-reflection-list">
               {fields.map((f) => (
                 <div key={f.key} className="mt-reflection-item">
@@ -138,16 +151,31 @@ export default function MindTrainingActivityViewer() {
         </div>
       )}
 
-      <div style={{ marginTop: "28px", paddingTop: "22px", borderTop: "1px solid var(--line)" }}>
-        {isComplete ? (
-          <span className="badge badge-success">
-            <Icon name="check" size={11} />
-            Completed
-          </span>
+      <div style={{ marginTop: "28px", paddingTop: "22px", borderTop: "1px solid var(--line)", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+        {isComplete && !editing ? (
+          <>
+            <span className="badge badge-success">
+              <Icon name="check" size={11} />
+              Completed
+            </span>
+            {fields.length > 0 && (
+              <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>
+                <Icon name="pencil" size={12} style={{ marginRight: "4px" }} />
+                Edit answers
+              </button>
+            )}
+          </>
         ) : (
-          <button type="button" className="btn btn-primary" onClick={handleComplete} disabled={completing}>
-            {completing ? "Saving…" : completeLabel}
-          </button>
+          <>
+            <button type="button" className="btn btn-primary" onClick={handleComplete} disabled={completing}>
+              {completing ? "Saving…" : isComplete ? "Save Changes" : completeLabel}
+            </button>
+            {isComplete && editing && (
+              <button type="button" className="btn btn-secondary" onClick={cancelEdit}>
+                Cancel
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

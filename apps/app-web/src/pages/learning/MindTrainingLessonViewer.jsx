@@ -6,6 +6,7 @@ import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { markMindTrainingLessonComplete } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
+import EmptyState from "../../components/state/EmptyState.jsx";
 import Icon from "../../components/Icon.jsx";
 import BlockRenderer from "../../components/BlockRenderer.jsx";
 
@@ -55,6 +56,31 @@ export default function MindTrainingLessonViewer() {
     [user?.id, lessonId],
   );
 
+  // sequential (0073) is opt-in per module, same convention as courses'
+  // modules.sequential (0062) -- most Mind Training modules leave it off
+  // and this whole block resolves to locked=false.
+  const { data: lessonModule } = useSupabaseQuery(
+    () => lesson?.module_id && supabase.from("mind_training_modules").select("id, sequential").eq("id", lesson.module_id).single(),
+    [lesson?.module_id],
+  );
+  const { data: siblingLessons } = useSupabaseQuery(
+    () => lesson?.module_id && supabase.from("mind_training_lessons").select("id, title, order_index").eq("module_id", lesson.module_id).order("order_index", { ascending: true }),
+    [lesson?.module_id],
+  );
+  const siblingIndex = siblingLessons?.findIndex((l) => l.id === lessonId) ?? -1;
+  const prevLesson = siblingIndex > 0 ? siblingLessons[siblingIndex - 1] : null;
+  const { data: siblingProgress } = useSupabaseQuery(
+    () =>
+      user &&
+      siblingLessons?.length > 0 &&
+      supabase.from("mind_training_lesson_progress").select("lesson_id").eq("uid", user.id).in("lesson_id", siblingLessons.map((l) => l.id)),
+    [user?.id, siblingLessons],
+  );
+  // Default to unlocked while still loading -- a brief false "locked" flash
+  // is worse than a brief false "unlocked" one.
+  const prevCompleted = !prevLesson || siblingProgress === null || siblingProgress.some((p) => p.lesson_id === prevLesson.id);
+  const locked = !!lessonModule?.sequential && !prevCompleted;
+
   const pdfUrl = useSignedFileUrl(lesson?.pdf_path);
   const isComplete = !!progress;
   const reflections = lesson?.reflection_questions ?? [];
@@ -74,6 +100,11 @@ export default function MindTrainingLessonViewer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId, progress?.response, reflections.length]);
 
+  // A lesson with reflection questions isn't "done" until they're actually
+  // answered -- nothing enforced this before, so a member could mark a
+  // reflective lesson complete with every answer left blank.
+  const allReflectionsAnswered = reflections.length === 0 || answers.every((a) => (a ?? "").trim().length > 0);
+
   const handleComplete = async () => {
     setCompleting(true);
     try {
@@ -89,6 +120,23 @@ export default function MindTrainingLessonViewer() {
 
   if (loading) return <Skeleton variant="card" height="240px" />;
   if (!lesson) return null;
+
+  if (locked) {
+    return (
+      <div>
+        <Link to={`/learning/mind-training/${pathId}`} style={{ color: "var(--slate)", fontSize: "13.5px" }}>
+          ← Back to path
+        </Link>
+        <div style={{ marginTop: "16px" }}>
+          <EmptyState
+            icon={<Icon name="lock" size={26} />}
+            title="This lesson is locked"
+            description={prevLesson ? `Finish "${prevLesson.title}" to unlock this one.` : undefined}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const takeaways = lesson.key_takeaways ?? [];
 
@@ -196,7 +244,13 @@ export default function MindTrainingLessonViewer() {
             Completed
           </span>
         ) : (
-          <button type="button" className="btn btn-primary" onClick={handleComplete} disabled={completing}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleComplete}
+            disabled={completing || !allReflectionsAnswered}
+            title={!allReflectionsAnswered ? "Answer every reflection question first" : undefined}
+          >
             {completing ? "Saving…" : "Mark Lesson Complete"}
           </button>
         )}

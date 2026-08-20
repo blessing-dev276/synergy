@@ -54,7 +54,23 @@ function countPath(levels) {
   return { total, done, percent: total === 0 ? 0 : Math.round((done / total) * 100) };
 }
 
-function ItemRow({ icon, title, done, meta, to }) {
+function ItemRow({ icon, title, done, meta, to, locked }) {
+  if (locked) {
+    return (
+      <li className="today-task-row mt-item-row" style={{ opacity: 0.55, cursor: "not-allowed" }} title="Complete the previous lesson first">
+        <span className="today-task-check" aria-hidden="true" />
+        <div className="today-task-body" style={{ minWidth: 0 }}>
+          <div className="today-task-title">
+            <Icon name="lock" size={14} style={{ color: "var(--slate)", flexShrink: 0 }} />
+            {title}
+          </div>
+        </div>
+        <div className="today-task-meta">
+          <span className="badge badge-neutral">Locked</span>
+        </div>
+      </li>
+    );
+  }
   return (
     <li className="today-task-row mt-item-row">
       <span className={`today-task-check${done ? " done" : ""}`} aria-hidden="true">
@@ -77,25 +93,29 @@ function ModuleBlock({ pathId, levelId, module: m }) {
       <div className="mt-module-title">{m.title}</div>
       {m.description && <p style={{ fontSize: "13px", color: "var(--slate)", marginBottom: "8px" }}>{m.description}</p>}
       <ul className="today-task-list">
-        {m.lessons.map((l) => (
-          <ItemRow
-            key={l.id}
-            icon="book"
-            title={l.title}
-            done={l.done}
-            meta={
-              <>
-                {l.hasPdf && (
-                  <span className="badge badge-neutral" title="Includes a downloadable PDF">
-                    <Icon name="clipboard" size={11} />
-                  </span>
-                )}
-                <span className="badge badge-neutral">{l.estimatedMinutes} min</span>
-              </>
-            }
-            to={`/learning/mind-training/${pathId}/${levelId}/${m.id}/lesson/${l.id}`}
-          />
-        ))}
+        {m.lessons.map((l, i) => {
+          const locked = m.sequential && i > 0 && !m.lessons[i - 1].done;
+          return (
+            <ItemRow
+              key={l.id}
+              icon="book"
+              title={l.title}
+              done={l.done}
+              locked={locked}
+              meta={
+                <>
+                  {l.hasPdf && (
+                    <span className="badge badge-neutral" title="Includes a downloadable PDF">
+                      <Icon name="clipboard" size={11} />
+                    </span>
+                  )}
+                  <span className="badge badge-neutral">{l.estimatedMinutes} min</span>
+                </>
+              }
+              to={`/learning/mind-training/${pathId}/${levelId}/${m.id}/lesson/${l.id}`}
+            />
+          );
+        })}
         {m.activities.map((a) => (
           <ItemRow
             key={a.id}
