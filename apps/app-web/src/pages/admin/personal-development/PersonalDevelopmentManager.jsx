@@ -23,16 +23,30 @@ const TYPE_BY_KEY = Object.fromEntries(RESOURCE_TYPES.map((t) => [t.key, t]));
 
 // Not every resource type needs the same fields (Part 7) -- author/host/
 // creator is one column (pd_resources.author) relabeled per type, and
-// duration/page-count/file-upload only show where they're meaningful.
+// duration/page-count/file-upload only show where they're meaningful. Book
+// gets both a (now explicitly optional) purchase/read link AND a file
+// upload -- a book resource is really just a PDF/workbook with a nicer
+// name, so there's no reason it shouldn't also support "upload the file
+// instead of linking out to buy it" the same way pdf/workbook already do.
+// Neither externalUrl nor the uploaded file has ever been a required field
+// in the form below -- only the label wording used to imply otherwise for
+// book specifically.
 const TYPE_FIELDS = {
-  book: { authorLabel: "Author", urlLabel: "Purchase / Read Link", showDuration: false, showPageCount: false, showFile: false },
+  book: {
+    authorLabel: "Author",
+    urlLabel: "Purchase / Read Link (optional)",
+    showDuration: false,
+    showPageCount: false,
+    showFile: true,
+    fileLabel: "Book file — PDF or EPUB (optional)",
+  },
   podcast: { authorLabel: "Host", urlLabel: "Episode Link", showDuration: true, showPageCount: false, showFile: false },
   video: { authorLabel: "Creator", urlLabel: "Video URL", showDuration: true, showPageCount: false, showFile: false },
-  pdf: { authorLabel: "Author", urlLabel: "External Link (optional)", showDuration: false, showPageCount: true, showFile: true },
-  workbook: { authorLabel: "Author", urlLabel: "External Link (optional)", showDuration: false, showPageCount: true, showFile: true },
+  pdf: { authorLabel: "Author", urlLabel: "External Link (optional)", showDuration: false, showPageCount: true, showFile: true, fileLabel: "Uploaded file (optional)" },
+  workbook: { authorLabel: "Author", urlLabel: "External Link (optional)", showDuration: false, showPageCount: true, showFile: true, fileLabel: "Uploaded file (optional)" },
   article: { authorLabel: "Author", urlLabel: "Article URL", showDuration: false, showPageCount: false, showFile: false },
-  template: { authorLabel: "Creator", urlLabel: "External Link (optional)", showDuration: false, showPageCount: false, showFile: true },
-  other: { authorLabel: "Author / Creator", urlLabel: "External Link", showDuration: false, showPageCount: false, showFile: true },
+  template: { authorLabel: "Creator", urlLabel: "External Link (optional)", showDuration: false, showPageCount: false, showFile: true, fileLabel: "Uploaded file (optional)" },
+  other: { authorLabel: "Author / Creator", urlLabel: "External Link", showDuration: false, showPageCount: false, showFile: true, fileLabel: "Uploaded file (optional)" },
 };
 
 // Uploads to the private mind-training-library bucket (0066) -- shared with
@@ -292,7 +306,7 @@ function ResourceModal({ resource, allTags, mindTrainingPaths, refetchTags, onCl
         )}
         {fields.showFile && (
           <div className="field">
-            <label>Uploaded file (optional)</label>
+            <label>{fields.fileLabel ?? "Uploaded file (optional)"}</label>
             <FileUploadField filePath={filePath} setFilePath={setFilePath} uploadFolder={uploadFolderRef.current} />
           </div>
         )}
