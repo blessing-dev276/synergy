@@ -241,6 +241,15 @@ function CourseRow({ course, isFirst, isLast, onReorder, onEdit, onChanged }) {
     ? `${course.lesson_count ?? 0} lessons`
     : [typeInfo.label, course.resource_author].filter(Boolean).join(" · ");
 
+  const togglePublished = async () => {
+    const { error } = await supabase.from("courses").update({ published: !course.published }).eq("id", course.id);
+    if (error) {
+      toast.error("Couldn't update published status.");
+      return;
+    }
+    onChanged();
+  };
+
   return (
     <div className="manage-row" style={{ marginBottom: "6px" }}>
       {onReorder && (
@@ -269,7 +278,9 @@ function CourseRow({ course, isFirst, isLast, onReorder, onEdit, onChanged }) {
           <div className="row-meta">{meta}</div>
         </div>
       )}
-      <span className={`badge ${course.published ? "badge-success" : "badge-warning"}`}>{course.published ? "Published" : "Draft"}</span>
+      <button type="button" className={`badge ${course.published ? "badge-success" : "badge-warning"}`} onClick={togglePublished} title="Toggle published status">
+        {course.published ? "Published" : "Draft"}
+      </button>
       <div className="row-actions">
         {!isCourse && course.resource_url && (
           <a href={course.resource_url} target="_blank" rel="noopener noreferrer" className="icon-btn" title="Open link">
