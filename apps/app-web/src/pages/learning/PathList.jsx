@@ -44,19 +44,40 @@ function MindTrainingPaths() {
 
   return (
     <div className="grid grid-2">
-      {paths.map((path) => (
-        <Link key={path.id} to={`/learning/mind-training/${path.id}`} className="card mt-path-card">
-          <div className="mt-path-card-ring">
-            <ProgressRing percent={path.percent} size={56} strokeWidth={5} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div className="card-title">{path.title}</div>
-            <div className="card-subtitle" style={{ marginBottom: 0 }}>
-              {path.description || (path.totalItems > 0 ? `${path.completedItems} of ${path.totalItems} complete` : "Not started")}
+      {paths.map((path, i) => {
+        if (path.locked) {
+          // The earliest still-incomplete level ahead of this one -- always
+          // exists when locked is true (that's exactly what makes it true),
+          // so this never falls back to the generic hint in practice.
+          const blockedBy = paths.slice(0, i).find((p) => !p.complete);
+          return (
+            <div key={path.id} className="card mt-path-card mt-path-card-locked" title={blockedBy ? `Complete "${blockedBy.title}" first` : "Locked"}>
+              <div className="mt-path-card-ring">
+                <Icon name="lock" size={22} style={{ color: "var(--slate)" }} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div className="card-title">{path.title}</div>
+                <div className="card-subtitle" style={{ marginBottom: 0 }}>
+                  {blockedBy ? `Complete "${blockedBy.title}" to unlock this level.` : "Locked"}
+                </div>
+              </div>
             </div>
-          </div>
-        </Link>
-      ))}
+          );
+        }
+        return (
+          <Link key={path.id} to={`/learning/mind-training/${path.id}`} className="card mt-path-card">
+            <div className="mt-path-card-ring">
+              <ProgressRing percent={path.percent} size={56} strokeWidth={5} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div className="card-title">{path.title}</div>
+              <div className="card-subtitle" style={{ marginBottom: 0 }}>
+                {path.description || (path.totalItems > 0 ? `${path.completedItems} of ${path.totalItems} complete` : "Not started")}
+              </div>
+            </div>
+          </Link>
+        );
+      })}
     </div>
   );
 }

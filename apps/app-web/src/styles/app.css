@@ -753,6 +753,8 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
 .mt-path-card{ display:flex; align-items:center; gap:16px; }
 .mt-path-card .card-title{ margin-bottom:2px; }
 .mt-path-card-ring{ flex-shrink:0; }
+.mt-path-card-locked{ opacity:0.55; cursor:not-allowed; }
+.mt-path-card-locked .mt-path-card-ring{ width:56px; height:56px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:2px solid var(--line); }
 
 .mt-level{ margin-bottom:16px; }
 .mt-level-header{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px; }

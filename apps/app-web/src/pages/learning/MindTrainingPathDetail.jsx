@@ -162,19 +162,18 @@ export default function MindTrainingPathDetail() {
     [pathId],
   );
 
-  // For the "Next Level" teaser shown once a milestone unlocks -- the next
-  // Mind Training *path* in sequence (Level 1 here is a level inside the
-  // "Mindset Foundation" path; "Learning Path 2" is a sibling path, per
-  // the section=mind_training ordering already used everywhere else).
-  const { data: mtPaths } = useSupabaseQuery(
-    () => supabase.from("learning_paths").select("id, title, order_index").eq("section", "mind_training").eq("published", true).order("order_index", { ascending: true }),
-    [],
-  );
-  const nextPathTitle = (() => {
-    if (!mtPaths) return null;
-    const idx = mtPaths.findIndex((p) => p.id === pathId);
-    return idx >= 0 && idx < mtPaths.length - 1 ? mtPaths[idx + 1].title : null;
-  })();
+  // Same RPC the hub list (PathList.jsx) uses -- gives every sibling Mind
+  // Training *path*'s completion/lock state in sequence order (Level 1 here
+  // is a level inside the "Mindset Foundation" path; "Level 2" is a sibling
+  // path, per the section=mind_training ordering used everywhere else).
+  // Doubles as the "Next Level" teaser source and this path's own lock
+  // check below -- a direct URL to a locked path shouldn't render its tree
+  // any more than the hub list should link to it (0075).
+  const { data: mtPaths } = useSupabaseQuery(() => supabase.rpc("get_my_mind_training_paths"), []);
+  const pathIndex = mtPaths?.findIndex((p) => p.id === pathId) ?? -1;
+  const thisPathMeta = pathIndex >= 0 ? mtPaths[pathIndex] : null;
+  const nextPathTitle = pathIndex >= 0 && pathIndex < mtPaths.length - 1 ? mtPaths[pathIndex + 1].title : null;
+  const blockedByPath = thisPathMeta?.locked ? mtPaths.slice(0, pathIndex).find((p) => !p.complete) : null;
 
   if (loading) {
     return (
@@ -190,6 +189,23 @@ export default function MindTrainingPathDetail() {
     return <ErrorState description="Couldn't load this path — it may not be available to you." />;
   }
   if (!data) return null;
+
+  if (thisPathMeta?.locked) {
+    return (
+      <div>
+        <Link to="/learning/mind-training" style={{ color: "var(--slate)", fontSize: "13.5px" }}>
+          ← Back to Mind Training
+        </Link>
+        <div style={{ marginTop: "16px" }}>
+          <EmptyState
+            icon={<Icon name="lock" size={26} />}
+            title="This level is locked"
+            description={blockedByPath ? `Complete "${blockedByPath.title}" to unlock this level.` : "Complete the earlier level(s) first."}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const { total, done, percent } = countPath(data.levels);
   const resourceGroups = RESOURCE_ORDER.filter((key) => (data.recommendedResources?.[key] ?? []).length > 0).map((key) => ({
