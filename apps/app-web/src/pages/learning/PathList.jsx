@@ -56,7 +56,15 @@ function MindTrainingPaths() {
                 <Icon name="lock" size={22} style={{ color: "var(--slate)" }} />
               </div>
               <div style={{ minWidth: 0 }}>
-                <div className="card-title">{path.title}</div>
+                <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                  {path.title}
+                  {path.pastRank && (
+                    <span className="badge badge-success">
+                      <Icon name="check" size={11} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
+                      Completed
+                    </span>
+                  )}
+                </div>
                 <div className="card-subtitle" style={{ marginBottom: 0 }}>
                   {blockedBy ? `Complete "${blockedBy.title}" to unlock this level.` : "Locked"}
                 </div>
@@ -70,7 +78,15 @@ function MindTrainingPaths() {
               <ProgressRing percent={path.percent} size={56} strokeWidth={5} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <div className="card-title">{path.title}</div>
+              <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                {path.title}
+                {path.pastRank && (
+                  <span className="badge badge-success">
+                    <Icon name="check" size={11} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
+                    Completed
+                  </span>
+                )}
+              </div>
               <div className="card-subtitle" style={{ marginBottom: 0 }}>
                 {path.description || (path.totalItems > 0 ? `${path.completedItems} of ${path.totalItems} complete` : "Not started")}
               </div>
