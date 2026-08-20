@@ -31,6 +31,10 @@ const sections = [
     items: [{ to: "/leaderboard", label: "Leaderboard", icon: "trophy" }],
   },
   {
+    label: "Wallet",
+    items: [{ to: "/wallet", label: "Wallet", icon: "dollar-sign" }],
+  },
+  {
     label: "Account",
     items: [
       { to: "/notifications", label: "Notifications", icon: "bell" },

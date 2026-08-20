@@ -13,6 +13,7 @@ import {
   adminUpdateRankTask,
   adminDeleteRankTask,
   adminReorderRankTasks,
+  adminSetRankWithdrawalTiers,
 } from "../../../lib/rpc.js";
 import Icon from "../../../components/Icon.jsx";
 import Modal from "../../../components/Modal.jsx";
@@ -136,6 +137,124 @@ function RankPathsPanel({ rank, paths }) {
           {saving ? "Saving…" : "Save learning paths"}
         </button>
       )}
+    </div>
+  );
+}
+
+// Caps how much a member in this rank can request per withdrawal, banded
+// by their lifetime net-withdrawn USD-equivalent (0084/0085) -- same
+// "server list, locally editable, one Save button replacing the whole
+// set" shape as RankPathsPanel above (admin_set_rank_withdrawal_tiers is a
+// replace-the-set RPC, same convention as admin_set_rank_learning_paths).
+// No tiers configured at all means no limit for this rank; a blank "up
+// to" on a tier means that tier's ceiling is open-ended.
+function RankWithdrawalTiersPanel({ rank }) {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+
+  const { data: rows, refetch } = useSupabaseQuery(
+    () => supabase.from("rank_withdrawal_tiers").select("*").eq("rank_id", rank.id).order("min_withdrawn_usd", { ascending: true }),
+    [rank.id],
+  );
+
+  const [tiers, setTiers] = useState([]);
+  useEffect(() => {
+    setTiers(
+      (rows ?? []).map((r) => ({
+        minWithdrawnUsd: String(r.min_withdrawn_usd ?? ""),
+        maxWithdrawnUsd: r.max_withdrawn_usd === null ? "" : String(r.max_withdrawn_usd),
+        requestCapAmount: String(r.request_cap_amount ?? ""),
+        requestCapCurrency: r.request_cap_currency ?? "USD",
+      })),
+    );
+  }, [rows]);
+
+  const updateTier = (index, field, value) => {
+    setTiers((prev) => prev.map((t, i) => (i === index ? { ...t, [field]: value } : t)));
+  };
+
+  const addTier = () => {
+    setTiers((prev) => [...prev, { minWithdrawnUsd: "", maxWithdrawnUsd: "", requestCapAmount: "", requestCapCurrency: "USD" }]);
+  };
+
+  const removeTier = (index) => {
+    setTiers((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const payload = tiers.map((t) => ({
+        minWithdrawnUsd: Number(t.minWithdrawnUsd || 0),
+        maxWithdrawnUsd: t.maxWithdrawnUsd === "" ? null : Number(t.maxWithdrawnUsd),
+        requestCapAmount: Number(t.requestCapAmount || 0),
+        requestCapCurrency: t.requestCapCurrency,
+      }));
+      await adminSetRankWithdrawalTiers(rank.id, payload);
+      toast.success("Withdrawal tiers updated.");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't save withdrawal tiers.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid var(--line)" }}>
+      <div className="row-meta" style={{ marginBottom: "8px" }}>
+        Withdrawal limit tiers for this rank
+      </div>
+      <p style={{ fontSize: "12.5px", color: "var(--slate)", marginBottom: "12px" }}>
+        Caps how much a member in this rank can request per withdrawal, based on how much they've withdrawn (lifetime, net of charges) so far.
+        Leave a tier's "up to" blank for no ceiling — only the highest tier should be left open-ended.
+      </p>
+
+      {tiers.length === 0 && (
+        <p style={{ fontSize: "13px", color: "var(--slate)", marginBottom: "12px" }}>
+          No tiers configured — members in this rank can request any amount, up to their remaining balance.
+        </p>
+      )}
+
+      {tiers.map((tier, index) => (
+        <div
+          key={index}
+          style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "flex-end", marginBottom: "10px", paddingBottom: "10px", borderBottom: "1px dashed var(--line)" }}
+        >
+          <div className="field" style={{ marginBottom: 0, width: "120px" }}>
+            <label>Withdrawn from ($)</label>
+            <input type="number" min="0" step="0.01" value={tier.minWithdrawnUsd} onChange={(e) => updateTier(index, "minWithdrawnUsd", e.target.value)} />
+          </div>
+          <div className="field" style={{ marginBottom: 0, width: "120px" }}>
+            <label>Up to ($, optional)</label>
+            <input type="number" min="0" step="0.01" placeholder="No limit" value={tier.maxWithdrawnUsd} onChange={(e) => updateTier(index, "maxWithdrawnUsd", e.target.value)} />
+          </div>
+          <div className="field" style={{ marginBottom: 0, width: "120px" }}>
+            <label>Can request</label>
+            <input type="number" min="0.01" step="0.01" value={tier.requestCapAmount} onChange={(e) => updateTier(index, "requestCapAmount", e.target.value)} />
+          </div>
+          <div className="field" style={{ marginBottom: 0, width: "90px" }}>
+            <label>Currency</label>
+            <select value={tier.requestCapCurrency} onChange={(e) => updateTier(index, "requestCapCurrency", e.target.value)}>
+              <option value="USD">USD</option>
+              <option value="NGN">NGN</option>
+            </select>
+          </div>
+          <button type="button" className="icon-btn icon-btn-danger" title="Remove tier" onClick={() => removeTier(index)}>
+            <Icon name="trash" size={14} />
+          </button>
+        </div>
+      ))}
+
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button type="button" className="btn btn-secondary" onClick={addTier}>
+          <Icon name="plus" size={12} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+          Add tier
+        </button>
+        <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>
+          {saving ? "Saving…" : "Save withdrawal tiers"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -586,6 +705,7 @@ function RankRow({ rank, ranks, paths, members, isFirst, isLast, onChanged, onMe
         <div className="accordion-body">
           <RankPathsPanel rank={rank} paths={paths} />
           <RankTasksPanel rank={rank} paths={paths} />
+          <RankWithdrawalTiersPanel rank={rank} />
           <RankMembersPanel rank={rank} ranks={ranks} members={members} onChanged={onMembersChanged} />
         </div>
       )}

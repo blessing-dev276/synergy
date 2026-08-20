@@ -35,6 +35,7 @@ import NetworkDashboard from "./pages/network/NetworkDashboard.jsx";
 import Prospects from "./pages/network/Prospects.jsx";
 import Goals from "./pages/goals/Goals.jsx";
 import Leaderboard from "./pages/leaderboard/Leaderboard.jsx";
+import Wallet from "./pages/wallet/Wallet.jsx";
 
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import ActivityLog from "./pages/admin/ActivityLog.jsx";
@@ -120,6 +121,7 @@ function App() {
               <Route path="/network/prospects" element={<Prospects />} />
               <Route path="/goals" element={<Goals />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/wallet" element={<Wallet />} />
             </Route>
           </Route>
 

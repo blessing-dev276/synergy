@@ -3,7 +3,13 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../../supabaseClient.js";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { useToast } from "../../../components/state/Toast.jsx";
-import { gradeAssignment, reviewContentEvidence, reviewRankTaskSubmission, reviewRankAdvancementRequest } from "../../../lib/rpc.js";
+import {
+  gradeAssignment,
+  reviewContentEvidence,
+  reviewRankTaskSubmission,
+  reviewRankAdvancementRequest,
+  reviewWithdrawalRequest,
+} from "../../../lib/rpc.js";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
@@ -342,9 +348,133 @@ function TaskEvidenceSection() {
   );
 }
 
+// A member's withdrawal request + the eventual payout record (0084/0085).
+// Three-state lifecycle (pending -> paid | rejected) -- there's no separate
+// "approved" limbo state, this decision *is* the payout record. Net
+// amount/currency/charges/rate are entered here rather than picked up
+// automatically, since the actual payout (and any currency conversion) is
+// a real-world action the admin is reporting back, not something the
+// system can know on its own.
+function WithdrawalRequestsSection() {
+  const toast = useToast();
+  const { loading, data: requests, refetch } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("withdrawal_requests")
+        .select("*, member:profiles!withdrawal_requests_uid_fkey(display_name, email)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: true }),
+    [],
+  );
+  const [busyId, setBusyId] = useState(null);
+  const [forms, setForms] = useState({});
+
+  const formFor = (id) => forms[id] ?? { netAmount: "", netCurrency: "USD", chargesAmount: "", exchangeRate: "", note: "" };
+  const updateForm = (id, field, value) => {
+    setForms((prev) => ({ ...prev, [id]: { ...formFor(id), [field]: value } }));
+  };
+
+  const decide = async (request, decision) => {
+    const form = formFor(request.id);
+    if (decision === "paid" && !(Number(form.netAmount) > 0)) {
+      toast.error("Enter the amount actually paid out.");
+      return;
+    }
+    if (decision === "paid" && form.netCurrency === "NGN" && !(Number(form.exchangeRate) > 0)) {
+      toast.error("Enter the exchange rate used for this payout.");
+      return;
+    }
+    if (decision === "rejected" && !window.confirm(`Decline this withdrawal request from ${request.member?.display_name || request.member?.email}?`)) {
+      return;
+    }
+    setBusyId(request.id);
+    try {
+      await reviewWithdrawalRequest(
+        request.id,
+        decision,
+        decision === "paid" ? Number(form.netAmount) : null,
+        decision === "paid" ? form.netCurrency : null,
+        decision === "paid" ? Number(form.chargesAmount || 0) : null,
+        decision === "paid" && form.netCurrency === "NGN" ? Number(form.exchangeRate) : null,
+        (form.note ?? "").trim(),
+      );
+      toast.success(decision === "paid" ? "Marked as paid." : "Request declined.");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't review that request.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      {loading && <Skeleton variant="card" height="140px" />}
+      {!loading && (!requests || requests.length === 0) && <EmptyState icon={<Icon name="dollar-sign" size={26} />} title="Nothing pending review" />}
+      {requests?.map((r) => {
+        const form = formFor(r.id);
+        return (
+          <div key={r.id} className="card" style={{ marginBottom: "14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
+              <Link to={`/admin/members/${r.uid}`} style={{ fontWeight: 600 }}>
+                {r.member?.display_name || r.member?.email}
+              </Link>
+              <span style={{ fontSize: "12px", color: "var(--slate)" }}>{new Date(r.created_at).toLocaleString()}</span>
+            </div>
+            <p style={{ fontSize: "13.5px", marginBottom: "8px" }}>
+              Requested <strong>{r.requested_currency === "NGN" ? "₦" : "$"}{Number(r.requested_amount).toLocaleString()}</strong>
+              {r.note && <span style={{ color: "var(--slate)" }}> — {r.note}</span>}
+            </p>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <div className="field" style={{ marginBottom: "8px", width: "130px" }}>
+                <label>Amount paid</label>
+                <input type="number" min="0.01" step="0.01" value={form.netAmount} onChange={(e) => updateForm(r.id, "netAmount", e.target.value)} />
+              </div>
+              <div className="field" style={{ marginBottom: "8px", width: "100px" }}>
+                <label>Currency</label>
+                <select value={form.netCurrency} onChange={(e) => updateForm(r.id, "netCurrency", e.target.value)}>
+                  <option value="USD">USD</option>
+                  <option value="NGN">NGN</option>
+                </select>
+              </div>
+              <div className="field" style={{ marginBottom: "8px", width: "120px" }}>
+                <label>Charges (optional)</label>
+                <input type="number" min="0" step="0.01" value={form.chargesAmount} onChange={(e) => updateForm(r.id, "chargesAmount", e.target.value)} />
+              </div>
+              {form.netCurrency === "NGN" && (
+                <div className="field" style={{ marginBottom: "8px", width: "140px" }}>
+                  <label>Rate used (₦ per $1)</label>
+                  <input type="number" min="0.01" step="0.01" value={form.exchangeRate} onChange={(e) => updateForm(r.id, "exchangeRate", e.target.value)} />
+                </div>
+              )}
+            </div>
+            <div className="field" style={{ marginBottom: "8px" }}>
+              <input
+                type="text"
+                placeholder="Note (optional, shown to the member if declined)"
+                value={form.note}
+                onChange={(e) => updateForm(r.id, "note", e.target.value)}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button type="button" className="btn btn-primary" disabled={busyId === r.id} onClick={() => decide(r, "paid")}>
+                Mark Paid
+              </button>
+              <button type="button" className="btn btn-danger" disabled={busyId === r.id} onClick={() => decide(r, "rejected")}>
+                Decline
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 const SECTIONS = [
   { id: "rank-advancement", label: "Rank Advancement", icon: "trophy", Component: RankAdvancementRequestsSection },
   { id: "rank-tasks", label: "Rank Tasks", icon: "compass", Component: RankTaskSubmissionsSection },
+  { id: "withdrawals", label: "Withdrawal Requests", icon: "dollar-sign", Component: WithdrawalRequestsSection },
   { id: "assignments", label: "Course Assignments", icon: "folder", Component: AssignmentGradingSection },
   { id: "evidence", label: "Task Evidence", icon: "check-square", Component: TaskEvidenceSection },
 ];

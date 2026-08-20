@@ -550,6 +550,61 @@ function ParticipationPathPanel({ member, onChanged }) {
   );
 }
 
+function formatMoney(amount, currency) {
+  const n = Number(amount ?? 0);
+  return currency === "NGN" ? `₦${n.toLocaleString()}` : `$${n.toLocaleString()}`;
+}
+
+// Read-only (0084/0085) -- request/review actions stay centralized on
+// Submissions.jsx, same convention rank task submissions already follow
+// (this member's row there links back here, not the other way around).
+function WalletSummaryPanel({ member }) {
+  const { loading, data: summary } = useSupabaseQuery(
+    () => supabase.rpc("get_wallet_summary", { p_uid: member.id }),
+    [member.id],
+  );
+
+  return (
+    <div className="card-elevated" style={{ marginTop: "16px" }}>
+      <div className="card-title">
+        <Icon name="dollar-sign" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Wallet
+      </div>
+      {loading ? (
+        <Skeleton variant="card" height="60px" />
+      ) : (
+        <>
+          <div className="grid grid-3" style={{ marginBottom: "14px" }}>
+            <div>
+              <div className="row-meta">Income (USD)</div>
+              <div style={{ fontSize: "20px", fontWeight: 700 }}>{formatMoney(summary?.incomeTotalUsd, "USD")}</div>
+            </div>
+            <div>
+              <div className="row-meta">Withdrawn (USD-equiv.)</div>
+              <div style={{ fontSize: "20px", fontWeight: 700 }}>{formatMoney(summary?.withdrawnTotalUsd, "USD")}</div>
+            </div>
+            <div>
+              <div className="row-meta">Remaining (USD)</div>
+              <div style={{ fontSize: "20px", fontWeight: 700 }}>{formatMoney(summary?.remainingUsd, "USD")}</div>
+            </div>
+            <div>
+              <div className="row-meta">Saved (NGN)</div>
+              <div style={{ fontSize: "20px", fontWeight: 700 }}>{formatMoney(summary?.savedTotalNgn, "NGN")}</div>
+            </div>
+          </div>
+          <p style={{ fontSize: "13px", color: "var(--slate)" }}>
+            {summary?.tier
+              ? `Current tier allows up to ${formatMoney(summary.tier.capAmount, summary.tier.capCurrency)} per request.`
+              : "No withdrawal limit set for this member's rank."}
+            {summary?.pendingRequest &&
+              ` Pending request: ${formatMoney(summary.pendingRequest.amount, summary.pendingRequest.currency)} — review it under Submissions.`}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 // Edits placement-specific settings (stage/track/type/xp/required) always;
 // only lets you search-or-create the underlying content when adding a new
 // activity -- the content's own title/description live on content_items and
@@ -803,6 +858,7 @@ export default function MemberDetail() {
           <div style={{ marginTop: "16px" }}>
             <ParticipationPathPanel member={member} onChanged={refetchMember} />
           </div>
+          <WalletSummaryPanel member={member} />
           <ActivitiesPanel member={member} />
         </>
       )}

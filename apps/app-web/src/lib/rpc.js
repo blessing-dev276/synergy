@@ -220,3 +220,33 @@ export const adminSetResourceLearningPaths = (resourceId, learningPathIds) =>
 
 export const adminSetResourceTags = (resourceId, tagIds) =>
   call("admin_set_resource_tags", { p_resource_id: resourceId, p_tag_ids: tagIds });
+
+// ---------- member wallet (income/withdrawals/savings, 0084/0085) ----------
+// Income itself is untouched earnings_logs (logEarning/reviewEarning/
+// adminLogEarning above) -- these are the new withdrawal-request,
+// savings, and rank-tier pieces built on top of it.
+export const requestWithdrawal = (amount, currency, note) =>
+  call("request_withdrawal", { p_amount: amount, p_currency: currency, p_note: note });
+
+export const reviewWithdrawalRequest = (id, decision, netAmount, netCurrency, chargesAmount, exchangeRate, note) =>
+  call("review_withdrawal_request", {
+    p_id: id,
+    p_decision: decision,
+    p_net_amount: netAmount,
+    p_net_currency: netCurrency,
+    p_charges_amount: chargesAmount,
+    p_exchange_rate: exchangeRate,
+    p_note: note,
+  });
+
+export const logSavingsEntry = (amount, note) => call("log_savings_entry", { p_amount: amount, p_note: note });
+
+// tiers: [{ minWithdrawnUsd, maxWithdrawnUsd, requestCapAmount, requestCapCurrency }]
+export const adminSetRankWithdrawalTiers = (rankId, tiers) =>
+  call("admin_set_rank_withdrawal_tiers", { p_rank_id: rankId, p_tiers: tiers });
+
+export const getWalletSummary = (uid) => call("get_wallet_summary", { p_uid: uid });
+
+export const getWalletTransactions = (uid) => call("get_wallet_transactions", { p_uid: uid });
+
+export const adminSetWalletReferenceRate = (rate) => call("admin_set_wallet_reference_rate", { p_rate: rate });
