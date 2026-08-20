@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { supabase } from "../../supabaseClient.js";
+import { useAuth } from "../../lib/AuthContext.jsx";
+import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { getMindTrainingAssessmentForAttempt, submitMindTrainingAssessmentAttempt } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
@@ -9,9 +12,28 @@ import Icon from "../../components/Icon.jsx";
 // Same shape as QuizTaker.jsx, keyed by moduleId instead of lessonId since
 // a Mind Training assessment is one-per-module (unique module_id, 0066).
 export default function MindTrainingAssessmentTaker() {
-  const { pathId, moduleId } = useParams();
+  const { pathId, levelId, moduleId } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { user } = useAuth();
+
+  // The Final Assessment stays locked until every lesson in the level is
+  // done -- same guard, same "default unlocked while still loading"
+  // convention as MindTrainingActivityViewer/MindTrainingLessonViewer.
+  const { data: levelLessons } = useSupabaseQuery(
+    () => levelId && supabase.from("mind_training_lessons").select("id").eq("level_id", levelId).eq("published", true),
+    [levelId],
+  );
+  const { data: levelLessonProgress } = useSupabaseQuery(
+    () =>
+      user &&
+      levelLessons?.length > 0 &&
+      supabase.from("mind_training_lesson_progress").select("lesson_id").eq("uid", user.id).in("lesson_id", levelLessons.map((l) => l.id)),
+    [user?.id, levelLessons],
+  );
+  const lessonsFullyDone =
+    !levelLessons || levelLessons.length === 0 || levelLessonProgress === null || levelLessonProgress.length >= levelLessons.length;
+  const locked = !lessonsFullyDone;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -63,6 +85,19 @@ export default function MindTrainingAssessmentTaker() {
   };
 
   if (loading) return <Skeleton variant="card" height="240px" />;
+
+  if (locked) {
+    return (
+      <div>
+        <Link to={`/learning/mind-training/${pathId}`} style={{ color: "var(--slate)", fontSize: "13.5px" }}>
+          ← Back to path
+        </Link>
+        <div style={{ marginTop: "16px" }}>
+          <EmptyState icon={<Icon name="lock" size={26} />} title="This is locked" description="Complete all lessons in this level first." />
+        </div>
+      </div>
+    );
+  }
 
   // Covers both "no assessment row exists yet" (the RPC throws, caught into
   // `error`) and "an assessment row exists but has no questions yet" (the

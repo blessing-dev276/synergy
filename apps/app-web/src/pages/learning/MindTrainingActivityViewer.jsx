@@ -6,6 +6,7 @@ import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { markMindTrainingActivityComplete } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
+import EmptyState from "../../components/state/EmptyState.jsx";
 import Icon from "../../components/Icon.jsx";
 import BlockRenderer from "../../components/BlockRenderer.jsx";
 
@@ -24,7 +25,7 @@ const CATEGORY_META = {
 // field's `key` (lib pattern: mind_training_activities.input_fields,
 // 0070_mind_training_level_progress.sql).
 export default function MindTrainingActivityViewer() {
-  const { pathId, activityId } = useParams();
+  const { pathId, levelId, activityId } = useParams();
   const { user } = useAuth();
   const toast = useToast();
   const [completing, setCompleting] = useState(false);
@@ -34,6 +35,26 @@ export default function MindTrainingActivityViewer() {
     () => supabase.from("mind_training_activities").select("*").eq("id", activityId).single(),
     [activityId],
   );
+
+  // Practical Application / a challenge / the Final Assessment all stay
+  // locked until every lesson in the level is done -- same "default
+  // unlocked while still loading" convention as the lesson-to-lesson guard
+  // in MindTrainingLessonViewer, keyed by levelId instead of module since
+  // this guards against a direct URL, not just the path detail list.
+  const { data: levelLessons } = useSupabaseQuery(
+    () => levelId && supabase.from("mind_training_lessons").select("id").eq("level_id", levelId).eq("published", true),
+    [levelId],
+  );
+  const { data: levelLessonProgress } = useSupabaseQuery(
+    () =>
+      user &&
+      levelLessons?.length > 0 &&
+      supabase.from("mind_training_lesson_progress").select("lesson_id").eq("uid", user.id).in("lesson_id", levelLessons.map((l) => l.id)),
+    [user?.id, levelLessons],
+  );
+  const lessonsFullyDone =
+    !levelLessons || levelLessons.length === 0 || levelLessonProgress === null || levelLessonProgress.length >= levelLessons.length;
+  const locked = !lessonsFullyDone;
 
   const { data: progress, refetch: refetchProgress } = useSupabaseQuery(
     () =>
@@ -92,6 +113,19 @@ export default function MindTrainingActivityViewer() {
 
   if (loading) return <Skeleton variant="card" height="200px" />;
   if (!activity) return null;
+
+  if (locked) {
+    return (
+      <div>
+        <Link to={`/learning/mind-training/${pathId}`} style={{ color: "var(--slate)", fontSize: "13.5px" }}>
+          ← Back to path
+        </Link>
+        <div style={{ marginTop: "16px" }}>
+          <EmptyState icon={<Icon name="lock" size={26} />} title="This is locked" description="Complete all lessons in this level first." />
+        </div>
+      </div>
+    );
+  }
 
   const meta = CATEGORY_META[activity.category] ?? CATEGORY_META.activity;
   const completeLabel =

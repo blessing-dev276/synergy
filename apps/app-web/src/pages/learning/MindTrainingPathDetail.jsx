@@ -54,10 +54,10 @@ function countPath(levels) {
   return { total, done, percent: total === 0 ? 0 : Math.round((done / total) * 100) };
 }
 
-function ItemRow({ icon, title, done, meta, to, locked }) {
+function ItemRow({ icon, title, done, meta, to, locked, lockedReason = "Complete the previous lesson first" }) {
   if (locked) {
     return (
-      <li className="today-task-row mt-item-row" style={{ opacity: 0.55, cursor: "not-allowed" }} title="Complete the previous lesson first">
+      <li className="today-task-row mt-item-row" style={{ opacity: 0.55, cursor: "not-allowed" }} title={lockedReason}>
         <span className="today-task-check" aria-hidden="true" />
         <div className="today-task-body" style={{ minWidth: 0 }}>
           <div className="today-task-title">
@@ -87,7 +87,15 @@ function ItemRow({ icon, title, done, meta, to, locked }) {
   );
 }
 
-function ModuleBlock({ pathId, levelId, module: m }) {
+// A module with no lessons of its own (Practical Application, a challenge,
+// the Final Assessment) stays locked until every lesson in the level is
+// done -- lessons are always the level's first module in practice, but this
+// checks lessonsFullyDone rather than assuming module order, so it holds up
+// regardless of how an admin orders modules.
+function ModuleBlock({ pathId, levelId, module: m, lessonsFullyDone }) {
+  const isLessonModule = m.lessons.length > 0;
+  const moduleLocked = !isLessonModule && !lessonsFullyDone;
+
   return (
     <div className="mt-module">
       <div className="mt-module-title">{m.title}</div>
@@ -122,6 +130,8 @@ function ModuleBlock({ pathId, levelId, module: m }) {
             icon="target"
             title={a.title}
             done={a.done}
+            locked={moduleLocked}
+            lockedReason="Complete all lessons in this level first"
             meta={<span className="badge badge-neutral">Activity</span>}
             to={`/learning/mind-training/${pathId}/${levelId}/${m.id}/activity/${a.id}`}
           />
@@ -131,6 +141,8 @@ function ModuleBlock({ pathId, levelId, module: m }) {
             icon="award"
             title={m.assessment.title}
             done={m.assessment.passed}
+            locked={moduleLocked}
+            lockedReason="Complete all lessons in this level first"
             meta={<span className="badge badge-neutral">Assessment</span>}
             to={`/learning/mind-training/${pathId}/${levelId}/${m.id}/assessment`}
           />
@@ -241,6 +253,7 @@ export default function MindTrainingPathDetail() {
         const levelPercent = c.total === 0 ? 0 : Math.round((c.done / c.total) * 100);
         const s = level.summary ?? {};
         const unlocked = isMilestoneUnlocked(s);
+        const lessonsFullyDone = (s.lessonsTotal ?? 0) > 0 && s.lessonsDone === s.lessonsTotal;
         return (
           <div key={level.id} className="card-elevated mt-level">
             <div className="mt-level-header">
@@ -280,7 +293,7 @@ export default function MindTrainingPathDetail() {
               <p style={{ color: "var(--slate)", fontSize: "13.5px" }}>No modules published yet.</p>
             )}
             {level.modules.map((m) => (
-              <ModuleBlock key={m.id} pathId={pathId} levelId={level.id} module={m} />
+              <ModuleBlock key={m.id} pathId={pathId} levelId={level.id} module={m} lessonsFullyDone={lessonsFullyDone} />
             ))}
 
             {level.milestone && (
