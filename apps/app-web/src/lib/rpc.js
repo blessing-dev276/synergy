@@ -96,7 +96,8 @@ export const adminSetMemberRank = (uid, rankId) =>
 export const adminGetMembersByRank = () => call("admin_get_members_by_rank", {});
 
 // ---------- rank tasks (checkbox-complete or auto-tracked, per rank) ----------
-// proxy: { type: 'manual' | 'modules_count' | 'path_complete', pathId, threshold }
+// proxy: { type: 'manual' | 'modules_count' | 'path_complete' | 'prospects_count'
+//   | 'mind_training_modules_count' | 'mind_training_path_complete', pathId, threshold }
 export const adminCreateRankTask = (rankId, title, description, recurrence, proxy) =>
   call("admin_create_rank_task", {
     p_rank_id: rankId,

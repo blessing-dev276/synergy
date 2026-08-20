@@ -34,6 +34,22 @@ const SECTION_LABEL = {
   mind_training: "Mind Training",
 };
 
+// Mirrors the proxy_type check constraint on rank_tasks (0065, extended by
+// 0078) -- each entry's shape (needs a path? needs a threshold?) drives
+// RankTaskModal's form below and must stay in lockstep with
+// admin_create_rank_task/admin_update_rank_task's own validation.
+const PROXY_TYPES = [
+  { value: "manual", label: "Member self-reports — you approve or reject" },
+  { value: "modules_count", label: "Automatic — N modules completed in a path" },
+  { value: "path_complete", label: "Automatic — a whole path completed" },
+  { value: "prospects_count", label: "Automatic — N prospects added that day" },
+  { value: "mind_training_modules_count", label: "Automatic — N Mind Training modules completed" },
+  { value: "mind_training_path_complete", label: "Automatic — a whole Mind Training path completed" },
+];
+const PATH_PROXY_TYPES = new Set(["modules_count", "path_complete", "mind_training_modules_count", "mind_training_path_complete"]);
+const THRESHOLD_PROXY_TYPES = new Set(["modules_count", "prospects_count", "mind_training_modules_count"]);
+const MIND_TRAINING_PROXY_TYPES = new Set(["mind_training_modules_count", "mind_training_path_complete"]);
+
 // Checkbox-attach UI for admin_set_rank_learning_paths -- a single
 // "replace everything in one call" RPC, so this batches local checkbox
 // state and saves it all at once rather than firing one call per toggle.
@@ -191,11 +207,14 @@ function RankMembersPanel({ rank, ranks, members, onChanged }) {
 // an admin has one place to check rather than opening every rank looking
 // for pending work.
 function proxySummary(task, pathTitleById) {
-  if (task.proxy_type === "modules_count") {
+  if (task.proxy_type === "modules_count" || task.proxy_type === "mind_training_modules_count") {
     return `Auto · ${task.proxy_threshold} module${task.proxy_threshold === 1 ? "" : "s"} in ${pathTitleById.get(task.proxy_path_id) ?? "a path"}${task.recurrence === "daily" ? "/day" : ""}`;
   }
-  if (task.proxy_type === "path_complete") {
+  if (task.proxy_type === "path_complete" || task.proxy_type === "mind_training_path_complete") {
     return `Auto · finish ${pathTitleById.get(task.proxy_path_id) ?? "a path"}`;
+  }
+  if (task.proxy_type === "prospects_count") {
+    return `Auto · ${task.proxy_threshold} prospect${task.proxy_threshold === 1 ? "" : "s"} added${task.recurrence === "daily" ? "/day" : ""}`;
   }
   return null;
 }
@@ -254,21 +273,27 @@ function RankTaskModal({ rankId, rankTitle, task, paths, onClose, onSaved }) {
   const [proxyThreshold, setProxyThreshold] = useState(task?.proxy_threshold ?? "");
   const [saving, setSaving] = useState(false);
 
+  const needsPath = PATH_PROXY_TYPES.has(proxyType);
+  const needsThreshold = THRESHOLD_PROXY_TYPES.has(proxyType);
+  const pathOptions = (paths ?? []).filter((p) =>
+    MIND_TRAINING_PROXY_TYPES.has(proxyType) ? p.section === "mind_training" : p.section !== "mind_training",
+  );
+
   const submit = async (e) => {
     e.preventDefault();
-    if (proxyType !== "manual" && !proxyPathId) {
+    if (needsPath && !proxyPathId) {
       toast.error("Pick a learning path to track.");
       return;
     }
-    if (proxyType === "modules_count" && !(Number(proxyThreshold) > 0)) {
-      toast.error("Enter how many modules must be completed.");
+    if (needsThreshold && !(Number(proxyThreshold) > 0)) {
+      toast.error(proxyType === "prospects_count" ? "Enter how many prospects must be added." : "Enter how many modules must be completed.");
       return;
     }
     setSaving(true);
     const proxy = {
       type: proxyType,
-      pathId: proxyType === "manual" ? null : proxyPathId,
-      threshold: proxyType === "modules_count" ? Number(proxyThreshold) : null,
+      pathId: needsPath ? proxyPathId : null,
+      threshold: needsThreshold ? Number(proxyThreshold) : null,
     };
     try {
       if (isEdit) {
@@ -305,28 +330,48 @@ function RankTaskModal({ rankId, rankTitle, task, paths, onClose, onSaved }) {
         </div>
         <div className="field">
           <label>How is it completed?</label>
-          <select value={proxyType} onChange={(e) => setProxyType(e.target.value)}>
-            <option value="manual">Member self-reports — you approve or reject</option>
-            <option value="modules_count">Automatic — N modules completed in a path</option>
-            <option value="path_complete">Automatic — a whole path completed</option>
+          <select
+            value={proxyType}
+            onChange={(e) => {
+              setProxyType(e.target.value);
+              setProxyPathId("");
+            }}
+          >
+            {PROXY_TYPES.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
           </select>
         </div>
         {proxyType !== "manual" && (
           <>
-            <div className="field">
-              <label>Learning path to track</label>
-              <select required value={proxyPathId} onChange={(e) => setProxyPathId(e.target.value)}>
-                <option value="">Choose a path…</option>
-                {paths?.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {proxyType === "modules_count" && (
+            {needsPath && (
               <div className="field">
-                <label>Modules required{recurrence === "daily" ? " per day" : ""}</label>
+                <label>{MIND_TRAINING_PROXY_TYPES.has(proxyType) ? "Mind Training path to track" : "Learning path to track"}</label>
+                <select required value={proxyPathId} onChange={(e) => setProxyPathId(e.target.value)}>
+                  <option value="">Choose a path…</option>
+                  {pathOptions.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title}
+                    </option>
+                  ))}
+                </select>
+                {pathOptions.length === 0 && (
+                  <p style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "6px" }}>
+                    {MIND_TRAINING_PROXY_TYPES.has(proxyType)
+                      ? "No published Mind Training paths yet."
+                      : "No published Skill Set / Network Marketing paths yet."}
+                  </p>
+                )}
+              </div>
+            )}
+            {needsThreshold && (
+              <div className="field">
+                <label>
+                  {proxyType === "prospects_count" ? "Prospects required" : "Modules required"}
+                  {recurrence === "daily" ? " per day" : ""}
+                </label>
                 <input
                   required
                   type="number"
