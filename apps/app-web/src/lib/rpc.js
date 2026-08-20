@@ -139,6 +139,12 @@ export const submitRankTask = (rankTaskId) => call("submit_rank_task", { p_rank_
 export const reviewRankTaskSubmission = (submissionId, decision, note) =>
   call("review_rank_task_submission", { p_submission_id: submissionId, p_decision: decision, p_note: note });
 
+// Auto-filed the moment every learning path attached to a member's rank is
+// 100% complete (evaluate_rank_advancement, 0082) -- no member-facing submit
+// call, only the admin decision.
+export const reviewRankAdvancementRequest = (requestId, decision, note) =>
+  call("review_rank_advancement_request", { p_request_id: requestId, p_decision: decision, p_note: note });
+
 // ---------- participation path ----------
 export const requestParticipationPath = (requestedPath, reason) =>
   call("request_participation_path", { p_requested_path: requestedPath, p_reason: reason });

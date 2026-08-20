@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../../supabaseClient.js";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { useToast } from "../../../components/state/Toast.jsx";
-import { gradeAssignment, reviewContentEvidence, reviewRankTaskSubmission } from "../../../lib/rpc.js";
+import { gradeAssignment, reviewContentEvidence, reviewRankTaskSubmission, reviewRankAdvancementRequest } from "../../../lib/rpc.js";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
@@ -84,6 +84,83 @@ function RankTaskSubmissionsSection() {
             </button>
             <button type="button" className="btn btn-danger" disabled={busyId === s.id} onClick={() => decide(s, "rejected")}>
               Not approved
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Auto-filed the moment every learning path attached to a member's rank is
+// 100% complete (evaluate_rank_advancement, 0082) -- no member action to
+// wait on, just an admin decision. Same shape as RankTaskSubmissionsSection
+// above, one query with two embedded ranks (from/to) instead of one task.
+function RankAdvancementRequestsSection() {
+  const toast = useToast();
+  const { loading, data: requests, refetch } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("rank_advancement_requests")
+        .select(
+          "*, member:profiles!rank_advancement_requests_uid_fkey(display_name, email), fromRank:ranks!rank_advancement_requests_from_rank_id_fkey(title), toRank:ranks!rank_advancement_requests_to_rank_id_fkey(title)",
+        )
+        .eq("status", "pending")
+        .order("requested_at", { ascending: true }),
+    [],
+  );
+  const [busyId, setBusyId] = useState(null);
+  const [notes, setNotes] = useState({});
+
+  const decide = async (request, decision) => {
+    if (
+      decision === "rejected" &&
+      !window.confirm(`Decline ${request.member?.display_name || request.member?.email}'s advancement to ${request.toRank?.title}?`)
+    )
+      return;
+    setBusyId(request.id);
+    try {
+      await reviewRankAdvancementRequest(request.id, decision, (notes[request.id] ?? "").trim());
+      toast.success(decision === "approved" ? "Advanced to the next rank." : "Request declined.");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't review that request.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      {loading && <Skeleton variant="card" height="140px" />}
+      {!loading && (!requests || requests.length === 0) && (
+        <EmptyState icon={<Icon name="trophy" size={26} />} title="Nothing pending review" />
+      )}
+      {requests?.map((r) => (
+        <div key={r.id} className="card" style={{ marginBottom: "14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
+            <Link to={`/admin/members/${r.uid}`} style={{ fontWeight: 600 }}>
+              {r.member?.display_name || r.member?.email}
+            </Link>
+            <span style={{ fontSize: "12px", color: "var(--slate)" }}>{new Date(r.requested_at).toLocaleString()}</span>
+          </div>
+          <p style={{ fontSize: "13.5px", marginBottom: "8px" }}>
+            Finished every learning path for <strong>{r.fromRank?.title}</strong> — ready for <strong>{r.toRank?.title}</strong>
+          </p>
+          <div className="field" style={{ marginBottom: "8px" }}>
+            <input
+              type="text"
+              placeholder="Note (optional, shown to the member if declined)"
+              value={notes[r.id] ?? ""}
+              onChange={(e) => setNotes((prev) => ({ ...prev, [r.id]: e.target.value }))}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button type="button" className="btn btn-primary" disabled={busyId === r.id} onClick={() => decide(r, "approved")}>
+              Approve
+            </button>
+            <button type="button" className="btn btn-danger" disabled={busyId === r.id} onClick={() => decide(r, "rejected")}>
+              Decline
             </button>
           </div>
         </div>
@@ -266,6 +343,7 @@ function TaskEvidenceSection() {
 }
 
 const SECTIONS = [
+  { id: "rank-advancement", label: "Rank Advancement", icon: "trophy", Component: RankAdvancementRequestsSection },
   { id: "rank-tasks", label: "Rank Tasks", icon: "compass", Component: RankTaskSubmissionsSection },
   { id: "assignments", label: "Course Assignments", icon: "folder", Component: AssignmentGradingSection },
   { id: "evidence", label: "Task Evidence", icon: "check-square", Component: TaskEvidenceSection },
@@ -299,13 +377,13 @@ function SectionBlock({ section, isOpen, onToggle }) {
 }
 
 export default function Submissions() {
-  const [openSection, setOpenSection] = useState("rank-tasks");
+  const [openSection, setOpenSection] = useState("rank-advancement");
 
   return (
     <div>
       <div className="hero-banner">
         <h1>Submissions</h1>
-        <p>Every kind of member submission waiting on a decision — rank tasks, course assignments, and task evidence — in one place.</p>
+        <p>Every kind of member submission waiting on a decision — rank advancement, rank tasks, course assignments, and task evidence — in one place.</p>
       </div>
 
       <p style={{ color: "var(--slate)", margin: "20px 0 12px" }}>
