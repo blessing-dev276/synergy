@@ -21,6 +21,11 @@ import PathDetail from "./pages/learning/PathDetail.jsx";
 import CourseDetail from "./pages/learning/CourseDetail.jsx";
 import LessonViewer from "./pages/learning/LessonViewer.jsx";
 import QuizTaker from "./pages/learning/QuizTaker.jsx";
+import MindTrainingPathDetail from "./pages/learning/MindTrainingPathDetail.jsx";
+import MindTrainingLessonViewer from "./pages/learning/MindTrainingLessonViewer.jsx";
+import MindTrainingActivityViewer from "./pages/learning/MindTrainingActivityViewer.jsx";
+import MindTrainingAssessmentTaker from "./pages/learning/MindTrainingAssessmentTaker.jsx";
+import PersonalDevelopmentResourceDetail from "./pages/learning/PersonalDevelopmentResourceDetail.jsx";
 import AssignmentList from "./pages/assignments/AssignmentList.jsx";
 import AssignmentDetail from "./pages/assignments/AssignmentDetail.jsx";
 import TaskList from "./pages/tasks/TaskList.jsx";
@@ -36,6 +41,9 @@ import ActivityLog from "./pages/admin/ActivityLog.jsx";
 import ContentBuilder from "./pages/admin/content/ContentBuilder.jsx";
 import CourseEditor from "./pages/admin/content/CourseEditor.jsx";
 import RankBuilder from "./pages/admin/business-path/RankBuilder.jsx";
+import MindTrainingManager from "./pages/admin/mind-training/MindTrainingManager.jsx";
+import MindTrainingPathManager from "./pages/admin/mind-training/MindTrainingPathManager.jsx";
+import PersonalDevelopmentManager from "./pages/admin/personal-development/PersonalDevelopmentManager.jsx";
 import MemberDetail from "./pages/admin/members/MemberDetail.jsx";
 import NetworkOverview from "./pages/admin/network/NetworkOverview.jsx";
 import Submissions from "./pages/admin/submissions/Submissions.jsx";
@@ -71,6 +79,28 @@ function App() {
             <Route element={<MemberLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/learning" element={<PathList />} />
+              {/* Mind Training and Personal Development are separate, fixed
+                  path segments (not :pathId-shaped) -- react-router ranks a
+                  static segment above a dynamic one at the same position
+                  regardless of declaration order, so these never collide
+                  with a skill_set/nm_business learning_paths id matched by
+                  /learning/:pathId below. */}
+              <Route path="/learning/mind-training" element={<PathList />} />
+              <Route path="/learning/mind-training/:pathId" element={<MindTrainingPathDetail />} />
+              <Route
+                path="/learning/mind-training/:pathId/:levelId/:moduleId/lesson/:lessonId"
+                element={<MindTrainingLessonViewer />}
+              />
+              <Route
+                path="/learning/mind-training/:pathId/:levelId/:moduleId/activity/:activityId"
+                element={<MindTrainingActivityViewer />}
+              />
+              <Route
+                path="/learning/mind-training/:pathId/:levelId/:moduleId/assessment"
+                element={<MindTrainingAssessmentTaker />}
+              />
+              <Route path="/learning/personal-development" element={<PathList />} />
+              <Route path="/learning/personal-development/:resourceId" element={<PersonalDevelopmentResourceDetail />} />
               <Route path="/learning/:pathId" element={<PathDetail />} />
               <Route path="/learning/:pathId/:courseId" element={<CourseDetail />} />
               <Route
@@ -100,6 +130,9 @@ function App() {
               <Route path="/admin/journey" element={<Navigate to="/admin/business-path" replace />} />
               <Route path="/admin/content" element={<ContentBuilder />} />
               <Route path="/admin/content/courses/:courseId" element={<CourseEditor />} />
+              <Route path="/admin/mind-training" element={<MindTrainingManager />} />
+              <Route path="/admin/mind-training/:pathId" element={<MindTrainingPathManager />} />
+              <Route path="/admin/personal-development" element={<PersonalDevelopmentManager />} />
               <Route path="/admin/members/:uid" element={<MemberDetail />} />
               <Route path="/admin/submissions" element={<Submissions />} />
               <Route path="/admin/leaderboard" element={<Leaderboard />} />

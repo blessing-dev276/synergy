@@ -8,6 +8,12 @@ const sections = [
     items: [{ to: "/admin/content", label: "Learning Hub", icon: "layers", end: true }],
   },
   {
+    items: [{ to: "/admin/mind-training", label: "Mind Training", icon: "brain", end: true }],
+  },
+  {
+    items: [{ to: "/admin/personal-development", label: "Personal Development", icon: "book", end: true }],
+  },
+  {
     items: [{ to: "/admin/business-path", label: "Business Path", icon: "compass", end: true }],
   },
   {

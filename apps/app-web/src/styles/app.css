@@ -743,3 +743,90 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
 @media (prefers-reduced-motion: reduce){
   .boot-loader-orb::before, .boot-loader-ring, .boot-loader-ring-2, .boot-loader-logo, .boot-loader-dots span{ animation:none !important; }
 }
+
+/* ---------- Mind Training ---------- */
+.mt-hero{ display:flex; align-items:center; gap:22px; flex-wrap:wrap; }
+.mt-hero-ring{ flex-shrink:0; }
+.mt-hero-ring .progress-ring-label{ color:#fff; }
+.mt-hero-copy p{ color:rgba(255,255,255,0.72); margin-top:6px; max-width:60ch; }
+
+.mt-path-card{ display:flex; align-items:center; gap:16px; }
+.mt-path-card .card-title{ margin-bottom:2px; }
+.mt-path-card-ring{ flex-shrink:0; }
+
+.mt-level{ margin-bottom:16px; }
+.mt-level-header{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px; }
+.mt-level-title{ font-size:18px; font-weight:600; font-family:'Space Grotesk', sans-serif; }
+.mt-level-percent{ font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:600; color:var(--slate); flex-shrink:0; }
+.mt-level-desc{ color:var(--slate); font-size:13.5px; margin-bottom:14px; }
+
+.mt-module{ margin-bottom:12px; padding-bottom:2px; }
+.mt-module:last-child{ margin-bottom:0; }
+.mt-module-title{ font-size:14.5px; font-weight:600; color:var(--navy-soft); margin-bottom:2px; display:flex; align-items:center; gap:8px; }
+
+/* Reuses the dashboard's checklist-row primitives (.today-task-row et al,
+   defined above) -- a lesson/activity/assessment row is the same visual
+   idea as a today's-tasks row: a check state, a title, trailing meta. */
+.mt-item-row .today-task-title{ display:flex; align-items:center; gap:8px; }
+
+.mt-resources{ margin-top:28px; }
+.mt-resources-group{ margin-bottom:22px; }
+.mt-resources-group-title{ display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; color:var(--navy-soft); margin-bottom:10px; }
+.mt-resources-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+
+/* ---------- lesson content blocks (Mind Training lesson reading view) ---------- */
+.lesson-blocks{ display:flex; flex-direction:column; gap:14px; font-size:15px; line-height:1.7; color:var(--navy-soft); }
+.lesson-block-heading{ font-size:19px; color:var(--navy); margin-top:6px; }
+.lesson-block-paragraph{ white-space:pre-wrap; }
+.lesson-block-list{ padding-left:22px; display:flex; flex-direction:column; gap:6px; }
+.lesson-block-quote{
+  border-left:3px solid var(--blue); padding:4px 0 4px 16px; font-style:italic; color:var(--navy);
+}
+.lesson-block-quote cite{ display:block; margin-top:6px; font-style:normal; font-size:13px; color:var(--slate); }
+.lesson-block-image{ border-radius:12px; overflow:hidden; border:1px solid var(--line); }
+.lesson-block-image img{ width:100%; display:block; }
+.lesson-block-image figcaption{ padding:8px 12px; font-size:12.5px; color:var(--slate); background:var(--surface); }
+.lesson-block-example{
+  background:var(--gold-soft); border-radius:10px; padding:14px 16px; color:var(--navy);
+}
+.lesson-block-example-label{ display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--gold); margin-bottom:6px; }
+
+.mt-lesson-section{ margin-top:26px; padding-top:22px; border-top:1px solid var(--line); }
+.mt-lesson-section-title{ display:flex; align-items:center; gap:8px; font-size:15px; font-weight:700; margin-bottom:10px; }
+.mt-reflection-list{ display:flex; flex-direction:column; gap:10px; }
+.mt-reflection-item{ background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; }
+
+/* ---------- admin: Mind Training block editor ---------- */
+.mt-block-editor-row{
+  border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:8px; background:var(--surface);
+}
+.mt-block-editor-head{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.mt-block-editor-type{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--slate); flex:1; }
+
+/* ---------- Personal Development ---------- */
+.pd-toolbar{ display:flex; flex-direction:column; gap:14px; margin-bottom:24px; }
+.pd-type-pills{ display:flex; gap:8px; flex-wrap:wrap; }
+.pd-tag-pills{ display:flex; gap:8px; flex-wrap:wrap; }
+.pd-tag-pill{
+  font-size:12.5px; font-weight:600; padding:6px 13px; border-radius:100px;
+  background:var(--surface); border:1px solid var(--line); color:var(--navy-soft); cursor:pointer;
+  transition:all .15s ease;
+}
+.pd-tag-pill:hover{ border-color:var(--blue-bright); color:var(--navy); }
+.pd-tag-pill.active{ background:var(--blue); border-color:var(--blue); color:#fff; }
+
+.pd-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:16px; }
+.pd-resource-card{ display:flex; flex-direction:column; gap:10px; }
+.pd-resource-thumb{
+  width:100%; aspect-ratio:16/10; border-radius:10px; overflow:hidden; background:var(--bg);
+  display:flex; align-items:center; justify-content:center; color:var(--slate); flex-shrink:0;
+}
+.pd-resource-thumb img{ width:100%; height:100%; object-fit:cover; }
+.pd-resource-meta{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--slate); }
+.pd-resource-tags{ display:flex; gap:6px; flex-wrap:wrap; margin-top:2px; }
+.pd-resource-tag{ font-size:11px; font-weight:600; padding:3px 9px; border-radius:100px; background:var(--chip-contrast-bg); color:var(--navy-soft); }
+
+.pd-detail-header{ display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; margin-bottom:24px; }
+.pd-detail-thumb{ width:160px; flex-shrink:0; border-radius:14px; overflow:hidden; background:var(--bg); }
+.pd-detail-thumb img{ width:100%; display:block; }
+.pd-detail-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }

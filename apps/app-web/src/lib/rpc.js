@@ -177,3 +177,28 @@ export const logProspectActivity = (prospectId, activityType, note, nextFollowUp
   });
 
 export const getAdminProspectingOverview = () => call("get_admin_prospecting_overview", {});
+
+// ---------- Mind Training (independent from the Learning Hub's courses/modules/lessons) ----------
+// get_my_mind_training_paths/get_my_mind_training_path are read via
+// useSupabaseQuery + supabase.rpc(...) directly wherever they're used
+// (same split this file already has for get_learning_paths -- a plain
+// wrapper here for the declarative-loading-state call sites would just be
+// dead code) -- only the imperative write/attempt calls need a wrapper.
+export const markMindTrainingLessonComplete = (lessonId) =>
+  call("mark_mind_training_lesson_complete", { p_lesson_id: lessonId });
+
+export const markMindTrainingActivityComplete = (activityId) =>
+  call("mark_mind_training_activity_complete", { p_activity_id: activityId });
+
+export const getMindTrainingAssessmentForAttempt = (moduleId) =>
+  call("get_mind_training_assessment_for_attempt", { p_module_id: moduleId });
+
+export const submitMindTrainingAssessmentAttempt = (assessmentId, answers) =>
+  call("submit_mind_training_assessment_attempt", { p_assessment_id: assessmentId, p_answers: answers });
+
+// ---------- Personal Development ----------
+export const adminSetResourceLearningPaths = (resourceId, learningPathIds) =>
+  call("admin_set_resource_learning_paths", { p_resource_id: resourceId, p_learning_path_ids: learningPathIds });
+
+export const adminSetResourceTags = (resourceId, tagIds) =>
+  call("admin_set_resource_tags", { p_resource_id: resourceId, p_tag_ids: tagIds });

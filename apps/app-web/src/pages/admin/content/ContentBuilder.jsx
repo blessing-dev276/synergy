@@ -19,13 +19,19 @@ function pathHue(id) {
   return PATH_HUES[Math.abs(hash) % PATH_HUES.length];
 }
 
-// The Learning Hub's three fixed, Udemy-style top-level catalog tabs. Fixed
-// on purpose (not an admin-configurable table like track_specializations,
-// 0017) — there are exactly three and that's not expected to change.
+// The Learning Hub's two remaining tabs here (skill_set/nm_business — same
+// fixed, non-admin-configurable catalog sections as before, unchanged).
+// mind_training used to be a third tab in this same builder, sharing this
+// page's courses/modules/lessons editor; it's been retired from here now
+// that Mind Training has its own dedicated, purpose-built admin section
+// (/admin/mind-training, MindTrainingManager.jsx + MindTrainingPathManager.jsx)
+// with its own Level/Module/Lesson/Activity/Assessment tree, rich lesson
+// content, and independent progress tracking — this old shared editor was
+// never a good fit for that shape. Nothing here changes for skill_set/
+// nm_business themselves.
 const SECTIONS = [
   { key: "skill_set", label: "Skill Set Training", icon: "layers" },
   { key: "nm_business", label: "Network Marketing Business Training", icon: "briefcase" },
-  { key: "mind_training", label: "Mind Training", icon: "brain" },
 ];
 
 // A class holds a mix of structured courses (build out modules/lessons in
@@ -109,11 +115,11 @@ function PathModal({ section, sectionLabel, path, onClose, onSaved }) {
   );
 }
 
-function ResourceModal({ pathId, pathTitle, sectionKey, course, onClose, onSaved }) {
+function ResourceModal({ pathId, pathTitle, course, onClose, onSaved }) {
   const { user } = useAuth();
   const toast = useToast();
   const isEdit = !!course;
-  const [type, setType] = useState(course?.resource_type ?? (sectionKey === "mind_training" ? "book" : "course"));
+  const [type, setType] = useState(course?.resource_type ?? "course");
   const [title, setTitle] = useState(course?.title ?? "");
   const [author, setAuthor] = useState(course?.resource_author ?? "");
   const [description, setDescription] = useState(course?.description ?? "");
@@ -149,7 +155,7 @@ function ResourceModal({ pathId, pathTitle, sectionKey, course, onClose, onSaved
   };
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? "Edit Resource" : sectionKey === "mind_training" ? "Add Mind Training Resource" : "Add Resource"}>
+    <Modal open onClose={onClose} title={isEdit ? "Edit Resource" : "Add Resource"}>
       <form onSubmit={submit}>
         <div className="field">
           <label>Type</label>
@@ -287,7 +293,7 @@ function CourseRow({ course, isFirst, isLast, onReorder, onEdit, onChanged }) {
   );
 }
 
-function PathBlock({ path, sectionKey, isOpen, onToggle, isFirst, isLast, onReorder, onChanged, onEdit }) {
+function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChanged, onEdit }) {
   const toast = useToast();
   const [resourceModal, setResourceModal] = useState(null); // null closed | {} add | course edit
   const [typeFilter, setTypeFilter] = useState("all");
@@ -447,7 +453,6 @@ function PathBlock({ path, sectionKey, isOpen, onToggle, isFirst, isLast, onReor
             <ResourceModal
               pathId={path.id}
               pathTitle={path.title}
-              sectionKey={sectionKey}
               course={resourceModal.id ? resourceModal : null}
               onClose={() => setResourceModal(null)}
               onSaved={() => {
@@ -551,7 +556,6 @@ export default function ContentBuilder() {
         <PathBlock
           key={path.id}
           path={path}
-          sectionKey={section}
           isOpen={openPathId === path.id}
           onToggle={() => setOpenPathId((prev) => (prev === path.id ? null : path.id))}
           isFirst={i === 0}
