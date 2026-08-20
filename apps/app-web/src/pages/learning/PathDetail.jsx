@@ -30,6 +30,7 @@ export default function PathDetail() {
   // loaded yet, same as the old `locked ?? false` default did.
   const { data: paths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths"), []);
   const accessible = !paths || paths.some((p) => p.id === pathId);
+  const completed = paths?.find((p) => p.id === pathId)?.completed ?? false;
 
   const {
     loading: loadingCourses,
@@ -53,7 +54,15 @@ export default function PathDetail() {
       {loadingPath && <Skeleton variant="text" width="240px" height="28px" style={{ marginTop: "16px" }} />}
       {path && (
         <>
-          <h1 style={{ marginTop: "16px" }}>{path.title}</h1>
+          <h1 style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "10px" }}>
+            {path.title}
+            {completed && (
+              <span className="badge badge-success">
+                <Icon name="check" size={11} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
+                Completed
+              </span>
+            )}
+          </h1>
           <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "24px" }}>{path.description}</p>
         </>
       )}

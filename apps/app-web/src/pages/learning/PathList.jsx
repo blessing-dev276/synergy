@@ -132,6 +132,12 @@ export default function PathList() {
                   <div className="card-title">{path.title}</div>
                   <div className="card-subtitle">{path.description}</div>
                   <span className="badge badge-neutral">{path.courseCount ?? 0} resources</span>
+                  {path.completed && (
+                    <span className="badge badge-success" style={{ marginLeft: "6px" }}>
+                      <Icon name="check" size={11} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
+                      Completed
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>
