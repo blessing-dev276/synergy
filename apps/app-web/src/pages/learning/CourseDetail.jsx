@@ -7,6 +7,7 @@ import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
+import BackLink from "../../components/BackLink.jsx";
 
 // progressByLessonId: Map<lessonId, 'in_progress' | 'completed'> for the
 // whole course, fetched once at the CourseDetail level (below) rather than
@@ -118,9 +119,10 @@ export default function CourseDetail() {
 
   return (
     <div>
-      {loadingCourse && <Skeleton variant="text" width="240px" height="28px" />}
+      <BackLink to={`/learning/${pathId}`}>Back to path</BackLink>
+      {loadingCourse && <Skeleton variant="text" width="240px" height="28px" style={{ marginTop: "16px" }} />}
       {course && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: "16px", marginBottom: "24px" }}>
           <div>
             <h1>{course.title}</h1>
             <p style={{ color: "var(--slate)", marginTop: "6px" }}>{course.description}</p>

@@ -4,6 +4,7 @@ import { getQuizForAttempt, submitQuizAttempt, markLessonComplete } from "../../
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
+import BackLink from "../../components/BackLink.jsx";
 
 export default function QuizTaker() {
   const { pathId, courseId, moduleId, lessonId } = useParams();
@@ -85,7 +86,8 @@ export default function QuizTaker() {
 
   return (
     <div>
-      <h1>{quiz.title}</h1>
+      <BackLink to={`/learning/${pathId}/${courseId}/${moduleId}/${lessonId}`}>Back to lesson</BackLink>
+      <h1 style={{ marginTop: "16px" }}>{quiz.title}</h1>
       <p style={{ color: "var(--slate)", marginBottom: "20px" }}>Pass mark: {quiz.passScorePercent}%</p>
       {quiz.questions.map((question, index) => (
         <div key={question.id} className="card" style={{ marginBottom: "14px" }}>

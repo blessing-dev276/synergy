@@ -5,6 +5,7 @@ import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
 import Icon from "../../components/Icon.jsx";
+import BackLink from "../../components/BackLink.jsx";
 
 // Mirrors ContentBuilder.jsx's RESOURCE_TYPES -- a course drills into the
 // lesson flow below; every other type has no lessons at all, its
@@ -48,10 +49,11 @@ export default function PathDetail() {
 
   return (
     <div>
-      {loadingPath && <Skeleton variant="text" width="240px" height="28px" />}
+      <BackLink to="/learning">Back to Learning</BackLink>
+      {loadingPath && <Skeleton variant="text" width="240px" height="28px" style={{ marginTop: "16px" }} />}
       {path && (
         <>
-          <h1>{path.title}</h1>
+          <h1 style={{ marginTop: "16px" }}>{path.title}</h1>
           <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "24px" }}>{path.description}</p>
         </>
       )}

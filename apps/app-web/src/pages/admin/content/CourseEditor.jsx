@@ -7,6 +7,7 @@ import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 import Modal from "../../../components/Modal.jsx";
+import BackLink from "../../../components/BackLink.jsx";
 import QuizBuilder from "./QuizBuilder.jsx";
 import AssignmentBuilder from "./AssignmentBuilder.jsx";
 
@@ -542,7 +543,8 @@ export default function CourseEditor() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", gap: "12px" }}>
+      <BackLink to="/admin/content">Back to Learning Hub</BackLink>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: "16px", marginBottom: "20px", gap: "12px" }}>
         {editingCourse ? (
           <EditCourseForm course={course} onSaved={() => { setEditingCourse(false); refetchCourse(); }} onCancel={() => setEditingCourse(false)} />
         ) : (

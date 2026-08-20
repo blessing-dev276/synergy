@@ -17,6 +17,7 @@ import EmptyState from "../../../components/state/EmptyState.jsx";
 import SponsorPicker from "../../../components/SponsorPicker.jsx";
 import ContentPicker from "../../../components/ContentPicker.jsx";
 import Modal from "../../../components/Modal.jsx";
+import BackLink from "../../../components/BackLink.jsx";
 
 const TASK_TYPES = [
   "learning",
@@ -783,7 +784,8 @@ export default function MemberDetail() {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "22px" }}>
+      <BackLink to="/admin/settings/team">Back to Team</BackLink>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "16px", marginBottom: "22px" }}>
         <h1 style={{ marginBottom: 0 }}>{member.display_name || member.email}</h1>
         <span className="badge badge-neutral">{member.role}</span>
       </div>

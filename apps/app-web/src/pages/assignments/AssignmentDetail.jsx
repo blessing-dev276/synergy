@@ -5,6 +5,7 @@ import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
+import BackLink from "../../components/BackLink.jsx";
 
 export default function AssignmentDetail() {
   const { assignmentId } = useParams();
@@ -82,7 +83,8 @@ export default function AssignmentDetail() {
 
   return (
     <div>
-      <h1>{assignment.title}</h1>
+      <BackLink to="/assignments">Back to Assignments</BackLink>
+      <h1 style={{ marginTop: "16px" }}>{assignment.title}</h1>
       <div className="card" style={{ marginTop: "16px", marginBottom: "20px" }}>
         <div className="card-title">Instructions</div>
         <p>{assignment.instructions}</p>
