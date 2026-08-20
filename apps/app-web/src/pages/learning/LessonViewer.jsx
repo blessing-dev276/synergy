@@ -4,49 +4,19 @@ import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { markLessonComplete } from "../../lib/rpc.js";
+import { parseVideo } from "../../lib/video.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import Icon from "../../components/Icon.jsx";
 
-// A plain <video src="…"> only plays a direct media file -- it can't play a
-// YouTube/Vimeo *page* URL, which is what admins paste into a lesson's video
-// field almost every time. YouTube and Vimeo each get their real player SDK
-// (below) rather than a bare embed iframe, because that's the only way to
-// know when playback actually finished, enforce the chapter clip
-// (start_seconds/end_seconds, 0061: several lessons sharing one long video,
-// each one chapter of it), and block scrubbing ahead of what's actually been
-// watched -- gating "Mark Complete" on having watched the thing only means
-// something if the player itself can't be skipped past that point either.
-function parseVideo(url) {
-  if (!url) return null;
-  let u;
-  try {
-    u = new URL(url);
-  } catch {
-    return null;
-  }
-  const host = u.hostname.replace(/^www\.|^m\./, "");
-  if (host === "youtu.be" || host === "youtube.com") {
-    const id =
-      host === "youtu.be"
-        ? u.pathname.slice(1)
-        : u.pathname === "/watch"
-          ? u.searchParams.get("v")
-          : u.pathname.startsWith("/shorts/")
-            ? u.pathname.split("/")[2]
-            : null;
-    return id ? { type: "youtube", id } : null;
-  }
-  if (host === "vimeo.com") {
-    const id = u.pathname.split("/").filter(Boolean)[0];
-    return id && /^\d+$/.test(id) ? { type: "vimeo", embedUrl: `https://player.vimeo.com/video/${id}` } : null;
-  }
-  if (host === "player.vimeo.com" || u.pathname.startsWith("/embed/")) {
-    return { type: "vimeo", embedUrl: url };
-  }
-  return null;
-}
+// YouTube and Vimeo each get their real player SDK (below) rather than a
+// bare embed iframe, because that's the only way to know when playback
+// actually finished, enforce the chapter clip (start_seconds/end_seconds,
+// 0061: several lessons sharing one long video, each one chapter of it),
+// and block scrubbing ahead of what's actually been watched -- gating "Mark
+// Complete" on having watched the thing only means something if the player
+// itself can't be skipped past that point either.
 
 // Loads https://www.youtube.com/iframe_api once per page (a second lesson
 // visited later in the same session reuses the already-loaded window.YT).

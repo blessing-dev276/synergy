@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
@@ -6,6 +7,8 @@ import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
 import Icon from "../../components/Icon.jsx";
 import BackLink from "../../components/BackLink.jsx";
+import Modal from "../../components/Modal.jsx";
+import VideoPlayer from "../../components/VideoPlayer.jsx";
 
 // Mirrors ContentBuilder.jsx's RESOURCE_TYPES -- a course drills into the
 // lesson flow below; every other type has no lessons at all, its
@@ -15,6 +18,7 @@ const RESOURCE_TYPE_ICON = { video: "video", book: "book", podcast: "podcast", l
 
 export default function PathDetail() {
   const { pathId } = useParams();
+  const [playingVideo, setPlayingVideo] = useState(null);
 
   const { loading: loadingPath, data: path } = useSupabaseQuery(
     () => supabase.from("learning_paths").select("*").eq("id", pathId).single(),
@@ -88,6 +92,24 @@ export default function PathDetail() {
                 </Link>
               );
             }
+            if (type === "video") {
+              return (
+                <button
+                  key={course.id}
+                  type="button"
+                  className="card"
+                  style={{ textAlign: "left", width: "100%", cursor: "pointer" }}
+                  onClick={() => setPlayingVideo(course)}
+                >
+                  <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <Icon name={RESOURCE_TYPE_ICON[type]} size={16} />
+                    {course.title}
+                  </div>
+                  <div className="card-subtitle">{course.description}</div>
+                  <span className="badge badge-neutral">{[RESOURCE_TYPE_LABEL[type], course.resource_author].filter(Boolean).join(" · ")}</span>
+                </button>
+              );
+            }
             return (
               <a key={course.id} href={course.resource_url} target="_blank" rel="noopener noreferrer" className="card">
                 <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -101,6 +123,10 @@ export default function PathDetail() {
           })}
         </div>
       )}
+
+      <Modal open={!!playingVideo} onClose={() => setPlayingVideo(null)} title={playingVideo?.title} size="lg">
+        {playingVideo && <VideoPlayer url={playingVideo.resource_url} title={playingVideo.title} />}
+      </Modal>
     </div>
   );
 }
