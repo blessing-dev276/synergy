@@ -133,12 +133,6 @@ function TodayTaskRow({ item, busy, onComplete, index }) {
             Submit evidence
           </Link>
         );
-    } else {
-      cta = (
-        <Link to="/tasks" className="badge badge-neutral">
-          Continue
-        </Link>
-      );
     }
     rightContent = (
       <>
@@ -159,16 +153,9 @@ function TodayTaskRow({ item, busy, onComplete, index }) {
       );
     } else {
       cta = (
-        <>
-          {item.actionLink && (
-            <Link to={item.actionLink.to} className="badge badge-neutral">
-              {item.actionLink.label}
-            </Link>
-          )}
-          <span className="badge badge-neutral" title="Completes automatically as you make progress">
-            Auto-tracked
-          </span>
-        </>
+        <span className="badge badge-neutral" title="Completes automatically as you make progress">
+          Auto-tracked
+        </span>
       );
     }
     rightContent = (
@@ -223,7 +210,7 @@ function TodayTasksCard({ today }) {
     }
   };
 
-  const visible = items.slice(0, 6);
+  const visible = items.slice(0, 2);
   const remaining = items.length - visible.length;
   const percent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 

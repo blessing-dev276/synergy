@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
-import { requestWithdrawal, logSavingsEntry } from "../../lib/rpc.js";
+import { requestWithdrawal } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
 import Modal from "../../components/Modal.jsx";
@@ -126,57 +126,6 @@ function RequestWithdrawalModal({ open, onClose, tier, onDone }) {
   );
 }
 
-function SavingsForm({ onDone }) {
-  const toast = useToast();
-  const [amount, setAmount] = useState("");
-  const [direction, setDirection] = useState("deposit");
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!(Number(amount) > 0)) {
-      toast.error("Enter an amount greater than zero.");
-      return;
-    }
-    setSaving(true);
-    try {
-      await logSavingsEntry(direction === "deposit" ? Number(amount) : -Number(amount), note.trim());
-      toast.success(direction === "deposit" ? "Added to savings." : "Taken out of savings.");
-      setAmount("");
-      setNote("");
-      onDone();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't save that.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <form onSubmit={submit} style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "flex-end" }}>
-      <div className="field" style={{ marginBottom: 0, flex: "1 1 140px" }}>
-        <label>Amount (₦)</label>
-        <input type="number" min="0.01" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-      </div>
-      <div className="field" style={{ marginBottom: 0 }}>
-        <label>&nbsp;</label>
-        <select value={direction} onChange={(e) => setDirection(e.target.value)}>
-          <option value="deposit">Add to savings</option>
-          <option value="withdraw">Take out of savings</option>
-        </select>
-      </div>
-      <div className="field" style={{ marginBottom: 0, flex: "1 1 160px" }}>
-        <label>Note (optional)</label>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="What's this for?" />
-      </div>
-      <button type="submit" className="btn btn-secondary" disabled={saving} style={{ marginBottom: "16px" }}>
-        {saving ? "Saving…" : "Save"}
-      </button>
-    </form>
-  );
-}
-
 export default function Wallet() {
   const { user } = useAuth();
   const [requestOpen, setRequestOpen] = useState(false);
@@ -204,7 +153,7 @@ export default function Wallet() {
     <div>
       <div className="hero-banner">
         <h1>My Wallet</h1>
-        <p>Track your income, withdrawals, and savings — and request a withdrawal when you're ready.</p>
+        <p>Track your income and withdrawals — and request a withdrawal when you're ready.</p>
       </div>
 
       <div className="grid grid-3" style={{ marginBottom: "24px" }}>
@@ -246,12 +195,6 @@ export default function Wallet() {
             Request Withdrawal
           </button>
         )}
-      </div>
-
-      <div className="card-elevated" style={{ marginBottom: "24px" }}>
-        <div className="card-title">Savings</div>
-        <p className="card-subtitle">Set money aside for your own tracking — this doesn't move money anywhere, it's just a running total for you.</p>
-        <SavingsForm onDone={refetchAll} />
       </div>
 
       <div className="card-title" style={{ marginBottom: "12px" }}>
