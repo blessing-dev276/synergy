@@ -49,13 +49,20 @@ export default function MindTrainingActivityViewer() {
   const isComplete = !!progress;
   const fields = activity?.input_fields ?? [];
 
+  // fields.length has to be a dependency here even though `activity` isn't:
+  // `activity` and `progress` load in parallel, so this can otherwise run
+  // once with the real progress.response but a still-empty `fields` (before
+  // `activity` has loaded) and never re-seed `values` once fields arrives --
+  // the read-only view below renders previously-saved answers from `values`
+  // too, so a stale empty seed shows as blank even though a response was
+  // actually saved.
   const [values, setValues] = useState({});
   useEffect(() => {
     const seed = {};
     for (const f of fields) seed[f.key] = progress?.response?.[f.key] ?? "";
     setValues(seed);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activityId, progress?.response]);
+  }, [activityId, progress?.response, fields.length]);
 
   const handleComplete = async () => {
     setCompleting(true);

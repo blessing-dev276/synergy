@@ -61,11 +61,18 @@ export default function MindTrainingLessonViewer() {
 
   // One answer per reflection question, in the same order -- seeded from
   // whatever was saved last time (progress.response), blank otherwise.
+  // reflections.length has to be a dependency here even though `lesson`
+  // isn't: this effect's first run happens while `lesson` (and so
+  // `reflections`) is still loading and empty, sizing `answers` to 0 --
+  // without reflections.length in the deps, that never gets corrected once
+  // the real lesson data (and its real reflection count) arrives, and every
+  // onChange handler below (which resizes via prev.map) silently no-ops
+  // forever against a 0-length array.
   const [answers, setAnswers] = useState([]);
   useEffect(() => {
     setAnswers(reflections.map((_, i) => progress?.response?.[i] ?? ""));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lessonId, progress?.response]);
+  }, [lessonId, progress?.response, reflections.length]);
 
   const handleComplete = async () => {
     setCompleting(true);
