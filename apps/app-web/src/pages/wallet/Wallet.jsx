@@ -16,6 +16,12 @@ function formatMoney(amount, currency) {
   return currency === "NGN" ? `${sign}₦${abs}` : `${sign}$${abs}`;
 }
 
+function formatDateTime(value) {
+  return value
+    ? new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+    : "—";
+}
+
 // Same "icon-badge + label + big value" shape AdminDashboard.jsx/
 // NetworkDashboard.jsx already use for their own local StatTile/StatCard --
 // no shared component exists for this across the app, each page defines
@@ -38,15 +44,18 @@ function StatTile({ label, value, sub, icon, tone, loading }) {
 }
 
 const WITHDRAWAL_STATUS_BADGE = { pending: "badge-warning", paid: "badge-success", rejected: "badge-danger" };
-const TXN_ICON = { income: "dollar-sign", withdrawal: "arrow-up", savings: "lock" };
-const TXN_LABEL = { income: "Income", withdrawal: "Withdrawal", savings: "Savings" };
+const TXN_ICON = { income: "dollar-sign", withdrawal: "arrow-up" };
+const TXN_LABEL = { income: "Income", withdrawal: "Withdrawal" };
 
-function TransactionRow({ txn }) {
+// Compact in the list; every field lives in the detail popup instead of
+// being crammed into the row (TransactionDetailModal below) -- click
+// anywhere on the row to open it.
+function TransactionRow({ txn, onOpen }) {
   const statusBadge = txn.kind === "withdrawal" ? WITHDRAWAL_STATUS_BADGE[txn.status] ?? "badge-neutral" : "badge-neutral";
-  const statusLabel = txn.kind === "withdrawal" ? txn.status : txn.kind === "income" ? "verified" : "logged";
+  const statusLabel = txn.kind === "withdrawal" ? txn.status : "verified";
 
   return (
-    <div className="activity-row">
+    <button type="button" className="activity-row" style={{ width: "100%", textAlign: "left", cursor: "pointer", font: "inherit" }} onClick={() => onOpen(txn)}>
       <span className="activity-row-icon">
         <Icon name={TXN_ICON[txn.kind]} size={15} />
       </span>
@@ -55,19 +64,72 @@ function TransactionRow({ txn }) {
           <strong>{TXN_LABEL[txn.kind]}</strong> · {formatMoney(txn.amount, txn.currency)}
           {txn.note && <span style={{ color: "var(--slate)" }}> — {txn.note}</span>}
         </div>
-        <div className="activity-row-time">{new Date(txn.occurredAt).toLocaleDateString()}</div>
+        <div className="activity-row-time">{formatDateTime(txn.occurredAt)}</div>
       </div>
       <span className={`badge ${statusBadge}`}>{statusLabel}</span>
+      <Icon name="chevron-right" size={16} style={{ color: "var(--slate)" }} />
+    </button>
+  );
+}
+
+function DetailLine({ label, value }) {
+  if (value === null || value === undefined || value === "") return null;
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", padding: "7px 0", borderBottom: "1px solid var(--line)", fontSize: "13.5px" }}>
+      <span style={{ color: "var(--slate)" }}>{label}</span>
+      <span style={{ fontWeight: 600, textAlign: "right" }}>{value}</span>
     </div>
   );
 }
 
+function TransactionDetailModal({ txn, onClose }) {
+  if (!txn) return null;
+  const statusBadge = txn.kind === "withdrawal" ? WITHDRAWAL_STATUS_BADGE[txn.status] ?? "badge-neutral" : "badge-neutral";
+  const statusLabel = txn.kind === "withdrawal" ? txn.status : "verified";
+
+  return (
+    <Modal open onClose={onClose} title={TXN_LABEL[txn.kind]} size="sm">
+      <div style={{ marginBottom: "12px" }}>
+        <span className={`badge ${statusBadge}`}>{statusLabel}</span>
+      </div>
+      <DetailLine label="Amount" value={formatMoney(txn.amount, txn.currency)} />
+      {txn.kind === "withdrawal" && (
+        <>
+          <DetailLine label="Requested" value={formatMoney(txn.requestedAmount, txn.requestedCurrency)} />
+          {txn.status === "paid" && (
+            <>
+              <DetailLine label="Paid out" value={formatMoney(txn.netAmount, txn.netCurrency)} />
+              <DetailLine label="Charges" value={Number(txn.chargesAmount) > 0 ? formatMoney(txn.chargesAmount, txn.netCurrency) : null} />
+              <DetailLine label="Exchange rate used" value={txn.exchangeRate ? `₦${Number(txn.exchangeRate).toLocaleString()} per $1` : null} />
+              <DetailLine label="USD equivalent" value={txn.usdEquivalent != null ? formatMoney(txn.usdEquivalent, "USD") : null} />
+            </>
+          )}
+          <DetailLine label="Requested on" value={formatDateTime(txn.occurredAt)} />
+          <DetailLine label={txn.status === "pending" ? undefined : "Reviewed on"} value={txn.status === "pending" ? undefined : formatDateTime(txn.reviewedAt)} />
+          <DetailLine label="Admin note" value={txn.reviewNote} />
+        </>
+      )}
+      {txn.kind === "income" && <DetailLine label="Logged on" value={formatDateTime(txn.occurredAt)} />}
+      <DetailLine label="Note" value={txn.note} />
+    </Modal>
+  );
+}
+
+// Requests are USD-only now -- the currency picker is gone, so there's no
+// cross-currency comparison to do here: the tier cap (when its own
+// currency is USD, the case this now always produces for new tiers) is
+// enforced client-side too, not just server-side, via request_withdrawal's
+// own check. A tier capped in NGN still can't be validated client-side
+// without the reference rate, so that edge case is left to the server
+// error, same as before.
 function RequestWithdrawalModal({ open, onClose, tier, onDone }) {
   const toast = useToast();
   const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState("USD");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const capUsd = tier?.capCurrency === "USD" ? Number(tier.capAmount) : null;
+  const overCap = capUsd != null && Number(amount) > capUsd;
 
   const submit = async (e) => {
     e.preventDefault();
@@ -75,9 +137,13 @@ function RequestWithdrawalModal({ open, onClose, tier, onDone }) {
       toast.error("Enter an amount greater than zero.");
       return;
     }
+    if (overCap) {
+      toast.error(`Your current tier allows at most ${formatMoney(capUsd, "USD")} per request.`);
+      return;
+    }
     setSaving(true);
     try {
-      await requestWithdrawal(Number(amount), currency, note.trim());
+      await requestWithdrawal(Number(amount), "USD", note.trim());
       toast.success("Withdrawal request submitted — an admin will review it.");
       setAmount("");
       setNote("");
@@ -99,15 +165,19 @@ function RequestWithdrawalModal({ open, onClose, tier, onDone }) {
           </p>
         )}
         <div className="field">
-          <label>Amount</label>
-          <input type="number" min="0.01" step="0.01" required autoFocus value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-        </div>
-        <div className="field">
-          <label>Currency</label>
-          <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            <option value="USD">USD ($)</option>
-            <option value="NGN">NGN (₦)</option>
-          </select>
+          <label>Amount (USD)</label>
+          <input
+            type="number"
+            min="0.01"
+            max={capUsd ?? undefined}
+            step="0.01"
+            required
+            autoFocus
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+          />
+          {overCap && <p style={{ fontSize: "12px", color: "var(--danger)", marginTop: "4px" }}>That's above your current tier's cap.</p>}
         </div>
         <div className="field">
           <label>Note (optional)</label>
@@ -117,7 +187,7 @@ function RequestWithdrawalModal({ open, onClose, tier, onDone }) {
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
+          <button type="submit" className="btn btn-primary" disabled={saving || overCap}>
             {saving ? "Submitting…" : "Submit request"}
           </button>
         </div>
@@ -129,6 +199,7 @@ function RequestWithdrawalModal({ open, onClose, tier, onDone }) {
 export default function Wallet() {
   const { user } = useAuth();
   const [requestOpen, setRequestOpen] = useState(false);
+  const [openTxn, setOpenTxn] = useState(null);
 
   const { loading: loadingSummary, data: summary, refetch: refetchSummary } = useSupabaseQuery(
     () => user && supabase.rpc("get_wallet_summary", { p_uid: user.id }),
@@ -167,7 +238,6 @@ export default function Wallet() {
           loading={loadingSummary}
         />
         <StatTile label="Remaining (USD)" value={formatMoney(summary?.remainingUsd, "USD")} icon="check" tone="success" loading={loadingSummary} />
-        <StatTile label="Saved (NGN)" value={formatMoney(summary?.savedTotalNgn, "NGN")} icon="lock" loading={loadingSummary} />
       </div>
 
       <div className="card-elevated" style={{ marginBottom: "24px" }}>
@@ -202,15 +272,17 @@ export default function Wallet() {
       </div>
       {loadingTxns && <Skeleton variant="card" height="160px" />}
       {!loadingTxns && (!transactions || transactions.length === 0) && (
-        <EmptyState icon={<Icon name="dollar-sign" size={26} />} title="No transactions yet" description="Your income, withdrawals, and savings will show up here." />
+        <EmptyState icon={<Icon name="dollar-sign" size={26} />} title="No transactions yet" description="Your income and withdrawals will show up here." />
       )}
       {!loadingTxns && transactions && transactions.length > 0 && (
         <div className="card-elevated" style={{ padding: 0 }}>
           {transactions.map((txn) => (
-            <TransactionRow key={`${txn.kind}-${txn.id}`} txn={txn} />
+            <TransactionRow key={`${txn.kind}-${txn.id}`} txn={txn} onOpen={setOpenTxn} />
           ))}
         </div>
       )}
+
+      <TransactionDetailModal txn={openTxn} onClose={() => setOpenTxn(null)} />
 
       <RequestWithdrawalModal
         open={requestOpen}

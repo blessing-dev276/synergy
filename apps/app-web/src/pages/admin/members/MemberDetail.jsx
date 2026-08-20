@@ -587,10 +587,6 @@ function WalletSummaryPanel({ member }) {
               <div className="row-meta">Remaining (USD)</div>
               <div style={{ fontSize: "20px", fontWeight: 700 }}>{formatMoney(summary?.remainingUsd, "USD")}</div>
             </div>
-            <div>
-              <div className="row-meta">Saved (NGN)</div>
-              <div style={{ fontSize: "20px", fontWeight: 700 }}>{formatMoney(summary?.savedTotalNgn, "NGN")}</div>
-            </div>
           </div>
           <p style={{ fontSize: "13px", color: "var(--slate)" }}>
             {summary?.tier
