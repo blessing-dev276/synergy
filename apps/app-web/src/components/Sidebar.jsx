@@ -29,11 +29,12 @@ export default function Sidebar({ sections, footer }) {
                 key={item.to}
                 to={item.to}
                 end={item.end}
-                title={collapsed ? item.label : undefined}
+                title={collapsed ? (item.badge > 0 ? `${item.label} (${item.badge})` : item.label) : undefined}
                 className={({ isActive }) => `app-nav-link${isActive ? " active" : ""}`}
               >
                 <Icon name={item.icon} size={18} />
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && <span style={{ flex: 1 }}>{item.label}</span>}
+                {item.badge > 0 && <span className="nav-badge">{item.badge > 99 ? "99+" : item.badge}</span>}
               </NavLink>
             ))}
           </div>
