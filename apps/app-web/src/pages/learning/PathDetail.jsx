@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
+import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
+import { markCourseResourceViewed } from "../../lib/rpc.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
@@ -18,6 +20,7 @@ const RESOURCE_TYPE_ICON = { video: "video", book: "book", podcast: "podcast", l
 
 export default function PathDetail() {
   const { pathId } = useParams();
+  const { user } = useAuth();
   const [playingVideo, setPlayingVideo] = useState(null);
 
   const { loading: loadingPath, data: path } = useSupabaseQuery(
@@ -51,6 +54,34 @@ export default function PathDetail() {
         .order("order_index", { ascending: true }),
     [pathId, accessible],
   );
+
+  // Standalone resources (video/book/podcast/link/pdf) have no lesson flow
+  // to track progress through -- course_progress (0080) is the "opened
+  // this" record instead, seeded here and updated optimistically below so
+  // the badge appears immediately rather than waiting on a refetch.
+  const { data: viewedRows } = useSupabaseQuery(
+    () =>
+      user &&
+      courses?.length > 0 &&
+      supabase.from("course_progress").select("course_id").eq("uid", user.id).in("course_id", courses.map((c) => c.id)),
+    [user?.id, courses],
+  );
+  const [viewedIds, setViewedIds] = useState(new Set());
+  useEffect(() => {
+    setViewedIds(new Set((viewedRows ?? []).map((r) => r.course_id)));
+  }, [viewedRows]);
+
+  const markViewed = (course) => {
+    if (viewedIds.has(course.id)) return;
+    setViewedIds((prev) => new Set(prev).add(course.id));
+    markCourseResourceViewed(course.id).catch(() => {
+      setViewedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(course.id);
+        return next;
+      });
+    });
+  };
 
   return (
     <div>
@@ -92,6 +123,7 @@ export default function PathDetail() {
                 </Link>
               );
             }
+            const viewed = viewedIds.has(course.id);
             if (type === "video") {
               return (
                 <button
@@ -99,7 +131,10 @@ export default function PathDetail() {
                   type="button"
                   className="card"
                   style={{ textAlign: "left", width: "100%", cursor: "pointer" }}
-                  onClick={() => setPlayingVideo(course)}
+                  onClick={() => {
+                    setPlayingVideo(course);
+                    markViewed(course);
+                  }}
                 >
                   <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <Icon name={RESOURCE_TYPE_ICON[type]} size={16} />
@@ -107,17 +142,29 @@ export default function PathDetail() {
                   </div>
                   <div className="card-subtitle">{course.description}</div>
                   <span className="badge badge-neutral">{[RESOURCE_TYPE_LABEL[type], course.resource_author].filter(Boolean).join(" · ")}</span>
+                  {viewed && (
+                    <span className="badge badge-success" style={{ marginLeft: "6px" }}>
+                      <Icon name="check" size={11} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
+                      Viewed
+                    </span>
+                  )}
                 </button>
               );
             }
             return (
-              <a key={course.id} href={course.resource_url} target="_blank" rel="noopener noreferrer" className="card">
+              <a key={course.id} href={course.resource_url} target="_blank" rel="noopener noreferrer" className="card" onClick={() => markViewed(course)}>
                 <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <Icon name={RESOURCE_TYPE_ICON[type]} size={16} />
                   {course.title}
                 </div>
                 <div className="card-subtitle">{course.description}</div>
                 <span className="badge badge-neutral">{[RESOURCE_TYPE_LABEL[type], course.resource_author].filter(Boolean).join(" · ")}</span>
+                {viewed && (
+                  <span className="badge badge-success" style={{ marginLeft: "6px" }}>
+                    <Icon name="check" size={11} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
+                    Viewed
+                  </span>
+                )}
               </a>
             );
           })}

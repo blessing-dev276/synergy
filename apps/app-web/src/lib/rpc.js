@@ -35,6 +35,12 @@ export const getNetworkOverview = (uid) => call("get_network_overview", { p_uid:
 export const markLessonComplete = (courseId, moduleId, lessonId) =>
   call("mark_lesson_complete", { p_course_id: courseId, p_module_id: moduleId, p_lesson_id: lessonId });
 
+// Standalone resources (video/book/podcast/link/pdf -- everything but
+// resource_type='course', which uses markLessonComplete instead). Fired the
+// moment a member opens one (PathDetail.jsx), self-attested like every
+// other proxy/manual task -- not a watch-duration tracker.
+export const markCourseResourceViewed = (courseId) => call("mark_course_resource_viewed", { p_course_id: courseId });
+
 export const getQuizForAttempt = (lessonId) => call("get_quiz_for_attempt", { p_lesson_id: lessonId });
 
 export const submitQuizAttempt = (quizId, answers) =>
