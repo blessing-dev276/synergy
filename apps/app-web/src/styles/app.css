@@ -569,6 +569,8 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
 .manage-row:hover{ border-color:var(--blue-bright); }
 .manage-row .row-title{ font-weight:600; font-size:14px; }
 .manage-row .row-meta{ font-size:12.5px; color:var(--slate); margin-top:2px; }
+.manage-row.is-dragging{ opacity:0.45; }
+.manage-row.is-drag-over{ border-color:var(--blue-bright); box-shadow:0 0 0 2px var(--blue-bright) inset; }
 
 .activity-row{
   display:flex; align-items:center; gap:12px;

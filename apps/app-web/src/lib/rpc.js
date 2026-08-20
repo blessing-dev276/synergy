@@ -123,6 +123,11 @@ export const adminUpdateRankTask = (id, title, description, recurrence, orderInd
 
 export const adminDeleteRankTask = (id) => call("admin_delete_rank_task", { p_id: id });
 
+// taskIds: every task in the rank, in the new order (drag-and-drop result) --
+// admin_reorder_rank_tasks (0079) assigns order_index = position in the array.
+export const adminReorderRankTasks = (rankId, taskIds) =>
+  call("admin_reorder_rank_tasks", { p_rank_id: rankId, p_task_ids: taskIds });
+
 export const submitRankTask = (rankTaskId) => call("submit_rank_task", { p_rank_task_id: rankTaskId });
 
 export const reviewRankTaskSubmission = (submissionId, decision, note) =>

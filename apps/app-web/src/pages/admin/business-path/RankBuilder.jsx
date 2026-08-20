@@ -12,6 +12,7 @@ import {
   adminCreateRankTask,
   adminUpdateRankTask,
   adminDeleteRankTask,
+  adminReorderRankTasks,
 } from "../../../lib/rpc.js";
 import Icon from "../../../components/Icon.jsx";
 import Modal from "../../../components/Modal.jsx";
@@ -219,7 +220,7 @@ function proxySummary(task, pathTitleById) {
   return null;
 }
 
-function RankTaskRow({ task, paths, onChanged, onEdit }) {
+function RankTaskRow({ task, paths, onChanged, onEdit, drag }) {
   const toast = useToast();
   const pathTitleById = new Map((paths ?? []).map((p) => [p.id, p.title]));
   const auto = proxySummary(task, pathTitleById);
@@ -236,7 +237,22 @@ function RankTaskRow({ task, paths, onChanged, onEdit }) {
   };
 
   return (
-    <div className="manage-row" onClick={(e) => e.stopPropagation()}>
+    <div
+      className={`manage-row${drag?.isDragging ? " is-dragging" : ""}${drag?.isDragOver ? " is-drag-over" : ""}`}
+      onClick={(e) => e.stopPropagation()}
+      onDragOver={drag?.onDragOver}
+      onDrop={drag?.onDrop}
+    >
+      <span
+        className="icon-btn"
+        draggable
+        onDragStart={drag?.onDragStart}
+        onDragEnd={drag?.onDragEnd}
+        title="Drag to reorder"
+        style={{ cursor: "grab", touchAction: "none" }}
+      >
+        <Icon name="grip" size={14} style={{ color: "var(--slate)" }} />
+      </span>
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontWeight: 600, fontSize: "13.5px" }}>
           {task.title} <span className="badge badge-neutral">{task.recurrence === "daily" ? "Daily" : "One-time"}</span>{" "}
@@ -404,11 +420,53 @@ function RankTaskModal({ rankId, rankTitle, task, paths, onClose, onSaved }) {
 }
 
 function RankTasksPanel({ rank, paths }) {
+  const toast = useToast();
   const [taskModal, setTaskModal] = useState(null); // null closed | {} add | task edit
   const { data: tasks, refetch } = useSupabaseQuery(
     () => supabase.from("rank_tasks").select("*").eq("rank_id", rank.id).order("order_index", { ascending: true }),
     [rank.id],
   );
+
+  // Local copy so a drag can reorder immediately (before the round-trip
+  // persists) -- resynced from the query's own order whenever it changes,
+  // same "server list, locally editable" split as RankPathsPanel's
+  // `selected` Set above.
+  const [orderedTasks, setOrderedTasks] = useState([]);
+  useEffect(() => {
+    setOrderedTasks(tasks ?? []);
+  }, [tasks]);
+
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+
+  const handleDragOver = (e, overId) => {
+    e.preventDefault();
+    if (!draggedId || draggedId === overId) return;
+    setDragOverId(overId);
+    setOrderedTasks((prev) => {
+      const from = prev.findIndex((t) => t.id === draggedId);
+      const to = prev.findIndex((t) => t.id === overId);
+      if (from === -1 || to === -1 || from === to) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    const draggedWasHere = draggedId;
+    setDraggedId(null);
+    setDragOverId(null);
+    if (!draggedWasHere) return;
+    try {
+      await adminReorderRankTasks(rank.id, orderedTasks.map((t) => t.id));
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't save the new order.");
+      refetch();
+    }
+  };
 
   return (
     <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid var(--line)" }}>
@@ -421,9 +479,33 @@ function RankTasksPanel({ rank, paths }) {
       </div>
 
       {(!tasks || tasks.length === 0) && <p style={{ fontSize: "13px", color: "var(--slate)" }}>No tasks yet for this rank.</p>}
+      {tasks && tasks.length > 1 && (
+        <p style={{ fontSize: "12.5px", color: "var(--slate)", marginBottom: "8px" }}>Drag a task by its handle to reorder.</p>
+      )}
 
-      {tasks?.map((t) => (
-        <RankTaskRow key={t.id} task={t} paths={paths} onChanged={refetch} onEdit={setTaskModal} />
+      {orderedTasks.map((t) => (
+        <RankTaskRow
+          key={t.id}
+          task={t}
+          paths={paths}
+          onChanged={refetch}
+          onEdit={setTaskModal}
+          drag={{
+            isDragging: draggedId === t.id,
+            isDragOver: dragOverId === t.id && draggedId !== t.id,
+            onDragStart: (e) => {
+              e.stopPropagation();
+              e.dataTransfer.effectAllowed = "move";
+              setDraggedId(t.id);
+            },
+            onDragOver: (e) => handleDragOver(e, t.id),
+            onDrop: handleDrop,
+            onDragEnd: () => {
+              setDraggedId(null);
+              setDragOverId(null);
+            },
+          }}
+        />
       ))}
 
       {taskModal && (
