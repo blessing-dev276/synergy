@@ -37,6 +37,17 @@ function RankPathsPanel({ rank, paths }) {
     [rank.id],
   );
 
+  // Every OTHER rank's attachments -- a path belongs to at most one rank,
+  // so once it's attached there it drops out of every other rank's picker
+  // below instead of staying selectable (and re-attachable) everywhere.
+  const { data: attachedElsewhereRows } = useSupabaseQuery(
+    () => supabase.from("rank_learning_paths").select("learning_path_id").neq("rank_id", rank.id),
+    [rank.id],
+  );
+  const attachedElsewhere = new Set((attachedElsewhereRows ?? []).map((r) => r.learning_path_id));
+  const selectablePaths = (paths ?? []).filter((p) => !attachedElsewhere.has(p.id));
+  const hiddenCount = (paths?.length ?? 0) - selectablePaths.length;
+
   const [selected, setSelected] = useState(new Set());
   useEffect(() => {
     setSelected(new Set((attached ?? []).map((r) => r.learning_path_id)));
@@ -71,13 +82,17 @@ function RankPathsPanel({ rank, paths }) {
       </div>
       <p style={{ fontSize: "12.5px", color: "var(--slate)", marginBottom: "12px" }}>
         A path attached to no rank at all stays visible to every member. Attach it here to restrict it to this rank.
+        {hiddenCount > 0 && ` ${hiddenCount} path${hiddenCount === 1 ? "" : "s"} already attached to another rank ${hiddenCount === 1 ? "isn't" : "aren't"} listed below.`}
       </p>
 
       {(!paths || paths.length === 0) && <p style={{ fontSize: "13px", color: "var(--slate)" }}>No published learning paths yet — publish one in the Learning Hub first.</p>}
+      {paths && paths.length > 0 && selectablePaths.length === 0 && (
+        <p style={{ fontSize: "13px", color: "var(--slate)" }}>Every published path is already attached to another rank.</p>
+      )}
 
-      {paths && paths.length > 0 && (
+      {selectablePaths.length > 0 && (
         <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px", marginBottom: "14px" }}>
-          {paths.map((p) => (
+          {selectablePaths.map((p) => (
             <li key={p.id}>
               <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13.5px", cursor: "pointer" }}>
                 <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
@@ -89,7 +104,7 @@ function RankPathsPanel({ rank, paths }) {
         </ul>
       )}
 
-      {paths && paths.length > 0 && (
+      {selectablePaths.length > 0 && (
         <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>
           {saving ? "Saving…" : "Save learning paths"}
         </button>
