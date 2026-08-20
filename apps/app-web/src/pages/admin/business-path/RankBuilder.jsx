@@ -25,6 +25,15 @@ import EmptyState from "../../../components/state/EmptyState.jsx";
 // table write — unlike ContentBuilder.jsx's learning_paths, `ranks` and
 // `rank_learning_paths` have no client insert/update/delete grant at all.
 
+// learning_paths.section values (skill_set/nm_business/mind_training,
+// PathList.jsx/ContentBuilder.jsx's SECTIONS) -- shortened here since these
+// sit inline next to a checkbox label, not on their own tab button.
+const SECTION_LABEL = {
+  skill_set: "Skill Set",
+  nm_business: "Network Marketing",
+  mind_training: "Mind Training",
+};
+
 // Checkbox-attach UI for admin_set_rank_learning_paths -- a single
 // "replace everything in one call" RPC, so this batches local checkbox
 // state and saves it all at once rather than firing one call per toggle.
@@ -97,6 +106,7 @@ function RankPathsPanel({ rank, paths }) {
               <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13.5px", cursor: "pointer" }}>
                 <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
                 {p.title}
+                <span className="badge badge-info">{SECTION_LABEL[p.section] ?? p.section}</span>
                 {p.is_skill && <span className="badge badge-neutral">Skill</span>}
               </label>
             </li>
