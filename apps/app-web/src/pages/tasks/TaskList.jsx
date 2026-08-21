@@ -73,6 +73,11 @@ function RankTaskRow({ task, onSubmitted }) {
         )}
         {!isManual && !submission && (
           <>
+            {task.proxyThreshold != null && (
+              <span className="badge badge-info">
+                {task.progress ?? 0} of {task.proxyThreshold}
+              </span>
+            )}
             {actionLink && (
               <Link to={actionLink.to} className="badge badge-neutral">
                 {actionLink.label}

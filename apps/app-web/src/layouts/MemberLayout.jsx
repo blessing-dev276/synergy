@@ -29,10 +29,7 @@ const sections = [
     items: [{ to: "/wallet", label: "Wallet", icon: "dollar-sign" }],
   },
   {
-    items: [
-      { to: "/notifications", label: "Notifications", icon: "bell" },
-      { to: "/profile", label: "Profile", icon: "user" },
-    ],
+    items: [{ to: "/profile", label: "Profile", icon: "user" }],
   },
 ];
 

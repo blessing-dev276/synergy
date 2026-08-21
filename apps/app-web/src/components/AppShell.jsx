@@ -5,6 +5,7 @@ import { ROLE_LABEL } from "../lib/roles.js";
 import Icon from "./Icon.jsx";
 import Avatar from "./Avatar.jsx";
 import ThemeToggle from "./ThemeToggle.jsx";
+import NotificationBell from "./NotificationBell.jsx";
 import Sidebar from "./Sidebar.jsx";
 import BottomNav from "./BottomNav.jsx";
 
@@ -37,6 +38,7 @@ export default function AppShell({ sections, bottomItems, title }) {
             {title}
           </div>
           <div className="topbar-actions">
+            <NotificationBell />
             <ThemeToggle />
             <Link to="/profile" className="topbar-user">
               <Avatar name={profile?.display_name} photoPath={profile?.photo_url} size={34} />

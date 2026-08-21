@@ -72,6 +72,8 @@ function useTodayTasks(uid) {
     pending: t.submission?.status === "pending",
     manual: t.proxyType === "manual",
     actionLink: rankTaskActionLink(t.proxyType, t.proxyPathId),
+    progress: t.progress,
+    proxyThreshold: t.proxyThreshold,
   }));
 
   // Overdue and not-done first (most urgent), done items sink to the
@@ -153,9 +155,16 @@ function TodayTaskRow({ item, busy, onComplete, index }) {
       );
     } else {
       cta = (
-        <span className="badge badge-neutral" title="Completes automatically as you make progress">
-          Auto-tracked
-        </span>
+        <>
+          {item.proxyThreshold != null && (
+            <span className="badge badge-info">
+              {item.progress ?? 0} of {item.proxyThreshold}
+            </span>
+          )}
+          <span className="badge badge-neutral" title="Completes automatically as you make progress">
+            Auto-tracked
+          </span>
+        </>
       );
     }
     rightContent = (
@@ -215,7 +224,7 @@ function TodayTasksCard({ today }) {
   const percent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   return (
-    <div className="card-elevated today-tasks-card rise-in">
+    <div className={`card-elevated today-tasks-card rise-in${percent === 100 ? " celebration-banner" : ""}`}>
       <div className="today-tasks-header">
         <div>
           <div className="card-title" style={{ marginBottom: "2px" }}>
@@ -601,12 +610,25 @@ function Hero({ firstName, today }) {
         ? "Everything's done for today. Nice work."
         : `You have ${outstanding} thing${outstanding === 1 ? "" : "s"} to knock out today.`;
 
+  const percent = !today.loading && today.total > 0 ? Math.round((today.doneCount / today.total) * 100) : null;
+
   return (
     <div className="hero-banner rise-in">
-      <h1>
-        {greeting()}, {firstName} 👋
-      </h1>
-      <p>{subtitle}</p>
+      <div className="hero-banner-main">
+        <h1>
+          {greeting()}, {firstName} 👋
+        </h1>
+        <p>{subtitle}</p>
+      </div>
+      {percent !== null && (
+        <div className="hero-stat">
+          <div className="hero-stat-value">
+            {percent}
+            <span>%</span>
+          </div>
+          <div className="hero-stat-label">today's progress</div>
+        </div>
+      )}
     </div>
   );
 }

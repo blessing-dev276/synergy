@@ -140,6 +140,7 @@ function App() {
               <Route path="/admin/leaderboard" element={<Leaderboard />} />
               <Route path="/admin/earnings" element={<Navigate to="/admin/leaderboard" replace />} />
               <Route path="/admin/network" element={<NetworkOverview />} />
+              <Route path="/admin/notifications" element={<NotificationList />} />
               <Route path="/admin/settings/activity" element={<ActivityLog />} />
               <Route path="/admin/settings/general" element={<SettingsGeneral />} />
               <Route path="/admin/settings/notifications" element={<SettingsNotifications />} />
