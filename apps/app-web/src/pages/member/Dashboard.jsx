@@ -432,62 +432,66 @@ function TopLeadersCard({ uid }) {
   const { loading, data } = useSupabaseQuery(() => uid && supabase.rpc("get_leaderboards", {}), [uid]);
 
   return (
-    <div className="card-elevated rise-in" style={{ animationDelay: "0.22s" }}>
-      <div className="card-title" style={{ marginBottom: "4px" }}>
-        <Icon name="trophy" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        This Week's Leaders
+    <div className="card-elevated leaders-card rise-in" style={{ animationDelay: "0.22s" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+        <span className="icon-badge tone-warning" style={{ width: "46px", height: "46px", borderRadius: "13px" }}>
+          <Icon name="trophy" size={22} />
+        </span>
+        <div>
+          <div className="card-title" style={{ marginBottom: "2px" }}>
+            This Week's Leaders
+          </div>
+          <p className="card-subtitle" style={{ marginBottom: 0 }}>
+            Who's #1 on each board right now.
+          </p>
+        </div>
       </div>
-      <p className="card-subtitle">Who's #1 on each board right now.</p>
 
       {loading && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <Skeleton variant="table-row" />
-          <Skeleton variant="table-row" />
-          <Skeleton variant="table-row" />
+        <div className="leader-board-grid">
+          <Skeleton variant="card" height="180px" />
+          <Skeleton variant="card" height="180px" />
+          <Skeleton variant="card" height="180px" />
         </div>
       )}
 
       {!loading && (
-        <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "12px" }}>
-          {Object.entries(LEADER_CATEGORY).map(([key, meta]) => {
+        <div className="leader-board-grid">
+          {Object.entries(LEADER_CATEGORY).map(([key, meta], i) => {
             const leader = data?.[key]?.[0];
             return (
-              <li key={key} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span style={{ width: 22, flexShrink: 0, display: "flex", justifyContent: "center", color: "var(--slate)" }}>
-                  <Icon name={meta.icon} size={14} />
-                </span>
+              <div key={key} className="podium-slot rank-1 rise-in" style={{ animationDelay: `${0.1 + i * 0.1}s` }}>
+                <div className="leader-tile-category">
+                  <Icon name={meta.icon} size={12} />
+                  {meta.label}
+                </div>
                 {leader ? (
                   <>
-                    <Avatar name={leader.displayName} photoPath={leader.photoUrl} size={26} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: "13.5px",
-                          fontWeight: 600,
-                          color: "var(--navy)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {leader.displayName}
-                        {leader.uid === uid && " (you)"}
-                      </div>
-                      <div style={{ fontSize: "12px", color: "var(--slate)" }}>{meta.label}</div>
+                    <div className="podium-medal">🥇</div>
+                    <div className="podium-avatar-wrap">
+                      <Avatar name={leader.displayName} photoPath={leader.photoUrl} size={58} ring="var(--gold)" />
                     </div>
-                    <span style={{ fontSize: "15px" }}>🥇</span>
-                    <span style={{ fontWeight: 700, fontSize: "13.5px", flexShrink: 0 }}>{meta.format(leader)}</span>
+                    <div className="podium-name">
+                      {leader.displayName}
+                      {leader.uid === uid && " (you)"}
+                    </div>
+                    <div className="podium-score">{meta.format(leader)}</div>
                   </>
                 ) : (
-                  <div style={{ flex: 1, fontSize: "13px", color: "var(--slate)" }}>{meta.label} — no one yet this week</div>
+                  <>
+                    <div className="leader-tile-empty-avatar">
+                      <Icon name={meta.icon} size={22} />
+                    </div>
+                    <div className="leader-tile-empty">No one yet this week</div>
+                  </>
                 )}
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
 
-      <Link to="/leaderboard" className="btn btn-secondary" style={{ marginTop: "16px" }}>
+      <Link to="/leaderboard" className="btn btn-secondary" style={{ marginTop: "10px" }}>
         View full leaderboard
       </Link>
     </div>
