@@ -462,22 +462,32 @@ function MyNetworkCard({ uid }) {
   );
 }
 
-// Follow-up-due count from the prospecting CRM (supabase/migrations/0046_prospecting_crm.sql).
+// Follow-up nudge from the prospecting CRM (supabase/migrations/0046_prospecting_crm.sql).
+// Smarter than a bare count: names the single most urgent prospect (earliest
+// next_follow_up_at sorts overdue-first automatically) so the card is a
+// specific next action, not just a number pointing at another page -- and
+// nudges toward the next upcoming follow-up even when nothing's due yet.
 function ProspectFollowUpCard({ uid }) {
-  const { data: dueProspects } = useSupabaseQuery(
+  const today = todayISO();
+  const { data: prospects } = useSupabaseQuery(
     () =>
       uid &&
       supabase
         .from("prospects")
-        .select("id, next_follow_up_at")
+        .select("id, name, next_follow_up_at")
         .eq("owner_uid", uid)
         .not("status", "in", "(joined,not_interested)")
         .not("next_follow_up_at", "is", null)
-        .lte("next_follow_up_at", new Date().toISOString().slice(0, 10)),
+        .order("next_follow_up_at", { ascending: true }),
     [uid],
   );
 
-  const dueCount = dueProspects?.length ?? 0;
+  const list = prospects ?? [];
+  const due = list.filter((p) => p.next_follow_up_at <= today);
+  const overdueCount = due.filter((p) => p.next_follow_up_at < today).length;
+  const dueTodayCount = due.length - overdueCount;
+  const mostUrgent = due[0];
+  const nextUpcoming = list.find((p) => p.next_follow_up_at > today);
 
   return (
     <div className="card-elevated rise-in" style={{ animationDelay: "0.18s" }}>
@@ -485,15 +495,41 @@ function ProspectFollowUpCard({ uid }) {
         <Icon name="network" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
         Prospecting
       </div>
-      {dueCount > 0 ? (
-        <p style={{ fontSize: "13.5px", marginBottom: "14px" }}>
-          <strong style={{ color: "var(--navy)" }}>{dueCount}</strong> follow-up{dueCount === 1 ? "" : "s"} due today or overdue.
+
+      {mostUrgent ? (
+        <>
+          <p style={{ fontSize: "13.5px", marginBottom: "10px" }}>
+            {overdueCount > 0 && (
+              <>
+                <strong style={{ color: "var(--danger)" }}>{overdueCount}</strong> overdue
+              </>
+            )}
+            {overdueCount > 0 && dueTodayCount > 0 && " · "}
+            {dueTodayCount > 0 && (
+              <>
+                <strong style={{ color: "var(--navy)" }}>{dueTodayCount}</strong> due today
+              </>
+            )}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
+            <span className={`badge ${mostUrgent.next_follow_up_at < today ? "badge-danger" : "badge-info"}`}>
+              {mostUrgent.next_follow_up_at < today ? "Overdue" : "Today"}
+            </span>
+            <span style={{ fontSize: "13.5px", fontWeight: 600, color: "var(--navy)" }}>{mostUrgent.name}</span>
+          </div>
+        </>
+      ) : nextUpcoming ? (
+        <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
+          No follow-ups due right now — next up is{" "}
+          <strong style={{ color: "var(--navy)" }}>{nextUpcoming.name}</strong> on{" "}
+          {new Date(nextUpcoming.next_follow_up_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.
         </p>
       ) : (
-        <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>No follow-ups due right now.</p>
+        <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>No follow-ups scheduled right now.</p>
       )}
+
       <Link to="/network/prospects" className="btn btn-secondary">
-        View prospects
+        {mostUrgent ? `Follow up with ${mostUrgent.name.split(" ")[0]}` : "View prospects"}
       </Link>
     </div>
   );

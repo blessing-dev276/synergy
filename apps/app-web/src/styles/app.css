@@ -180,6 +180,17 @@
 .card-title{ font-size:16px; font-weight:600; margin-bottom:4px; }
 .card-subtitle{ font-size:13.5px; color:var(--slate); margin-bottom:16px; }
 
+/* ---------- page-level sub-tabs (e.g. Network: Overview / Prospects) ---------- */
+.page-tabs{ display:flex; gap:26px; border-bottom:1px solid var(--line); margin-bottom:24px; }
+.page-tab{
+  display:inline-flex; align-items:center; gap:7px;
+  padding:10px 2px; margin-bottom:-1px;
+  font-size:14.5px; font-weight:600; color:var(--slate);
+  border-bottom:2px solid transparent; transition:color .15s ease, border-color .15s ease;
+}
+.page-tab:hover{ color:var(--navy); }
+.page-tab.active{ color:var(--blue-bright); border-bottom-color:var(--blue); }
+
 .grid{ display:grid; gap:16px; }
 .grid-2{ grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); }
 .grid-3{ grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); }

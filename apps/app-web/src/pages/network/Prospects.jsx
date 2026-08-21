@@ -8,6 +8,7 @@ import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import Icon from "../../components/Icon.jsx";
 import Modal from "../../components/Modal.jsx";
+import NetworkTabs from "../../components/NetworkTabs.jsx";
 
 const STATUSES = [
   { key: "new", label: "New" },
@@ -282,7 +283,9 @@ export default function Prospects() {
         <p>Prospect. Follow up. Sponsor. Every contact starts here.</p>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginTop: "24px", marginBottom: "16px" }}>
+      <NetworkTabs uid={user?.id} />
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "16px" }}>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           <button
             type="button"
