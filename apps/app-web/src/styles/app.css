@@ -775,22 +775,40 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
 }
 
 /* ---------- dashboard: rank journey stepper ---------- */
-.rank-journey-track{ display:flex; align-items:flex-start; overflow-x:auto; padding:8px 2px 4px; }
+.rank-journey-next-chip{
+  display:inline-block; padding:2px 10px; border-radius:100px; margin-left:2px;
+  background:var(--gradient-gold); color:#fff; font-weight:700; font-size:12.5px;
+  letter-spacing:0.02em; box-shadow:0 2px 8px rgba(227,169,74,0.35);
+}
+.rank-journey-track{ display:flex; align-items:flex-start; overflow-x:auto; padding:18px 4px 4px; }
 .rank-journey-step{
-  position:relative; display:flex; flex-direction:column; align-items:center; gap:7px;
-  flex:1 0 84px; padding:0 6px;
+  position:relative; display:flex; flex-direction:column; align-items:center; gap:9px;
+  flex:1 0 92px; padding:0 6px;
 }
 .rank-journey-step:not(:first-child)::before{
-  content:""; position:absolute; top:15px; left:-50%; width:100%; height:2px; background:var(--line); z-index:0;
+  content:""; position:absolute; top:20px; left:-50%; width:100%; height:3px; background:var(--line); z-index:0; border-radius:2px;
 }
-.rank-journey-step.done:not(:first-child)::before{ background:var(--blue); }
+.rank-journey-step.done:not(:first-child)::before{ background:var(--gradient-gold); }
+.rank-journey-step .stepper-step{ width:40px; height:40px; font-size:15px; }
+.rank-journey-step.done .stepper-step{
+  background:var(--gradient-gold); color:#fff; border-color:transparent;
+  box-shadow:0 4px 14px rgba(227,169,74,0.4);
+}
+.rank-journey-step.current .stepper-step{
+  width:54px; height:54px; font-size:20px; margin-top:-7px;
+  background:var(--gradient-navy); color:#fff; border-color:transparent;
+  animation:rank-journey-pulse 2.2s ease-in-out infinite;
+}
 .rank-journey-step-label{
-  font-size:11px; font-weight:600; color:var(--slate); text-align:center;
-  max-width:88px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:11.5px; font-weight:600; color:var(--slate); text-align:center;
+  max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
-.rank-journey-step.current .rank-journey-step-label{ color:var(--blue-bright); font-weight:600; }
+.rank-journey-step.current .rank-journey-step-label{ color:var(--blue-bright); font-weight:800; font-size:13px; }
 .rank-journey-step.done .rank-journey-step-label{ color:var(--navy-soft); }
-.rank-journey-step.current .stepper-step{ animation:lb-glow-pulse-blue 2.6s ease-in-out infinite; }
+@keyframes rank-journey-pulse{
+  0%, 100%{ box-shadow:0 0 0 4px rgba(76,141,255,0.22), 0 4px 16px rgba(76,141,255,0.4); }
+  50%{ box-shadow:0 0 0 8px rgba(76,141,255,0.12), 0 4px 30px rgba(76,141,255,0.65); }
+}
 @media (prefers-reduced-motion: reduce){
   .rank-journey-step.current .stepper-step{ animation:none !important; }
 }

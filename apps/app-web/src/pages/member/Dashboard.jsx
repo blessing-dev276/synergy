@@ -332,7 +332,6 @@ function RankJourneyCard({ profile }) {
     () => supabase.from("ranks").select("id, title, order_index").order("order_index"),
     [],
   );
-  const { data: paths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths", {}), []);
 
   if (loading) {
     return (
@@ -360,7 +359,7 @@ function RankJourneyCard({ profile }) {
           nextRank ? (
             <>
               You're at <strong style={{ color: "var(--navy)" }}>{currentRank.title}</strong> — next up:{" "}
-              <strong style={{ color: "var(--navy)" }}>{nextRank.title}</strong>
+              <span className="rank-journey-next-chip">{nextRank.title}</span>
             </>
           ) : (
             <>
@@ -376,29 +375,14 @@ function RankJourneyCard({ profile }) {
         {ranks.map((r, i) => (
           <div key={r.id} className={`rank-journey-step${i < currentIndex ? " done" : ""}${i === currentIndex ? " current" : ""}`}>
             <div className={`stepper-step${i < currentIndex ? " done" : ""}${i === currentIndex ? " current" : ""}`} title={r.title}>
-              {i < currentIndex ? <Icon name="check" size={13} /> : i + 1}
+              {i < currentIndex ? <Icon name="check" size={16} /> : i === currentIndex ? <Icon name="trophy" size={19} /> : i + 1}
             </div>
             <div className="rank-journey-step-label">{r.title}</div>
           </div>
         ))}
       </div>
 
-      {paths && paths.length > 0 && (
-        <div style={{ marginTop: "6px", paddingTop: "16px", borderTop: "1px solid var(--line)" }}>
-          <div className="row-meta" style={{ marginBottom: "8px" }}>
-            Your learning paths
-          </div>
-          <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
-            {paths.slice(0, 4).map((p) => (
-              <li key={p.id} style={{ fontSize: "13.5px" }}>
-                {p.title}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <Link to="/learning" className="btn btn-secondary" style={{ marginTop: "16px" }}>
+      <Link to="/learning" className="btn btn-secondary" style={{ marginTop: "20px" }}>
         Browse Learning Hub
       </Link>
     </div>
