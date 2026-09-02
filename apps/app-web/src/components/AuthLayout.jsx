@@ -1,9 +1,21 @@
 import logoIcon from "../assets/images/logo-icon.png";
 
 const POINTS = [
-  { icon: "🎓", text: "Structured learning paths in real digital skills, not generic courses" },
-  { icon: "🌐", text: "A sponsor and a network behind you, growing as you grow" },
-  { icon: "💼", text: "A track built to take you from learning to earning" },
+  {
+    icon: "🎓",
+    title: "Structured Learning",
+    text: "Build practical skills through guided learning paths, training, and personal development.",
+  },
+  {
+    icon: "🌐",
+    title: "Build Your Network",
+    text: "Work with your sponsor, team, and community while growing your Network Marketing business.",
+  },
+  {
+    icon: "💼",
+    title: "Work Like a Real Job",
+    text: "Set goals, complete daily activities, track your progress, and stay accountable.",
+  },
 ];
 
 export default function AuthLayout({ children }) {
@@ -15,19 +27,22 @@ export default function AuthLayout({ children }) {
         </div>
 
         <div className="auth-brand-copy">
-          <div className="eyebrow-lite">Synergy Member Platform</div>
-          <h2>Learn. Practice. Build your network. Start earning.</h2>
+          <div className="eyebrow-lite">Synergy Member Office</div>
+          <h2>Learn. Work. Build. Earn.</h2>
           <p>
-            Everything you need to build a real digital skill, build a portfolio, and turn it
-            into income — with a sponsor and a team behind you the whole way.
+            Your digital office for building real skills, growing your business, and creating
+            income through Network Marketing and Freelancing — all from one place.
           </p>
           <div className="auth-brand-points">
             {POINTS.map((p) => (
-              <div key={p.text} className="auth-brand-point">
+              <div key={p.title} className="auth-brand-point">
                 <span className="point-icon" aria-hidden="true">
                   {p.icon}
                 </span>
-                <span>{p.text}</span>
+                <div className="point-copy">
+                  <div className="point-title">{p.title}</div>
+                  <p className="point-text">{p.text}</p>
+                </div>
               </div>
             ))}
           </div>

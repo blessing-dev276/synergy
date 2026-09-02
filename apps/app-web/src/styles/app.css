@@ -390,17 +390,20 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
   letter-spacing:0.14em; text-transform:uppercase; color:#9FCBF7; margin-bottom:18px;
 }
 .auth-brand-copy h2{
-  font-family:'Space Grotesk', sans-serif; font-size:34px; line-height:1.18;
+  font-family:'Space Grotesk', sans-serif; font-size:38px; font-weight:700; line-height:1.15;
   color:#fff; letter-spacing:-0.02em; margin-bottom:16px;
 }
 .auth-brand-copy p{ font-size:15px; line-height:1.6; color:rgba(255,255,255,0.72); }
-.auth-brand-points{ display:flex; flex-direction:column; gap:16px; margin-top:32px; }
-.auth-brand-point{ display:flex; align-items:flex-start; gap:12px; font-size:14px; color:rgba(255,255,255,0.9); }
+.auth-brand-points{ display:flex; flex-direction:column; gap:20px; margin-top:34px; }
+.auth-brand-point{ display:flex; align-items:flex-start; gap:14px; }
 .auth-brand-point .point-icon{
-  flex-shrink:0; width:26px; height:26px; border-radius:8px;
+  flex-shrink:0; width:34px; height:34px; border-radius:10px;
   background:rgba(255,255,255,0.14); display:flex; align-items:center; justify-content:center;
-  font-size:13px;
+  font-size:16px; margin-top:1px;
 }
+.auth-brand-point .point-copy{ min-width:0; }
+.auth-brand-point .point-title{ font-size:14.5px; font-weight:700; color:#fff; margin-bottom:3px; }
+.auth-brand-point .point-text{ font-size:13.5px; line-height:1.55; color:rgba(255,255,255,0.68); }
 .auth-brand-foot{ font-size:12.5px; color:rgba(255,255,255,0.55); }
 
 .auth-form-panel{ display:flex; align-items:center; justify-content:center; padding:32px; background:var(--bg); }
@@ -412,7 +415,19 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
 .auth-switch{ text-align:center; font-size:13.5px; color:var(--slate); margin-top:18px; }
 .auth-switch a{ color:var(--blue-bright); font-weight:600; }
 
+/* Tablet: keep the split-screen, just tighten proportions/spacing so the
+   brand panel doesn't crowd out the form as the viewport narrows. */
 @media (max-width: 980px){
+  .auth-shell{ grid-template-columns:minmax(0,0.82fr) minmax(0,1fr); }
+  .auth-brand-panel{ padding:40px 36px; }
+  .auth-brand-copy{ max-width:340px; }
+  .auth-brand-copy h2{ font-size:29px; }
+  .auth-brand-points{ gap:16px; margin-top:26px; }
+  .auth-form-panel{ padding:28px; }
+}
+
+/* Mobile: stack — brand panel gives way to a compact header, form stays full-width. */
+@media (max-width: 680px){
   .auth-shell{ grid-template-columns:1fr; }
   .auth-brand-panel{ display:none; }
   .auth-form-panel{ padding:24px; background:var(--bg); min-height:100vh; }

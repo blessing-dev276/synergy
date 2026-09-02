@@ -36,7 +36,7 @@ export default function Login() {
   return (
     <AuthLayout>
       <h1>Welcome back</h1>
-      <p className="sub">Log in to continue your learning journey.</p>
+      <p className="sub">Log in to enter your Synergy Office.</p>
 
       <form onSubmit={handleSubmit}>
         <div className="field field-lg">
