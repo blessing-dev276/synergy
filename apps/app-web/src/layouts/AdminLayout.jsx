@@ -20,13 +20,11 @@ export default function AdminLayout() {
       items: [{ to: "/admin", label: "Overview", icon: "bar-chart", end: true }],
     },
     {
+      // Business Basics, Skill Set, Mind Training and Personal Development
+      // all live as tabs inside this one page now (ContentBuilder.jsx) --
+      // no separate top-level entry for Mind Training/Personal Development
+      // any more.
       items: [{ to: "/admin/content", label: "Learning Hub", icon: "layers", end: true }],
-    },
-    {
-      items: [{ to: "/admin/mind-training", label: "Mind Training", icon: "brain", end: true }],
-    },
-    {
-      items: [{ to: "/admin/personal-development", label: "Personal Development", icon: "book", end: true }],
     },
     {
       items: [{ to: "/admin/business-path", label: "Business Path", icon: "compass", end: true }],

@@ -8,6 +8,8 @@ import Icon from "../../../components/Icon.jsx";
 import Modal from "../../../components/Modal.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
+import MindTrainingManager from "../mind-training/MindTrainingManager.jsx";
+import PersonalDevelopmentManager from "../personal-development/PersonalDevelopmentManager.jsx";
 
 // Validated 8-hue categorical set (dataviz skill, dark-mode column) — gives
 // each path a stable, CVD-safe identity color. Hashed off path.id (not list
@@ -19,20 +21,25 @@ function pathHue(id) {
   return PATH_HUES[Math.abs(hash) % PATH_HUES.length];
 }
 
-// The Learning Hub's two remaining tabs here (skill_set/nm_business — same
-// fixed, non-admin-configurable catalog sections as before, unchanged).
-// mind_training used to be a third tab in this same builder, sharing this
-// page's courses/modules/lessons editor; it's been retired from here now
-// that Mind Training has its own dedicated, purpose-built admin section
-// (/admin/mind-training, MindTrainingManager.jsx + MindTrainingPathManager.jsx)
-// with its own Level/Module/Lesson/Activity/Assessment tree, rich lesson
-// content, and independent progress tracking — this old shared editor was
-// never a good fit for that shape. Nothing here changes for skill_set/
-// nm_business themselves.
+// One admin entry point for the whole member-facing Learning Hub (mirrors
+// PathList.jsx's own four tabs exactly, same order: Business Basics first,
+// then Skill Set, Mind Training, Personal Development). Business Basics
+// (section key unchanged: nm_business) and Skill Set share this page's
+// courses/modules/lessons editor below, same as always -- Mind Training
+// and Personal Development instead render their own dedicated, purpose-
+// built managers (MindTrainingManager.jsx / PersonalDevelopmentManager.jsx)
+// inline for their tab, unchanged themselves, just no longer needing a
+// separate top-level sidebar entry each (AdminLayout.jsx) to be reached.
 const SECTIONS = [
+  { key: "nm_business", label: "Business Basics", icon: "briefcase" },
   { key: "skill_set", label: "Skill Set Training", icon: "layers" },
-  { key: "nm_business", label: "Network Marketing Business Training", icon: "briefcase" },
+  { key: "mind_training", label: "Mind Training", icon: "brain" },
+  { key: "personal_development", label: "Personal Development", icon: "book" },
 ];
+// These two render their own dedicated manager component instead of the
+// courses/paths editor below (same split PathList.jsx's isCustomTab makes
+// on the member side).
+const CUSTOM_TABS = new Set(["mind_training", "personal_development"]);
 
 // A class holds a mix of structured courses (build out modules/lessons in
 // CourseEditor, unchanged) and lightweight standalone resources (a single
@@ -479,12 +486,17 @@ function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChang
 }
 
 export default function ContentBuilder() {
-  const [section, setSection] = useState("skill_set");
+  const [section, setSection] = useState("nm_business");
   const [openPathId, setOpenPathId] = useState(null);
   const [pathModal, setPathModal] = useState(null); // null closed | {} add | path edit
 
+  const isCustomTab = CUSTOM_TABS.has(section);
+
+  // No-op while a custom tab is active -- MindTrainingManager/
+  // PersonalDevelopmentManager fetch their own data, this page's own
+  // courses/paths list below doesn't apply to either.
   const { loading, data: paths, refetch } = useSupabaseQuery(
-    () => supabase.from("learning_paths").select("*").eq("section", section).order("order_index", { ascending: true }),
+    () => !isCustomTab && supabase.from("learning_paths").select("*").eq("section", section).order("order_index", { ascending: true }),
     [section],
   );
 
@@ -514,17 +526,21 @@ export default function ContentBuilder() {
 
   return (
     <div>
-      <div className="section-heading">
-        <h1>Learning Hub</h1>
-        <button type="button" className="btn btn-primary" onClick={() => setPathModal({})}>
-          <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
-          New Learning Path
-        </button>
-      </div>
-      <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "20px" }}>
-        Each class holds a mix of structured courses and standalone resources (video, book, podcast, link, PDF). Click a class to open it —
-        opening another one closes this.
-      </p>
+      {!isCustomTab && (
+        <>
+          <div className="section-heading">
+            <h1>Learning Hub</h1>
+            <button type="button" className="btn btn-primary" onClick={() => setPathModal({})}>
+              <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
+              New Learning Path
+            </button>
+          </div>
+          <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "20px" }}>
+            Each class holds a mix of structured courses and standalone resources (video, book, podcast, link, PDF). Click a class to open it —
+            opening another one closes this.
+          </p>
+        </>
+      )}
 
       <div style={{ display: "flex", gap: "10px", marginBottom: "24px", flexWrap: "wrap" }}>
         {SECTIONS.map((s) => (
@@ -540,54 +556,60 @@ export default function ContentBuilder() {
         ))}
       </div>
 
-      {!loading && paths && paths.length > 0 && (
-        <div className="grid grid-3" style={{ marginBottom: "24px" }}>
-          <StatTile label="Learning paths" value={paths.length} icon="layers" />
-          <StatTile label="Published" value={publishedCount} icon="check" tone="success" />
-          <StatTile label="Draft" value={paths.length - publishedCount} icon="pencil" tone="warning" />
-          <StatTile label="Total resources" value={totalCourses} icon="book" />
-        </div>
-      )}
+      {isCustomTab ? (
+        section === "mind_training" ? <MindTrainingManager /> : <PersonalDevelopmentManager />
+      ) : (
+        <>
+          {!loading && paths && paths.length > 0 && (
+            <div className="grid grid-3" style={{ marginBottom: "24px" }}>
+              <StatTile label="Learning paths" value={paths.length} icon="layers" />
+              <StatTile label="Published" value={publishedCount} icon="check" tone="success" />
+              <StatTile label="Draft" value={paths.length - publishedCount} icon="pencil" tone="warning" />
+              <StatTile label="Total resources" value={totalCourses} icon="book" />
+            </div>
+          )}
 
-      {loading && <Skeleton variant="card" height="140px" />}
-      {!loading && (!paths || paths.length === 0) && (
-        <EmptyState
-          icon={<Icon name={activeSection.icon} size={26} />}
-          title={`No paths in ${activeSection.label} yet`}
-          description="Create the first learning path in this section to start adding courses and resources."
-          action={
-            <button type="button" className="btn btn-primary" onClick={() => setPathModal({})} style={{ marginTop: "4px" }}>
-              <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
-              New Learning Path
-            </button>
-          }
-        />
-      )}
-      {paths?.map((path, i) => (
-        <PathBlock
-          key={path.id}
-          path={path}
-          isOpen={openPathId === path.id}
-          onToggle={() => setOpenPathId((prev) => (prev === path.id ? null : path.id))}
-          isFirst={i === 0}
-          isLast={i === paths.length - 1}
-          onReorder={(direction) => reorderPath(i, direction)}
-          onChanged={refetch}
-          onEdit={setPathModal}
-        />
-      ))}
+          {loading && <Skeleton variant="card" height="140px" />}
+          {!loading && (!paths || paths.length === 0) && (
+            <EmptyState
+              icon={<Icon name={activeSection.icon} size={26} />}
+              title={`No paths in ${activeSection.label} yet`}
+              description="Create the first learning path in this section to start adding courses and resources."
+              action={
+                <button type="button" className="btn btn-primary" onClick={() => setPathModal({})} style={{ marginTop: "4px" }}>
+                  <Icon name="plus" size={14} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
+                  New Learning Path
+                </button>
+              }
+            />
+          )}
+          {paths?.map((path, i) => (
+            <PathBlock
+              key={path.id}
+              path={path}
+              isOpen={openPathId === path.id}
+              onToggle={() => setOpenPathId((prev) => (prev === path.id ? null : path.id))}
+              isFirst={i === 0}
+              isLast={i === paths.length - 1}
+              onReorder={(direction) => reorderPath(i, direction)}
+              onChanged={refetch}
+              onEdit={setPathModal}
+            />
+          ))}
 
-      {pathModal && (
-        <PathModal
-          section={section}
-          sectionLabel={activeSection.label}
-          path={pathModal.id ? pathModal : null}
-          onClose={() => setPathModal(null)}
-          onSaved={() => {
-            refetch();
-            setPathModal(null);
-          }}
-        />
+          {pathModal && (
+            <PathModal
+              section={section}
+              sectionLabel={activeSection.label}
+              path={pathModal.id ? pathModal : null}
+              onClose={() => setPathModal(null)}
+              onSaved={() => {
+                refetch();
+                setPathModal(null);
+              }}
+            />
+          )}
+        </>
       )}
     </div>
   );

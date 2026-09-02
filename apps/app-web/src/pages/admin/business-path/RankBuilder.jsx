@@ -32,7 +32,7 @@ import EmptyState from "../../../components/state/EmptyState.jsx";
 // sit inline next to a checkbox label, not on their own tab button.
 const SECTION_LABEL = {
   skill_set: "Skill Set",
-  nm_business: "Network Marketing",
+  nm_business: "Business Basics",
   mind_training: "Mind Training",
 };
 
@@ -496,7 +496,7 @@ function RankTaskModal({ rankId, rankTitle, task, paths, onClose, onSaved }) {
                   <p style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "6px" }}>
                     {MIND_TRAINING_PROXY_TYPES.has(proxyType)
                       ? "No published Mind Training paths yet."
-                      : "No published Skill Set / Network Marketing paths yet."}
+                      : "No published Skill Set / Business Basics paths yet."}
                   </p>
                 )}
               </div>

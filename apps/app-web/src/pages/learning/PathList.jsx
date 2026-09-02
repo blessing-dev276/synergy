@@ -16,8 +16,8 @@ import PersonalDevelopmentLibrary from "./PersonalDevelopmentLibrary.jsx";
 // just ordinary skill_set paths, so this stays 4 tabs rather than inventing
 // a 5th).
 const SECTIONS = [
+  { key: "nm_business", label: "Business Basics", icon: "briefcase" },
   { key: "skill_set", label: "Skill Set Training", icon: "layers" },
-  { key: "nm_business", label: "Network Marketing Business Training", icon: "briefcase" },
   { key: "mind_training", label: "Mind Training", icon: "brain" },
   { key: "personal_development", label: "Personal Development", icon: "book" },
 ];
@@ -105,7 +105,7 @@ function MindTrainingPaths() {
 function initialSectionFor(pathname) {
   if (pathname.startsWith("/learning/personal-development")) return "personal_development";
   if (pathname.startsWith("/learning/mind-training")) return "mind_training";
-  return "skill_set";
+  return "nm_business";
 }
 
 export default function PathList() {
