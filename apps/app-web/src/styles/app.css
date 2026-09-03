@@ -529,6 +529,12 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
 
 .onboarding-actions{ display:flex; gap:10px; }
 
+/* ---------- onboarding step 3: what to expect from the office ---------- */
+.expect-list{ display:flex; flex-direction:column; gap:18px; margin-bottom:28px; }
+.expect-row{ display:flex; align-items:flex-start; gap:14px; }
+.expect-title{ font-size:14.5px; font-weight:700; color:var(--navy); margin-bottom:3px; }
+.expect-desc{ font-size:13.5px; line-height:1.55; color:var(--slate); }
+
 /* ---------- dashboard hero + premium widgets ---------- */
 .hero-banner{
   position:relative; overflow:hidden;

@@ -3,7 +3,6 @@ import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
-import { toggleOption } from "../../lib/onboardingOptions.js";
 import Avatar from "../../components/Avatar.jsx";
 import logoIcon from "../../assets/images/logo-icon.png";
 
@@ -57,7 +56,7 @@ export default function OnboardingFlow() {
   const [skills, setSkills] = useState([]);
   const [saving, setSaving] = useState(false);
 
-  const totalSteps = 2;
+  const totalSteps = 3;
 
   // Freelancing's real, currently-published catalog -- the same
   // section/published filter PathList.jsx's Freelancing tab and
@@ -216,8 +215,8 @@ export default function OnboardingFlow() {
             <>
               <h1>Which skill do you want to learn?</h1>
               <p className="sub">
-                Pick the skill you want to build first — you can explore the rest of the Freelancing library any time.
-                {compulsorySkill && ` ${compulsorySkill.title} is included for every beginner since it's the foundation we recommend starting with.`}
+                {compulsorySkill && `${compulsorySkill.title} is included for every beginner since it's the foundation we recommend starting with. `}
+                You can add one more skill below — you can always explore the rest of the Freelancing library later.
               </p>
 
               {loadingSkills && <p style={{ color: "var(--slate)", fontSize: "13.5px", marginBottom: "20px" }}>Loading the skill catalog…</p>}
@@ -241,7 +240,11 @@ export default function OnboardingFlow() {
                         key={skill.id}
                         type="button"
                         className={`option-card ${selected ? "selected" : ""}`}
-                        onClick={() => setSkills((prev) => toggleOption(prev, skill.title))}
+                        // Capped at one additional skill on top of the
+                        // compulsory one -- picking a new skill swaps out
+                        // whichever one was selected before, rather than
+                        // toggleOption's usual "add to the set" behavior.
+                        onClick={() => setSkills((prev) => (prev.includes(skill.title) ? [] : [skill.title]))}
                       >
                         <span aria-hidden="true">{skillIcon(skill.title)}</span>
                         <span style={{ flex: 1 }}>{skill.title}</span>
@@ -256,8 +259,66 @@ export default function OnboardingFlow() {
                 <button type="button" className="btn btn-secondary btn-lg" onClick={() => setStep(1)}>
                   Back
                 </button>
+                <button type="button" className="btn btn-primary btn-lg" onClick={() => setStep(3)}>
+                  Continue
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <h1>Welcome to your digital office 🏢</h1>
+              <p className="sub">
+                Synergy isn't just another course platform — it's where you'll come to work on your skills, your business, and your income.
+                Here's what to expect once you're in.
+              </p>
+
+              <div className="expect-list">
+                <div className="expect-row">
+                  <span className="icon-badge hue-blue" style={{ fontSize: "19px" }} aria-hidden="true">
+                    🎓
+                  </span>
+                  <div>
+                    <div className="expect-title">Learn</div>
+                    <p className="expect-desc">Structured lessons in Freelancing, Network Marketing, and personal development — at your pace.</p>
+                  </div>
+                </div>
+                <div className="expect-row">
+                  <span className="icon-badge hue-aqua" style={{ fontSize: "19px" }} aria-hidden="true">
+                    ✅
+                  </span>
+                  <div>
+                    <div className="expect-title">Work</div>
+                    <p className="expect-desc">Log in every day to a clear list of tasks on your Dashboard — nothing to guess, just what's next.</p>
+                  </div>
+                </div>
+                <div className="expect-row">
+                  <span className="icon-badge hue-violet" style={{ fontSize: "19px" }} aria-hidden="true">
+                    🌐
+                  </span>
+                  <div>
+                    <div className="expect-title">Build</div>
+                    <p className="expect-desc">Grow your network, set monthly goals, and track your rank progress as you go.</p>
+                  </div>
+                </div>
+                <div className="expect-row">
+                  <span className="icon-badge hue-yellow" style={{ fontSize: "19px" }} aria-hidden="true">
+                    💰
+                  </span>
+                  <div>
+                    <div className="expect-title">Earn</div>
+                    <p className="expect-desc">Turn consistent work into real income, tracked transparently in your Wallet.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="onboarding-actions">
+                <button type="button" className="btn btn-secondary btn-lg" onClick={() => setStep(2)}>
+                  Back
+                </button>
                 <button type="button" className="btn btn-primary btn-lg" onClick={finish} disabled={saving}>
-                  {saving ? "Saving…" : "Finish"}
+                  {saving ? "Saving…" : "Enter the Office"}
                 </button>
               </div>
             </>
