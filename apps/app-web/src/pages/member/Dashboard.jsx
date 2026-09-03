@@ -5,7 +5,7 @@ import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { computeProfileHealth } from "../../lib/profileHealth.js";
 import { completeContentAssignment, submitRankTask } from "../../lib/rpc.js";
-import { rankTaskActionLink } from "../../lib/rankTaskLinks.js";
+import { useTodayTasks, todayISO } from "../../lib/useTodayTasks.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
 import Avatar from "../../components/Avatar.jsx";
@@ -24,90 +24,8 @@ function currentPeriod() {
   return new Date().toISOString().slice(0, 7);
 }
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-// The only real distinction Today's Work can honestly label a task with --
-// there's no category/pillar column on either content_assignments or
-// rank_tasks (checked; doesn't exist) -- but the two task *sources* really
-// are two different systems: Learning Hub coursework vs. the Business Path
-// rank ladder (this platform's Network Marketing progression). Labeling by
-// kind is real, not invented.
-const TASK_KIND_CATEGORY = {
-  assignment: "Learning",
-  rank: "Network Marketing",
-};
-
-// ================= Today's Tasks =================
-// Merges the two task sources a member actually has (Business Path v2 --
-// see supabase/migrations/0058_business_path_v2_drop_v1.sql -- dropped
-// everything else): content_assignments due today/overdue
-// (get_my_content_assignments, same source TaskList.jsx's "/tasks" page
-// reads) and this rank's daily/outstanding rank_tasks (get_my_rank_tasks).
-// "done" means the same thing TaskList.jsx already treats as done for each
-// source -- isDone for an assignment, a non-rejected submission for a rank
-// task -- so the progress bar here never disagrees with what "/tasks" shows.
-function useTodayTasks(uid) {
-  const assignmentsQ = useSupabaseQuery(
-    () => uid && supabase.rpc("get_my_content_assignments", { p_uid: uid }),
-    [uid],
-  );
-  const rankTasksQ = useSupabaseQuery(() => supabase.rpc("get_my_rank_tasks", {}), []);
-
-  const today = todayISO();
-
-  const assignmentItems = (assignmentsQ.data ?? [])
-    .filter((t) => t.dueDate && t.dueDate <= today)
-    .map((t) => ({
-      kind: "assignment",
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      overdue: t.dueDate < today,
-      done: t.isDone,
-      actionable: t.contentType === "bare" && !t.requiresAdminApproval,
-      needsEvidence: t.contentType === "bare" && t.requiresAdminApproval,
-      evidenceStatus: t.evidenceStatus,
-    }));
-
-  const rankItems = (rankTasksQ.data ?? []).map((t) => ({
-    kind: "rank",
-    id: t.id,
-    title: t.title,
-    description: t.description,
-    daily: t.recurrence === "daily",
-    done: Boolean(t.submission) && t.submission.status !== "rejected",
-    pending: t.submission?.status === "pending",
-    manual: t.proxyType === "manual",
-    actionLink: rankTaskActionLink(t.proxyType, t.proxyPathId),
-    progress: t.progress,
-    proxyThreshold: t.proxyThreshold,
-  }));
-
-  // Overdue and not-done first (most urgent), done items sink to the
-  // bottom -- same "unfinished work first" ordering as any todo list.
-  const items = [...assignmentItems, ...rankItems].sort((a, b) => {
-    if (a.done !== b.done) return a.done ? 1 : -1;
-    if (Boolean(a.overdue) !== Boolean(b.overdue)) return a.overdue ? -1 : 1;
-    return 0;
-  });
-
-  return {
-    loading: assignmentsQ.loading || rankTasksQ.loading,
-    error: assignmentsQ.error || rankTasksQ.error,
-    items,
-    doneCount: items.filter((i) => i.done).length,
-    total: items.length,
-    refetch: () => {
-      assignmentsQ.refetch();
-      rankTasksQ.refetch();
-    },
-  };
-}
-
 function TodayTaskRow({ item, busy, onComplete, index }) {
-  const { kind, title, description, done } = item;
+  const { kind, title, description, done, category } = item;
   // Auto-tracked rank tasks (path_complete/prospects_count/etc.) know where
   // a member should go to actually make progress -- the whole row guides
   // them there, not just the small badge, same as MindTrainingPathDetail's
@@ -193,7 +111,7 @@ function TodayTaskRow({ item, busy, onComplete, index }) {
         <Link to={bodyLinkTo} className="today-task-body">
           <div className="today-task-title">
             {title}
-            <span className="today-task-category">{TASK_KIND_CATEGORY[kind]}</span>
+            <span className="today-task-category">{category}</span>
           </div>
           {description && <div className="today-task-desc">{description}</div>}
         </Link>
@@ -201,7 +119,7 @@ function TodayTaskRow({ item, busy, onComplete, index }) {
         <div className="today-task-body">
           <div className="today-task-title">
             {title}
-            <span className="today-task-category">{TASK_KIND_CATEGORY[kind]}</span>
+            <span className="today-task-category">{category}</span>
           </div>
           {description && <div className="today-task-desc">{description}</div>}
         </div>

@@ -61,6 +61,13 @@ export const getMyContentAssignments = (uid) => call("get_my_content_assignments
 
 export const getLearningPaths = () => call("get_learning_paths", {});
 
+// Freelancing's sequential skill lock (0095): a path's skillLock field on
+// get_learning_paths' rows is 'unlocked' | 'locked' | 'choosable' (or null
+// outside skill_set, where the lock concept doesn't apply) -- this is the
+// only write side of it, called on a 'choosable' path to pick it as the
+// next skill in the member's track.
+export const chooseNextFreelancingSkill = (pathId) => call("choose_next_freelancing_skill", { p_path_id: pathId });
+
 export const setMemberStatus = (uid, status) => call("set_member_status", { p_uid: uid, p_status: status });
 
 // Self-service account closure (Profile.jsx) -- sets the caller's own
@@ -144,6 +151,22 @@ export const submitRankTask = (rankTaskId) => call("submit_rank_task", { p_rank_
 
 export const reviewRankTaskSubmission = (submissionId, decision, note) =>
   call("review_rank_task_submission", { p_submission_id: submissionId, p_decision: decision, p_note: note });
+
+// Daily Report (Tasks page, 0094) -- tasks/activities counts are the
+// member's own real Today's Tasks totals at submit time (useTodayTasks.js),
+// not re-typed by hand. One per member per day; resubmitting the same day
+// upserts and reopens review.
+export const submitDailyReport = (tasksCompleted, tasksTotal, activitiesCompleted, activitiesTotal, summary) =>
+  call("submit_daily_report", {
+    p_tasks_completed: tasksCompleted,
+    p_tasks_total: tasksTotal,
+    p_activities_completed: activitiesCompleted,
+    p_activities_total: activitiesTotal,
+    p_summary: summary,
+  });
+
+export const reviewDailyReport = (id, decision, note) =>
+  call("review_daily_report", { p_id: id, p_decision: decision, p_note: note });
 
 // Auto-filed the moment every learning path attached to a member's rank is
 // 100% complete (evaluate_rank_advancement, 0082) -- no member-facing submit

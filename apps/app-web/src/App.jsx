@@ -31,6 +31,7 @@ import PersonalDevelopmentResourceDetail from "./pages/learning/PersonalDevelopm
 import AssignmentList from "./pages/assignments/AssignmentList.jsx";
 import AssignmentDetail from "./pages/assignments/AssignmentDetail.jsx";
 import TaskList from "./pages/tasks/TaskList.jsx";
+import MyReports from "./pages/reports/MyReports.jsx";
 import NotificationList from "./pages/notifications/NotificationList.jsx";
 import Profile from "./pages/profile/Profile.jsx";
 import NetworkDashboard from "./pages/network/NetworkDashboard.jsx";
@@ -120,6 +121,7 @@ function App() {
               <Route path="/assignments" element={<AssignmentList />} />
               <Route path="/assignments/:assignmentId" element={<AssignmentDetail />} />
               <Route path="/tasks" element={<TaskList />} />
+              <Route path="/reports" element={<MyReports />} />
               <Route path="/notifications" element={<NotificationList />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/network" element={<NetworkDashboard />} />

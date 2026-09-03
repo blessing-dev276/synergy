@@ -36,8 +36,16 @@ export default function PathDetail() {
   // either in this list or it isn't. Don't block while `paths` hasn't
   // loaded yet, same as the old `locked ?? false` default did.
   const { data: paths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths"), []);
+  const matchedPath = paths?.find((p) => p.id === pathId);
   const accessible = !paths || paths.some((p) => p.id === pathId);
-  const completed = paths?.find((p) => p.id === pathId)?.completed ?? false;
+  const completed = matchedPath?.completed ?? false;
+  // Freelancing's sequential unlock chain (0095) -- a locked path stays
+  // "accessible" (it's still in this member's rank-gated list) but its
+  // content is blocked until the chain reaches it, same UI-guided-not-a-
+  // hard-boundary posture as Mind Training's own path lock. Only ever
+  // set for skill_set paths; every other section's skillLock is null.
+  const skillLocked = matchedPath?.skillLock?.status === "locked";
+  const skillBlockedBy = matchedPath?.skillLock?.blockedBy;
 
   const {
     loading: loadingCourses,
@@ -46,13 +54,14 @@ export default function PathDetail() {
   } = useSupabaseQuery(
     () =>
       accessible &&
+      !skillLocked &&
       supabase
         .from("courses")
         .select("*")
         .eq("path_id", pathId)
         .eq("published", true)
         .order("order_index", { ascending: true }),
-    [pathId, accessible],
+    [pathId, accessible, skillLocked],
   );
 
   // Standalone resources (video/book/podcast/link/pdf) have no lesson flow
@@ -105,12 +114,19 @@ export default function PathDetail() {
       {!accessible && (
         <EmptyState icon="🔒" title="This path isn't available to you" description="It isn't attached to your rank — ask an admin if you think this is a mistake." />
       )}
-      {accessible && loadingCourses && <Skeleton variant="card" height="100px" />}
-      {accessible && error && <ErrorState description="Couldn't load courses." />}
-      {accessible && !loadingCourses && !error && (!courses || courses.length === 0) && (
+      {accessible && skillLocked && (
+        <EmptyState
+          icon="🔒"
+          title="Not unlocked yet"
+          description={skillBlockedBy ? `Complete "${skillBlockedBy}" 100% to unlock this skill.` : "This skill isn't unlocked yet."}
+        />
+      )}
+      {accessible && !skillLocked && loadingCourses && <Skeleton variant="card" height="100px" />}
+      {accessible && !skillLocked && error && <ErrorState description="Couldn't load courses." />}
+      {accessible && !skillLocked && !loadingCourses && !error && (!courses || courses.length === 0) && (
         <EmptyState icon="📘" title="Nothing published in this path yet" />
       )}
-      {accessible && courses && courses.length > 0 && (
+      {accessible && !skillLocked && courses && courses.length > 0 && (
         <div className="grid grid-2">
           {courses.map((course) => {
             const type = course.resource_type ?? "course";

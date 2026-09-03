@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
+import { chooseNextFreelancingSkill } from "../../lib/rpc.js";
+import { useToast } from "../../components/state/Toast.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
@@ -98,6 +100,61 @@ function MindTrainingPaths() {
   );
 }
 
+// Freelancing's own sequential lock (0095, skillLock on get_learning_paths'
+// rows -- null outside skill_set, where this never renders): 'unlocked'
+// behaves exactly like every other Learning Hub card always has, 'locked'
+// mirrors MindTrainingPaths' own locked-card treatment above (lock icon,
+// "Complete X first" hint) since it's the same "guided progression, not a
+// hard boundary" idea, and 'choosable' is the one truly new state -- the
+// member's current skill is done and this is one of the remaining
+// candidates for what unlocks next, so the card itself is the pick action.
+function FreelancingPathCard({ path, busy, onChoose }) {
+  const lock = path.skillLock;
+
+  if (!lock || lock.status === "unlocked") {
+    return (
+      <Link to={`/learning/${path.id}`} className="card">
+        <div className="card-title">{path.title}</div>
+        <div className="card-subtitle">{path.description}</div>
+        <span className="badge badge-neutral">{path.courseCount ?? 0} resources</span>
+        {path.completed && (
+          <span className="badge badge-success" style={{ marginLeft: "6px" }}>
+            <Icon name="check" size={11} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
+            Completed
+          </span>
+        )}
+      </Link>
+    );
+  }
+
+  if (lock.status === "choosable") {
+    return (
+      <div className="card" style={{ borderColor: "var(--blue-bright)" }}>
+        <div className="card-title">{path.title}</div>
+        <div className="card-subtitle">{path.description}</div>
+        <div style={{ marginBottom: "12px" }}>
+          <span className="badge badge-info">New skill available</span>
+        </div>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => onChoose(path)}>
+          {busy ? "Unlocking…" : "Choose this skill"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card" style={{ opacity: 0.7 }} title={lock.blockedBy ? `Complete "${lock.blockedBy}" first` : "Locked"}>
+      <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <Icon name="lock" size={15} style={{ color: "var(--slate)" }} />
+        {path.title}
+      </div>
+      <div className="card-subtitle" style={{ marginBottom: 0 }}>
+        {lock.blockedBy ? `Complete "${lock.blockedBy}" to unlock this.` : "Locked"}
+      </div>
+    </div>
+  );
+}
+
 // /learning/mind-training and /learning/personal-development (both also
 // routed here, App.jsx) exist so a "back to this tab" link from a detail
 // page lands with the right tab pre-selected, instead of always resetting
@@ -110,17 +167,32 @@ function initialSectionFor(pathname) {
 
 export default function PathList() {
   const location = useLocation();
+  const toast = useToast();
   const [section, setSection] = useState(() => initialSectionFor(location.pathname));
+  const [choosingId, setChoosingId] = useState(null);
   const isCustomTab = section === "mind_training" || section === "personal_development";
 
   // Untouched for skill_set/nm_business -- same get_learning_paths RPC as
   // before, only skipped entirely once a custom tab is active.
-  const { loading, error, data: allPaths } = useSupabaseQuery(
+  const { loading, error, data: allPaths, refetch } = useSupabaseQuery(
     () => !isCustomTab && supabase.rpc("get_learning_paths"),
     [section],
   );
   const paths = allPaths?.filter((p) => p.section === section);
   const activeSection = SECTIONS.find((s) => s.key === section);
+
+  const chooseSkill = async (path) => {
+    setChoosingId(path.id);
+    try {
+      await chooseNextFreelancingSkill(path.id);
+      toast.success(`"${path.title}" unlocked — dive in whenever you're ready.`);
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't unlock that skill.");
+    } finally {
+      setChoosingId(null);
+    }
+  };
 
   return (
     <div>
@@ -165,17 +237,7 @@ export default function PathList() {
           {paths && paths.length > 0 && (
             <div className="grid grid-2">
               {paths.map((path) => (
-                <Link key={path.id} to={`/learning/${path.id}`} className="card">
-                  <div className="card-title">{path.title}</div>
-                  <div className="card-subtitle">{path.description}</div>
-                  <span className="badge badge-neutral">{path.courseCount ?? 0} resources</span>
-                  {path.completed && (
-                    <span className="badge badge-success" style={{ marginLeft: "6px" }}>
-                      <Icon name="check" size={11} style={{ verticalAlign: "-1px", marginRight: "3px" }} />
-                      Completed
-                    </span>
-                  )}
-                </Link>
+                <FreelancingPathCard key={path.id} path={path} busy={choosingId === path.id} onChoose={chooseSkill} />
               ))}
             </div>
           )}

@@ -123,7 +123,7 @@ export default function OverviewSection() {
           ) : (
             <>
               {counts.pendingReviewCount > 0 && (
-                <AttentionRow icon="folder" count={counts.pendingReviewCount} label="Submissions awaiting review" to="/admin/submissions" />
+                <AttentionRow icon="folder" count={counts.pendingReviewCount} label="Reports awaiting review" to="/admin/submissions" />
               )}
               {counts.pendingGoalReviewCount > 0 && (
                 <AttentionRow icon="target" count={counts.pendingGoalReviewCount} label="Monthly goals awaiting review" to="/admin/network?section=goals" />

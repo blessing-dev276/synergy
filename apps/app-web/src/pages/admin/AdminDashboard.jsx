@@ -38,6 +38,7 @@ const ACTION_ICON = {
   content_assignment_completed: "check-square",
   earning_reviewed: "dollar-sign",
   earning_logged: "dollar-sign",
+  freelancing_skill_unlocked: "layers",
 };
 
 // Actions a human actor takes on themselves/another member get a "<actor>
@@ -57,6 +58,7 @@ const ACTION_LABEL = {
   content_assignment_completed: "completed an activity",
   earning_reviewed: "reviewed an earning",
   earning_logged: "logged an earning",
+  freelancing_skill_unlocked: "unlocked a new Freelancing skill",
 };
 
 const SYSTEM_ACTIONS = new Set(["weekly_leaderboard_finalized"]);
@@ -136,7 +138,7 @@ function TeamComposition({ counts }) {
 const QUICK_LINKS = [
   { to: "/admin/content", icon: "layers", label: "Learning Hub" },
   { to: "/admin/business-path", icon: "compass", label: "Business Path" },
-  { to: "/admin/submissions", icon: "check-square", label: "Submissions" },
+  { to: "/admin/submissions", icon: "check-square", label: "Reports" },
   { to: "/admin/settings/team", icon: "users", label: "Team" },
   { to: "/admin/network", icon: "network", label: "Network" },
   { to: "/admin/leaderboard", icon: "dollar-sign", label: "Leaderboard" },
@@ -210,7 +212,7 @@ export default function AdminDashboard() {
         coursesPublished: coursesPublished.count ?? 0,
         coursesTotal: coursesTotal.count ?? 0,
         // Same 5 queues admin_count_pending_submissions() (the sidebar's
-        // "Submissions" badge) sums -- keep these in sync or the banner and
+        // "Reports" badge) sums -- keep these in sync or the banner and
         // the badge disagree on what "pending" means.
         pendingReviews:
           (pendingAssignments.count ?? 0) +
@@ -260,7 +262,7 @@ export default function AdminDashboard() {
           ) : (
             <>
               {stats.pendingReviews > 0 && (
-                <AttentionRow icon="folder" count={stats.pendingReviews} label="Submissions awaiting review" to="/admin/submissions" />
+                <AttentionRow icon="folder" count={stats.pendingReviews} label="Reports awaiting review" to="/admin/submissions" />
               )}
             </>
           )}

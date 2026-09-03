@@ -73,7 +73,12 @@ export default function OnboardingFlow() {
   // this is simply null and nothing is force-selected -- no crash, no
   // placeholder row.
   const compulsorySkill = (skillPaths ?? []).find((p) => p.title.toLowerCase().includes("graphic"));
-  const optionalSkills = (skillPaths ?? []).filter((p) => p.id !== compulsorySkill?.id);
+  // "What Are Digital Skills?" is the foundational path ahead of even the
+  // compulsory one in the sequential unlock chain (0095) -- it isn't a
+  // pick here at all, so it's excluded from the picker entirely rather
+  // than shown selectable/compulsory alongside real skills.
+  const foundationalSkill = (skillPaths ?? []).find((p) => p.title.toLowerCase().includes("digital skills"));
+  const optionalSkills = (skillPaths ?? []).filter((p) => p.id !== compulsorySkill?.id && p.id !== foundationalSkill?.id);
   const isSkillSelected = (title) => title === compulsorySkill?.title || skills.includes(title);
 
   const handlePhotoChange = async (e) => {

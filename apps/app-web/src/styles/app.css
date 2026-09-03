@@ -832,6 +832,21 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
   color:#fff; transition:background .2s ease, border-color .2s ease;
 }
 .today-task-check.done{ background:var(--success); border-color:var(--success); animation:check-pop .35s ease; }
+/* "In progress" -- a rank task pending admin review, or an auto-tracked
+   one with partial progress toward its threshold (0 < progress <
+   threshold). Real states already present in the data, not a third
+   invented status: TaskList.jsx's ○/◐/✓ language, this is the ◐. */
+.today-task-check.in-progress{ background:var(--gold-soft); border-color:var(--gold); color:var(--gold); font-size:11px; }
+
+/* ---------- /tasks page: category grouping + filters ---------- */
+.task-category-heading{
+  display:flex; align-items:center; gap:8px;
+  font-family:'JetBrains Mono', monospace; font-size:12px; font-weight:600;
+  letter-spacing:0.08em; text-transform:uppercase; color:var(--slate);
+  margin:22px 0 4px;
+}
+.task-category-heading:first-child{ margin-top:0; }
+.task-filter-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
 
 .today-task-body{ flex:1; min-width:0; }
 .today-task-title{ font-size:14px; font-weight:600; }

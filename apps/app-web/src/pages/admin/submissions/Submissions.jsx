@@ -9,16 +9,88 @@ import {
   reviewRankTaskSubmission,
   reviewRankAdvancementRequest,
   reviewWithdrawalRequest,
+  reviewDailyReport,
 } from "../../../lib/rpc.js";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 
-// One home for every kind of member submission an admin has to act on --
+// One home for every kind of member report an admin has to act on --
 // previously split across an always-open card at the top of RankBuilder.jsx
 // (rank tasks) and a "Review Queue" tab buried under /admin/network (course
 // assignments + task evidence), which meant checking two unrelated pages to
 // know what's pending. Same accordion "Sections" shell as NetworkOverview.jsx.
+
+// A member's own daily wrap-up (daily_reports, 0094) -- the direct match
+// for what this whole page is now called. "Submitted" reports need a
+// decision here; reviewed/needs_attention ones don't, same "only show
+// what's actually pending" rule every other section on this page follows.
+function DailyReportsSection() {
+  const toast = useToast();
+  const { loading, data: reports, refetch } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("daily_reports")
+        .select("*, member:profiles!daily_reports_uid_fkey(display_name, email)")
+        .eq("status", "submitted")
+        .order("created_at", { ascending: true }),
+    [],
+  );
+  const [busyId, setBusyId] = useState(null);
+  const [notes, setNotes] = useState({});
+
+  const decide = async (report, decision) => {
+    setBusyId(report.id);
+    try {
+      await reviewDailyReport(report.id, decision, (notes[report.id] ?? "").trim());
+      toast.success(decision === "reviewed" ? "Report reviewed." : "Flagged for attention.");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't review that report.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      {loading && <Skeleton variant="card" height="140px" />}
+      {!loading && (!reports || reports.length === 0) && (
+        <EmptyState icon={<Icon name="clipboard" size={26} />} title="Nothing pending review" />
+      )}
+      {reports?.map((r) => (
+        <div key={r.id} className="card" style={{ marginBottom: "14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
+            <Link to={`/admin/members/${r.uid}`} style={{ fontWeight: 600 }}>
+              {r.member?.display_name || r.member?.email}
+            </Link>
+            <span style={{ fontSize: "12px", color: "var(--slate)" }}>{new Date(r.created_at).toLocaleString()}</span>
+          </div>
+          <p style={{ fontSize: "13.5px", marginBottom: "8px" }}>
+            Tasks: <strong>{r.tasks_completed}/{r.tasks_total}</strong> · Activities: <strong>{r.activities_completed}/{r.activities_total}</strong>
+          </p>
+          {r.summary && <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "8px" }}>{r.summary}</p>}
+          <div className="field" style={{ marginBottom: "8px" }}>
+            <input
+              type="text"
+              placeholder="Note (optional, shown to the member)"
+              value={notes[r.id] ?? ""}
+              onChange={(e) => setNotes((prev) => ({ ...prev, [r.id]: e.target.value }))}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button type="button" className="btn btn-primary" disabled={busyId === r.id} onClick={() => decide(r, "reviewed")}>
+              Mark Reviewed
+            </button>
+            <button type="button" className="btn btn-danger" disabled={busyId === r.id} onClick={() => decide(r, "needs_attention")}>
+              Needs Attention
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // Rank tasks with proxy_type='manual' only ever reach 'pending' here --
 // auto-tracked tasks (0065_rank_task_auto_proxies.sql) file straight to
@@ -226,7 +298,7 @@ function AssignmentGradingSection() {
       )}
       {submissions?.map((s) => (
         <div key={s.id} className="card" style={{ marginBottom: "14px" }}>
-          <div className="card-title">Submission from {s.member?.display_name || s.uid}</div>
+          <div className="card-title">Report from {s.member?.display_name || s.uid}</div>
           <p style={{ margin: "8px 0" }}>{s.text_response || "(no text response)"}</p>
           {s.file_urls?.map((path) => (
             <button key={path} type="button" className="badge badge-neutral" style={{ marginRight: "6px" }} onClick={() => openAttachment(path)}>
@@ -472,6 +544,7 @@ function WithdrawalRequestsSection() {
 }
 
 const SECTIONS = [
+  { id: "daily-reports", label: "Daily Reports", icon: "clipboard", Component: DailyReportsSection },
   { id: "rank-advancement", label: "Rank Advancement", icon: "trophy", Component: RankAdvancementRequestsSection },
   { id: "rank-tasks", label: "Rank Tasks", icon: "compass", Component: RankTaskSubmissionsSection },
   { id: "withdrawals", label: "Withdrawal Requests", icon: "dollar-sign", Component: WithdrawalRequestsSection },
@@ -512,8 +585,8 @@ export default function Submissions() {
   return (
     <div>
       <div className="hero-banner">
-        <h1>Submissions</h1>
-        <p>Every kind of member submission waiting on a decision — rank advancement, rank tasks, course assignments, and task evidence — in one place.</p>
+        <h1>Reports</h1>
+        <p>Every kind of member report waiting on a decision — daily reports, rank advancement, rank tasks, course assignments, and task evidence — in one place.</p>
       </div>
 
       <p style={{ color: "var(--slate)", margin: "20px 0 12px" }}>

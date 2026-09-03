@@ -73,7 +73,7 @@ export default function NetworkOverview() {
     <div>
       <div className="hero-banner">
         <h1>Network</h1>
-        <p>Sponsor relationships, submissions, and team activity across Synergy — at a glance.</p>
+        <p>Sponsor relationships, reports, and team activity across Synergy — at a glance.</p>
       </div>
 
       <div style={{ marginTop: "24px" }}>

@@ -1,140 +1,65 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
-import { completeContentAssignment, submitContentEvidence, submitRankTask } from "../../lib/rpc.js";
-import { rankTaskActionLink } from "../../lib/rankTaskLinks.js";
+import { useTodayTasks, todayISO } from "../../lib/useTodayTasks.js";
+import { completeContentAssignment, submitRankTask, submitContentEvidence, submitDailyReport } from "../../lib/rpc.js";
+import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
-import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
+import EmptyState from "../../components/state/EmptyState.jsx";
 import Modal from "../../components/Modal.jsx";
 
-// Rank tasks (supabase/migrations/0063_rank_tasks.sql) are a separate,
-// simpler source from the individual tasks below: no evidence, just a
-// checkbox, and an admin approves/rejects afterward. Kept as its own
-// section rather than merged into one table — the two have different
-// enough shapes (no due date/xp/type on a rank task, no recurrence on an
-// individual one) that forcing a single row shape would need more
-// branching than just showing them separately.
-//
-// A task can also be auto-tracked (0065_rank_task_auto_proxies.sql,
-// proxyType !== "manual") — the system files and approves the submission
-// itself once the member's real learning progress qualifies, so there's no
-// button to press for one of those, just a status. Approved one-time tasks
-// don't reach this component at all: get_my_rank_tasks drops them from the
-// list once they're done, since there's nothing left to look at.
-function RankTaskRow({ task, onSubmitted }) {
-  const toast = useToast();
-  const [submitting, setSubmitting] = useState(false);
-  const submission = task.submission;
-  const isManual = task.proxyType === "manual";
-  const actionLink = rankTaskActionLink(task.proxyType, task.proxyPathId);
+// The member's daily digital work desk -- LEARN -> WORK -> BUILD -> EARN
+// made practical. Reuses useTodayTasks.js (shared with Dashboard.jsx's
+// preview card) as the single source of truth for what's due and what's
+// done, so this page and the dashboard can never disagree.
 
-  const submit = async () => {
-    setSubmitting(true);
-    try {
-      await submitRankTask(task.id);
-      toast.success("Marked done — an admin will review it.");
-      onSubmitted();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't submit that task.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+const CATEGORY_ICON = {
+  Learning: "book",
+  "Network Marketing": "network",
+  Freelancing: "laptop",
+  "Personal Development": "brain",
+  Team: "users",
+  General: "compass",
+};
+// Fixed order -- Learn, then Work (Network Marketing/Freelancing), then
+// Build (Personal Development/Team) -- matching the platform's own
+// Learn -> Work -> Build -> Earn philosophy rather than alphabetical.
+const CATEGORY_ORDER = ["Learning", "Network Marketing", "Freelancing", "Personal Development", "Team", "General"];
 
-  // Auto-tracked tasks with a known destination guide the member there the
-  // moment they click the task itself, not just the small badge on the right.
-  const guideTo = !isManual && !submission ? actionLink?.to : null;
+const STATUS_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "pending", label: "Pending" },
+  { key: "completed", label: "Completed" },
+];
 
-  return (
-    <tr>
-      <td>
-        {guideTo ? (
-          <Link to={guideTo} style={{ display: "block", fontWeight: 600 }}>
-            {task.title}
-          </Link>
-        ) : (
-          <div style={{ fontWeight: 600 }}>{task.title}</div>
-        )}
-        {task.description && <div style={{ fontSize: "13px", color: "var(--slate)" }}>{task.description}</div>}
-        {submission?.status === "rejected" && submission.reviewNote && (
-          <div style={{ fontSize: "12.5px", color: "var(--danger)", marginTop: "4px" }}>{submission.reviewNote}</div>
-        )}
-      </td>
-      <td>{task.recurrence === "daily" ? "Daily" : "One-time"}</td>
-      <td>
-        {isManual && (!submission || submission.status === "rejected") && (
-          <button type="button" className="badge badge-neutral" onClick={submit} disabled={submitting}>
-            {submitting ? "Submitting…" : submission ? "Resubmit" : "Mark done"}
-          </button>
-        )}
-        {!isManual && !submission && (
-          <>
-            {task.proxyThreshold != null && (
-              <span className="badge badge-info">
-                {task.progress ?? 0} of {task.proxyThreshold}
-              </span>
-            )}
-            {actionLink && (
-              <Link to={actionLink.to} className="badge badge-neutral">
-                {actionLink.label}
-              </Link>
-            )}
-            <span className="badge badge-neutral" title="Completes automatically once your progress qualifies">
-              Tracked automatically
-            </span>
-          </>
-        )}
-        {submission?.status === "pending" && <span className="badge badge-info">Pending review</span>}
-        {submission?.status === "approved" && <span className="badge badge-success">Approved</span>}
-      </td>
-    </tr>
-  );
+// ○ not started / ◐ in progress / ✓ completed -- real states already in
+// the data (a rank task pending admin review, or auto-tracked with
+// partial progress toward its threshold), not an invented status.
+function taskStatus(item) {
+  if (item.done) return "completed";
+  if (item.pending) return "in-progress";
+  if (item.progress != null && item.proxyThreshold != null && item.progress > 0 && item.progress < item.proxyThreshold) return "in-progress";
+  return "not-started";
 }
 
-function RankTasksSection() {
-  const { loading, data: tasks, refetch } = useSupabaseQuery(() => supabase.rpc("get_my_rank_tasks", {}), []);
-
-  if (!loading && (!tasks || tasks.length === 0)) return null;
-
-  return (
-    <div style={{ marginBottom: "28px" }}>
-      <div className="card-title" style={{ marginBottom: "12px" }}>
-        Your Rank Tasks
-      </div>
-      {loading && <Skeleton variant="card" height="100px" />}
-      {tasks && tasks.length > 0 && (
-        <div className="card">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Task</th>
-                <th>Frequency</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.map((t) => (
-                <RankTaskRow key={t.id} task={t} onSubmitted={refetch} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
+function StatusCircle({ status }) {
+  if (status === "completed") {
+    return (
+      <span className="today-task-check done" aria-hidden="true">
+        <Icon name="check" size={13} />
+      </span>
+    );
+  }
+  if (status === "in-progress") {
+    return <span className="today-task-check in-progress" aria-hidden="true" title="In progress" />;
+  }
+  return <span className="today-task-check" aria-hidden="true" title="Not started" />;
 }
 
-// Shown for a bare task flagged requires_admin_approval — self-attesting is
-// blocked server-side for these (see complete_content_assignment), so this
-// is the only way to mark one done: write-up now, file attachments later.
-// Business Path v2 dropped daily tasks and stage/track placements entirely
-// (see supabase/migrations/0058_business_path_v2_drop_v1.sql) -- the
-// individual-task feature (content_assignments/content_evidence_submissions)
-// is the only task source left, so there's no more `source` branching here.
 function EvidenceForm({ task, onClose, onSubmitted }) {
   const toast = useToast();
   const [text, setText] = useState("");
@@ -145,21 +70,21 @@ function EvidenceForm({ task, onClose, onSubmitted }) {
     setSubmitting(true);
     try {
       await submitContentEvidence(task.id, text.trim(), []);
-      toast.success("Evidence submitted for review.");
+      toast.success("Report submitted for review.");
       setText("");
       onSubmitted();
     } catch (err) {
-      toast.error(err.message ?? "Couldn't submit evidence.");
+      toast.error(err.message ?? "Couldn't submit that.");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Modal open onClose={onClose} title="Submit Evidence">
+    <Modal open onClose={onClose} title="Report Your Work">
       <form onSubmit={submit}>
         <div className="field">
-          <textarea rows={3} placeholder="Describe what you did…" value={text} onChange={(e) => setText(e.target.value)} />
+          <textarea rows={3} placeholder="Describe what you did…" value={text} onChange={(e) => setText(e.target.value)} autoFocus />
         </div>
         <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
           <button type="button" className="btn btn-secondary" onClick={onClose}>
@@ -174,123 +99,385 @@ function EvidenceForm({ task, onClose, onSubmitted }) {
   );
 }
 
-function TaskStatus({ task, open, onToggleOpen, onSubmitted }) {
-  if (task.isDone) {
-    return <span className="badge badge-success">Completed</span>;
-  }
-  if (task.contentType !== "bare") {
-    return (
-      <span className="badge badge-neutral" title="Completes automatically once the linked training/assignment is done">
-        In progress
+function TaskRow({ item, busy, onComplete, onNeedsEvidence }) {
+  const status = taskStatus(item);
+  const bodyLinkTo = !item.done && item.kind === "rank" && !item.manual && !item.pending ? item.actionLink?.to : null;
+
+  let meta;
+  if (item.done) {
+    meta = (
+      <span className="badge badge-success">
+        <Icon name="check" size={11} />
+        Completed
       </span>
     );
-  }
-  if (task.requiresAdminApproval) {
-    if (task.evidenceStatus === "submitted") {
-      return <span className="badge badge-info">Pending review</span>;
-    }
-    if (task.evidenceStatus === "needs_revision") {
-      return (
-        <button type="button" className="badge badge-warning" onClick={onToggleOpen}>
-          {open ? "Cancel" : "Resubmit"}
+  } else if (item.kind === "assignment") {
+    const urgencyTag = item.overdue ? (
+      <span className="badge badge-danger">Overdue</span>
+    ) : (
+      <span className="badge badge-info">Due today</span>
+    );
+    let cta = null;
+    if (item.actionable) {
+      cta = (
+        <button type="button" className="badge badge-neutral" disabled={busy} onClick={() => onComplete(item)}>
+          {busy ? "Saving…" : "Mark done"}
         </button>
       );
+    } else if (item.needsEvidence) {
+      cta =
+        item.evidenceStatus === "submitted" ? (
+          <span className="badge badge-info">Pending review</span>
+        ) : (
+          <button type="button" className="badge badge-neutral" onClick={() => onNeedsEvidence(item)}>
+            {item.evidenceStatus === "needs_revision" ? "Resubmit" : "Report work"}
+          </button>
+        );
     }
-    return (
-      <button type="button" className="badge badge-neutral" onClick={onToggleOpen}>
-        {open ? "Cancel" : "Submit evidence"}
-      </button>
+    meta = (
+      <>
+        {urgencyTag}
+        {cta}
+      </>
+    );
+  } else {
+    const freqTag = <span className="badge badge-neutral">{item.daily ? "Daily" : "One-time"}</span>;
+    let cta;
+    if (item.pending) {
+      cta = <span className="badge badge-info">Pending review</span>;
+    } else if (item.manual) {
+      cta = (
+        <button type="button" className="badge badge-neutral" disabled={busy} onClick={() => onComplete(item)}>
+          {busy ? "Saving…" : "Mark done"}
+        </button>
+      );
+    } else {
+      cta = (
+        <>
+          {item.proxyThreshold != null && (
+            <span className="badge badge-info">
+              {item.progress ?? 0} of {item.proxyThreshold}
+            </span>
+          )}
+          {item.actionLink && (
+            <Link to={item.actionLink.to} className="badge badge-neutral">
+              {item.actionLink.label}
+            </Link>
+          )}
+          <span className="badge badge-neutral" title="Completes automatically as you make progress">
+            Auto-tracked
+          </span>
+        </>
+      );
+    }
+    meta = (
+      <>
+        {freqTag}
+        {cta}
+      </>
     );
   }
+
+  const bodyContent = (
+    <>
+      <div className="today-task-title">{item.title}</div>
+      {item.description && <div className="today-task-desc">{item.description}</div>}
+      {item.dueDate && !item.done && <div className="today-task-desc">Due {new Date(item.dueDate).toLocaleDateString()}</div>}
+      {item.evidenceStatus === "needs_revision" && (
+        <div style={{ fontSize: "12.5px", color: "var(--gold)", marginTop: "4px" }}>
+          An admin asked for a revision — check your notifications for details.
+        </div>
+      )}
+      {item.submission?.status === "rejected" && item.submission.reviewNote && (
+        <div style={{ fontSize: "12.5px", color: "var(--danger)", marginTop: "4px" }}>{item.submission.reviewNote}</div>
+      )}
+    </>
+  );
+
   return (
-    <button type="button" className="badge badge-neutral" onClick={() => onSubmitted(task)}>
-      Mark done
-    </button>
+    <li className={`today-task-row${item.done ? " is-done" : ""}`}>
+      <StatusCircle status={status} />
+      {bodyLinkTo ? (
+        <Link to={bodyLinkTo} className="today-task-body" style={{ textDecoration: "none", color: "inherit" }}>
+          {bodyContent}
+        </Link>
+      ) : (
+        <div className="today-task-body">{bodyContent}</div>
+      )}
+      <div className="today-task-meta">{meta}</div>
+    </li>
+  );
+}
+
+function DailyReportCard({ uid, today }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [summary, setSummary] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const { data: report, loading, refetch } = useSupabaseQuery(
+    () => uid && supabase.from("daily_reports").select("*").eq("uid", uid).eq("report_date", todayISO()).maybeSingle(),
+    [uid],
+  );
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await submitDailyReport(today.tasksDone, today.tasksTotal, today.activitiesDone, today.activitiesTotal, summary.trim());
+      toast.success("Daily report submitted.");
+      setOpen(false);
+      setSummary("");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't submit your report.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) return null;
+
+  return (
+    <div className="card-elevated" style={{ marginTop: "28px" }}>
+      {report ? (
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <span className="icon-badge tone-success">
+            <Icon name="check" size={18} />
+          </span>
+          <div>
+            <div className="card-title" style={{ marginBottom: "2px" }}>
+              Daily Report Submitted
+            </div>
+            <p className="card-subtitle" style={{ marginBottom: 0 }}>
+              Submitted today at {new Date(report.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+              {report.status === "reviewed" && " · Reviewed by an admin"}
+              {report.status === "needs_attention" && " · An admin flagged this — check your notifications"}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "14px" }}>
+          <div>
+            <div className="card-title" style={{ marginBottom: "2px" }}>
+              Ready to report your work?
+            </div>
+            <p className="card-subtitle" style={{ marginBottom: 0 }}>
+              Record what you accomplished today and keep your progress on track.
+            </p>
+          </div>
+          <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}>
+            Create Daily Report
+          </button>
+        </div>
+      )}
+
+      {open && (
+        <Modal open onClose={() => setOpen(false)} title="Create Daily Report">
+          <form onSubmit={submit}>
+            <div className="grid grid-2" style={{ marginBottom: "16px" }}>
+              <div className="stat-tile">
+                <div>
+                  <div className="stat-tile-value">
+                    {today.tasksDone}/{today.tasksTotal}
+                  </div>
+                  <div className="stat-tile-label">Tasks completed</div>
+                </div>
+              </div>
+              <div className="stat-tile">
+                <div>
+                  <div className="stat-tile-value">
+                    {today.activitiesDone}/{today.activitiesTotal}
+                  </div>
+                  <div className="stat-tile-label">Activities completed</div>
+                </div>
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="summary">What did you accomplish today? (optional)</label>
+              <textarea
+                id="summary"
+                rows={4}
+                placeholder="e.g. Finished Lesson 6, followed up with 3 prospects, sent 2 proposals…"
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? "Submitting…" : "Submit Report"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
   );
 }
 
 export default function TaskList() {
   const { user } = useAuth();
   const toast = useToast();
-  const [openTaskId, setOpenTaskId] = useState(null);
+  const today = useTodayTasks(user?.id);
+  const [busyId, setBusyId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [evidenceItem, setEvidenceItem] = useState(null);
 
-  const { loading, error, data: tasks, refetch } = useSupabaseQuery(
-    () => user && supabase.rpc("get_my_content_assignments", { p_uid: user.id }),
-    [user?.id],
-  );
-
-  // One-way, same as lesson completion (LessonViewer.jsx) — always goes
-  // through an RPC so dependency/linked-course/linked-assignment rules are
-  // enforced server-side, not just in this UI.
-  const markComplete = async (task) => {
+  const complete = async (item) => {
+    setBusyId(item.id);
     try {
-      await completeContentAssignment(task.id);
-      refetch();
+      if (item.kind === "assignment") {
+        await completeContentAssignment(item.id);
+        toast.success("Nice — marked done.");
+      } else {
+        await submitRankTask(item.id);
+        toast.success("Marked done — an admin will review it.");
+      }
+      today.refetch();
     } catch (err) {
-      toast.error(err.message ?? "Couldn't complete that task.");
+      toast.error(err.message ?? "Couldn't update that task.");
+    } finally {
+      setBusyId(null);
     }
   };
 
-  const evidenceTask = tasks?.find((t) => t.id === openTaskId);
+  const categoriesPresent = useMemo(
+    () => CATEGORY_ORDER.filter((c) => today.items.some((i) => i.category === c)),
+    [today.items],
+  );
+
+  const filtered = today.items.filter((i) => {
+    if (statusFilter === "pending" && i.done) return false;
+    if (statusFilter === "completed" && !i.done) return false;
+    if (categoryFilter !== "all" && i.category !== categoryFilter) return false;
+    return true;
+  });
+
+  const percent = today.total > 0 ? Math.round((today.doneCount / today.total) * 100) : 0;
+  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
   return (
     <div>
-      <h1>Tasks</h1>
-      <RankTasksSection />
-      {loading && <Skeleton variant="card" height="100px" />}
-      {error && <ErrorState description="Couldn't load your tasks." />}
-      {!loading && !error && (!tasks || tasks.length === 0) && (
-        <EmptyState icon="✅" title="No tasks assigned" />
-      )}
-      {tasks && tasks.length > 0 && (
-        <div className="card">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Task</th>
-                <th>Type</th>
-                <th>Due</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.map((task) => (
-                <tr key={task.id}>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{task.title}</div>
-                    <div style={{ fontSize: "13px", color: "var(--slate)" }}>{task.description}</div>
-                    {task.evidenceStatus === "needs_revision" && (
-                      <div style={{ fontSize: "12.5px", color: "var(--gold)", marginTop: "4px" }}>
-                        An admin asked for a revision — check your notifications for details.
+      <h1>Today's Tasks</h1>
+      <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "2px" }}>Here's what you need to get done today.</p>
+      <p style={{ color: "var(--slate)", fontSize: "13.5px", marginBottom: "22px" }}>{dateLabel}</p>
+
+      {today.loading && <Skeleton variant="card" height="100px" />}
+      {today.error && <ErrorState description="Couldn't load your tasks." />}
+
+      {!today.loading && !today.error && (
+        <>
+          {today.total > 0 && (
+            <div className="card-elevated" style={{ marginBottom: "24px" }}>
+              <div className="card-title" style={{ marginBottom: "4px" }}>
+                Today's Progress
+              </div>
+              <p className="card-subtitle" style={{ marginBottom: "12px" }}>
+                {today.doneCount} / {today.total} completed
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div className="progress-bar" style={{ flex: 1 }}>
+                  <div className="progress-bar-fill" style={{ width: `${percent}%` }} />
+                </div>
+                <span className="today-tasks-percent">{percent}%</span>
+              </div>
+            </div>
+          )}
+
+          {today.total === 0 ? (
+            <EmptyState
+              icon="🎉"
+              title="You're all caught up"
+              description="There are no tasks assigned to you for today."
+              action={
+                <Link to="/learning" className="btn btn-primary">
+                  View Learning Hub
+                </Link>
+              }
+            />
+          ) : (
+            <>
+              <div className="task-filter-row">
+                {STATUS_FILTERS.map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    className={`btn btn-sm ${statusFilter === f.key ? "btn-primary" : "btn-secondary"}`}
+                    onClick={() => setStatusFilter(f.key)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+                {categoriesPresent.length > 1 && (
+                  <>
+                    <span style={{ width: "1px", background: "var(--line)", margin: "0 4px" }} />
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${categoryFilter === "all" ? "btn-primary" : "btn-secondary"}`}
+                      onClick={() => setCategoryFilter("all")}
+                    >
+                      All Categories
+                    </button>
+                    {categoriesPresent.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        className={`btn btn-sm ${categoryFilter === c ? "btn-primary" : "btn-secondary"}`}
+                        onClick={() => setCategoryFilter(c)}
+                      >
+                        <Icon name={CATEGORY_ICON[c] ?? "compass"} size={12} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
+                        {c}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+
+              {filtered.length === 0 ? (
+                <EmptyState icon="✅" title="Nothing here" description="No tasks match this filter." />
+              ) : (
+                <div className="card">
+                  {(categoryFilter === "all" ? categoriesPresent : [categoryFilter]).map((cat) => {
+                    const rows = filtered.filter((i) => i.category === cat);
+                    if (rows.length === 0) return null;
+                    return (
+                      <div key={cat}>
+                        {categoryFilter === "all" && (
+                          <div className="task-category-heading">
+                            <Icon name={CATEGORY_ICON[cat] ?? "compass"} size={13} />
+                            {cat}
+                          </div>
+                        )}
+                        <ul className="today-task-list">
+                          {rows.map((item) => (
+                            <TaskRow key={item.id} item={item} busy={busyId === item.id} onComplete={complete} onNeedsEvidence={setEvidenceItem} />
+                          ))}
+                        </ul>
                       </div>
-                    )}
-                  </td>
-                  <td>
-                    {task.taskType?.replace("_", " ") ?? "—"}
-                    {task.xpReward > 0 && ` · ${task.xpReward} XP`}
-                    {!task.isRequired && " · optional"}
-                  </td>
-                  <td>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "—"}</td>
-                  <td>
-                    <TaskStatus
-                      task={task}
-                      open={openTaskId === task.id}
-                      onToggleOpen={() => setOpenTaskId((prev) => (prev === task.id ? null : task.id))}
-                      onSubmitted={markComplete}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          <DailyReportCard uid={user?.id} today={today} />
+        </>
       )}
 
-      {evidenceTask && (
+      {evidenceItem && (
         <EvidenceForm
-          task={evidenceTask}
-          onClose={() => setOpenTaskId(null)}
-          onSubmitted={() => { setOpenTaskId(null); refetch(); }}
+          task={evidenceItem}
+          onClose={() => setEvidenceItem(null)}
+          onSubmitted={() => {
+            setEvidenceItem(null);
+            today.refetch();
+          }}
         />
       )}
     </div>
