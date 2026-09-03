@@ -12,11 +12,19 @@ const COPY = {
     title: "Your account has been removed",
     description: "An admin has removed your access to the program. Your history hasn't been deleted. If you think this is a mistake, contact an admin.",
   },
+  // Same underlying status as `removed` (leave_office, 0092, sets status
+  // = 'removed' same as an admin removing someone would) -- left_at is
+  // the one signal that distinguishes "you left" from "an admin removed
+  // you", so this takes priority over the generic removed copy below.
+  left: {
+    title: "You've left the Synergy Office",
+    description: "You chose to leave — your history hasn't been deleted. If you'd like to come back, contact an admin to have your access reinstated.",
+  },
 };
 
 export default function BlockedAccount() {
   const { profile } = useAuth();
-  const copy = COPY[profile?.status] ?? COPY.suspended;
+  const copy = profile?.left_at ? COPY.left : (COPY[profile?.status] ?? COPY.suspended);
 
   return (
     <div className="auth-screen">

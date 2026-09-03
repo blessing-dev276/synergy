@@ -84,7 +84,14 @@
    (icon-only) or mobile (sidebar replaced by the bottom nav below). */
 .topbar-title{ display:none; }
 .topbar-title.is-visible{ display:block; }
-.topbar-actions{ display:flex; align-items:center; gap:14px; }
+/* margin-left:auto, not just .app-topbar's justify-content:space-between --
+   .topbar-title is display:none (not just hidden) whenever the sidebar is
+   expanded (its own wordmark already covers that job, see the comment
+   above .topbar-title), so space-between alone has nothing on the left to
+   space against and this cluster collapses to the left edge instead of
+   sitting at the right. The auto margin pushes it right regardless of
+   whether the title is occupying space or not. */
+.topbar-actions{ display:flex; align-items:center; gap:14px; margin-left:auto; }
 .topbar-user{
   display:flex; align-items:center; gap:10px;
   padding:4px 12px 4px 4px; border-radius:100px;

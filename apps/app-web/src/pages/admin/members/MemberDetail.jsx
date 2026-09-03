@@ -369,6 +369,15 @@ function StatusPanel({ member, onChanged }) {
       </div>
       <p style={{ marginBottom: "12px", fontSize: "14px" }}>
         Currently <span className={`badge ${STATUS_BADGE[status] ?? "badge-neutral"}`}>{status}</span>
+        {/* Same underlying status as an admin-initiated removal
+            (leave_office, 0092) -- left_at is the only signal telling
+            these two apart, so surface it here rather than leaving an
+            admin to assume they removed someone they never touched. */}
+        {member.left_at && (
+          <span style={{ fontSize: "12.5px", color: "var(--slate)", marginLeft: "8px" }}>
+            — left voluntarily on {new Date(member.left_at).toLocaleDateString()}
+          </span>
+        )}
       </p>
 
       {status === "pending" && <OrientationReview member={member} />}

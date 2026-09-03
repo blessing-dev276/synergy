@@ -63,6 +63,12 @@ export const getLearningPaths = () => call("get_learning_paths", {});
 
 export const setMemberStatus = (uid, status) => call("set_member_status", { p_uid: uid, p_status: status });
 
+// Self-service account closure (Profile.jsx) -- sets the caller's own
+// status to 'removed' + left_at (0092), same status an admin removing a
+// member already produces, reversible the same way (an admin setting them
+// back to 'active').
+export const leaveOffice = () => call("leave_office", {});
+
 export const getOrientationContent = () => call("get_orientation_content", {});
 
 export const submitOrientation = (answers) => call("submit_orientation", { p_answers: answers });

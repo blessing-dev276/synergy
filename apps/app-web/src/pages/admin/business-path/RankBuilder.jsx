@@ -37,8 +37,8 @@ const SECTION_LABEL = {
 };
 
 // Mirrors the proxy_type check constraint on rank_tasks (0065, extended by
-// 0078) -- each entry's shape (needs a path? needs a threshold?) drives
-// RankTaskModal's form below and must stay in lockstep with
+// 0078 and 0093) -- each entry's shape (needs a path? needs a threshold?)
+// drives RankTaskModal's form below and must stay in lockstep with
 // admin_create_rank_task/admin_update_rank_task's own validation.
 const PROXY_TYPES = [
   { value: "manual", label: "Member self-reports — you approve or reject" },
@@ -47,9 +47,22 @@ const PROXY_TYPES = [
   { value: "prospects_count", label: "Automatic — N prospects added that day" },
   { value: "mind_training_modules_count", label: "Automatic — N Mind Training modules completed" },
   { value: "mind_training_path_complete", label: "Automatic — a whole Mind Training path completed" },
+  { value: "goals_submitted", label: "Automatic — monthly goals submitted" },
+  { value: "referral_count", label: "Automatic — N people personally sponsored" },
+  { value: "profile_completion_percent", label: "Automatic — profile setup reaches N%" },
+  { value: "earnings_amount", label: "Automatic — verified earnings reach $N" },
 ];
 const PATH_PROXY_TYPES = new Set(["modules_count", "path_complete", "mind_training_modules_count", "mind_training_path_complete"]);
-const THRESHOLD_PROXY_TYPES = new Set(["modules_count", "prospects_count", "mind_training_modules_count"]);
+const THRESHOLD_PROXY_TYPES = new Set([
+  "modules_count", "prospects_count", "mind_training_modules_count",
+  "referral_count", "profile_completion_percent", "earnings_amount",
+]);
+// Of the threshold types, only these actually reset with the task's
+// recurrence (0065/0078/0089) -- referral_count/profile_completion_percent/
+// earnings_amount are lifetime cumulative regardless of recurrence, same
+// posture path_complete already takes, so "per day" would be misleading
+// on them.
+const DAILY_RESETTING_PROXY_TYPES = new Set(["modules_count", "mind_training_modules_count", "prospects_count"]);
 const MIND_TRAINING_PROXY_TYPES = new Set(["mind_training_modules_count", "mind_training_path_complete"]);
 
 // Checkbox-attach UI for admin_set_rank_learning_paths -- a single
@@ -336,6 +349,18 @@ function proxySummary(task, pathTitleById) {
   if (task.proxy_type === "prospects_count") {
     return `Auto · ${task.proxy_threshold} prospect${task.proxy_threshold === 1 ? "" : "s"} added${task.recurrence === "daily" ? "/day" : ""}`;
   }
+  if (task.proxy_type === "goals_submitted") {
+    return "Auto · monthly goals submitted";
+  }
+  if (task.proxy_type === "referral_count") {
+    return `Auto · ${task.proxy_threshold} referral${task.proxy_threshold === 1 ? "" : "s"} (personally sponsored)`;
+  }
+  if (task.proxy_type === "profile_completion_percent") {
+    return `Auto · profile ${task.proxy_threshold}% complete`;
+  }
+  if (task.proxy_type === "earnings_amount") {
+    return `Auto · $${task.proxy_threshold} verified earnings`;
+  }
   return null;
 }
 
@@ -421,7 +446,21 @@ function RankTaskModal({ rankId, rankTitle, task, paths, onClose, onSaved }) {
       return;
     }
     if (needsThreshold && !(Number(proxyThreshold) > 0)) {
-      toast.error(proxyType === "prospects_count" ? "Enter how many prospects must be added." : "Enter how many modules must be completed.");
+      toast.error(
+        proxyType === "prospects_count"
+          ? "Enter how many prospects must be added."
+          : proxyType === "referral_count"
+            ? "Enter how many people must be personally sponsored."
+            : proxyType === "profile_completion_percent"
+              ? "Enter a profile completion percent."
+              : proxyType === "earnings_amount"
+                ? "Enter a minimum verified earnings amount."
+                : "Enter how many modules must be completed.",
+      );
+      return;
+    }
+    if (proxyType === "profile_completion_percent" && Number(proxyThreshold) > 100) {
+      toast.error("Profile completion percent can't be more than 100.");
       return;
     }
     setSaving(true);
@@ -504,14 +543,23 @@ function RankTaskModal({ rankId, rankTitle, task, paths, onClose, onSaved }) {
             {needsThreshold && (
               <div className="field">
                 <label>
-                  {proxyType === "prospects_count" ? "Prospects required" : "Modules required"}
-                  {recurrence === "daily" ? " per day" : ""}
+                  {proxyType === "prospects_count"
+                    ? "Prospects required"
+                    : proxyType === "referral_count"
+                      ? "People to personally sponsor"
+                      : proxyType === "profile_completion_percent"
+                        ? "Profile completion % required"
+                        : proxyType === "earnings_amount"
+                          ? "Verified earnings required ($)"
+                          : "Modules required"}
+                  {recurrence === "daily" && DAILY_RESETTING_PROXY_TYPES.has(proxyType) ? " per day" : ""}
                 </label>
                 <input
                   required
                   type="number"
                   min="1"
-                  placeholder="e.g. 3"
+                  max={proxyType === "profile_completion_percent" ? 100 : undefined}
+                  placeholder={proxyType === "earnings_amount" ? "e.g. 100" : "e.g. 3"}
                   value={proxyThreshold}
                   onChange={(e) => setProxyThreshold(e.target.value)}
                 />

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import { ROLE_LABEL } from "../../lib/roles.js";
 import { computeProfileHealth } from "../../lib/profileHealth.js";
-import { requestParticipationPath } from "../../lib/rpc.js";
+import { requestParticipationPath, leaveOffice } from "../../lib/rpc.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import Icon from "../../components/Icon.jsx";
 import Modal from "../../components/Modal.jsx";
@@ -127,12 +127,14 @@ function Avatar({ profile, signedUrl, size = 88 }) {
 export default function Profile() {
   const { user, profile, refreshProfile } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
   const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [location, setLocation] = useState(profile?.location ?? "");
   const [saving, setSaving] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [signedPhotoUrl, setSignedPhotoUrl] = useState(null);
 
@@ -341,6 +343,37 @@ export default function Profile() {
     toast.success("Password updated.");
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
+
+  // Sets status = 'removed' (leave_office, 0092) -- same status an admin
+  // removing a member already produces, and reversible the same way (an
+  // admin setting them back to active) -- not a data-destructive delete.
+  // Deliberately does NOT sign out here: staying logged in and navigating
+  // to /blocked is what actually shows the "You've left" copy
+  // (BlockedAccount.jsx, keyed off left_at) -- signing out immediately
+  // would skip straight past it to a bare /login with no explanation,
+  // same as it would for an admin-suspended member who's still logged in.
+  const handleLeaveOffice = async () => {
+    if (
+      !window.confirm(
+        "Leave the Synergy Office? You'll lose access to training, tasks, and your dashboard right away. Your history isn't deleted, and an admin can reinstate you if you come back.",
+      )
+    )
+      return;
+    setLeaving(true);
+    try {
+      await leaveOffice();
+      await refreshProfile();
+      navigate("/blocked");
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't process that — please try again.");
+      setLeaving(false);
+    }
+  };
+
   if (!profile) return <Skeleton variant="card" height="300px" />;
 
   return (
@@ -522,6 +555,17 @@ export default function Profile() {
                 : "Not assigned yet"}
           </dd>
         </dl>
+
+        <div style={{ display: "flex", gap: "10px", marginTop: "18px", paddingTop: "18px", borderTop: "1px solid var(--line)" }}>
+          <button type="button" className="btn btn-secondary" onClick={handleLogout}>
+            <Icon name="log-out" size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
+            Log out
+          </button>
+          <button type="button" className="btn btn-danger" onClick={handleLeaveOffice} disabled={leaving}>
+            <Icon name="ban" size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
+            {leaving ? "Leaving…" : "Leave the Synergy Office"}
+          </button>
+        </div>
       </div>
 
       <div className="card" style={{ maxWidth: "640px", marginTop: "20px" }}>
