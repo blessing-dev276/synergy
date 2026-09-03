@@ -439,7 +439,7 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
 
 /* Refined form controls used throughout auth + onboarding */
 .field-lg input, .field-lg textarea, .field-lg select{
-  border:1.5px solid var(--line); border-radius:11px; padding:13px 16px; font-size:15px;
+  width:100%; border:1.5px solid var(--line); border-radius:11px; padding:13px 16px; font-size:15px;
   background:var(--surface); color:var(--navy); transition:border-color .15s ease, box-shadow .15s ease;
 }
 .field-lg input::placeholder, .field-lg textarea::placeholder{ color:var(--slate); }
