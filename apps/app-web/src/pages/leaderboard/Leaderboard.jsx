@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
-import { logEarning, adminLogEarning, reviewEarning } from "../../lib/rpc.js";
+import { logEarning, adminLogEarning, reviewEarning, adminUpdatePointRule } from "../../lib/rpc.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import Icon from "../../components/Icon.jsx";
 import Modal from "../../components/Modal.jsx";
@@ -12,26 +12,51 @@ import EmptyState from "../../components/state/EmptyState.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
 import SponsorPicker from "../../components/SponsorPicker.jsx";
 
-const CATEGORY = {
-  tasks: { icon: "check-square", label: "Improved Players", format: (s) => `${Math.round(s)}%` },
-  prospects: { icon: "network", label: "Top Team Production", format: (s) => `${Math.round(s)}` },
-  earnings: { icon: "dollar-sign", label: "Top Earner", format: (s) => `$${Math.round(s)}` },
+// ================= Leaderboard, rebuilt around real points =================
+// Backend: supabase/migrations/0099_leaderboard_points_system.sql. Every
+// point on this page came from a real, already-recorded action (a task
+// completed, a lesson finished, a Daily Report submitted, a prospect
+// added, a follow-up logged) -- never typed in by the frontend. Categories
+// (Overall/Learning/Work/Network/Consistency) mirror what get_leaderboard
+// can actually compute; there's no "Change" column because there's no
+// historical ranking snapshot to diff against yet (removed rather than
+// faked, per product decision -- a real trend indicator is a reasonable
+// follow-up once weekly snapshots exist).
+//
+// The old three-board weekly leaderboard (get_leaderboards, 0026/0060) is
+// untouched -- Dashboard.jsx's "This Week's Leaders" preview still reads it
+// directly, so nothing here drops or redefines it. Earnings logging/review
+// (LogEarningForm and friends, below) is also untouched -- it's a real,
+// independent feature -- just no longer feeds any ranking, matching the
+// product decision to reward consistent activity, not income.
+
+const PERIODS = [
+  { key: "week", label: "This Week" },
+  { key: "month", label: "This Month" },
+  { key: "all", label: "All Time" },
+];
+
+const CATEGORIES = [
+  { key: "overall", label: "Overall", icon: "trophy" },
+  { key: "learning", label: "Learning", icon: "book" },
+  { key: "work", label: "Work", icon: "check-square" },
+  { key: "network", label: "Network", icon: "network" },
+  { key: "consistency", label: "Consistency", icon: "activity" },
+];
+
+// Where "you have no points here yet" should send a member, per category --
+// the most direct place to go start earning in that lane.
+const CATEGORY_CTA = {
+  overall: { to: "/tasks", label: "Go to Today's Tasks" },
+  learning: { to: "/learning", label: "Go to the Learning Hub" },
+  work: { to: "/tasks", label: "Go to Today's Tasks" },
+  network: { to: "/network", label: "Go to My Network" },
+  consistency: { to: "/tasks", label: "Start today's streak" },
 };
 
-const MEDAL = { 1: "🥇", 2: "🥈", 3: "🥉" };
-
-// CSS's own prefers-reduced-motion guard (app.css) covers everything driven
-// by `animation:` — this covers the two effects driven from JS instead
-// (rAF count-up, confetti), which that guard can't reach.
 function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
-
-const EARNING_STATUS_BADGE = {
-  pending: "badge-warning",
-  verified: "badge-success",
-  rejected: "badge-danger",
-};
 
 function rankClass(rank) {
   if (rank === 1) return "gold";
@@ -73,16 +98,13 @@ function Avatar({ name, photoUrl, size = 28, ring }) {
   return <div style={style}>{initials(name)}</div>;
 }
 
-// Batch-signs every distinct photo_url across all three boards in one round
-// trip (profile-photos is a private bucket, see 0023) rather than one
-// request per row.
-function useSignedPhotoUrls(data) {
+// Batch-signs every distinct photo_url across the current entries in one
+// round trip (profile-photos is a private bucket, see 0023).
+function useSignedPhotoUrls(entries) {
   const [photoUrls, setPhotoUrls] = useState({});
 
   useEffect(() => {
-    const paths = [
-      ...new Set([...(data?.tasks ?? []), ...(data?.prospects ?? []), ...(data?.earnings ?? [])].map((e) => e.photoUrl).filter(Boolean)),
-    ];
+    const paths = [...new Set((entries ?? []).map((e) => e.photoUrl).filter(Boolean))];
     if (paths.length === 0) {
       setPhotoUrls({});
       return;
@@ -102,14 +124,14 @@ function useSignedPhotoUrls(data) {
     return () => {
       cancelled = true;
     };
-  }, [data]);
+  }, [entries]);
 
   return photoUrls;
 }
 
-// Animates a score counting up from 0 to its true value on first reveal —
-// the raw target is used for the final frame so the displayed number always
-// settles on the exact figure, only the climb there is eased.
+// Animates a value counting up from 0 on first reveal -- the raw target is
+// used for the final frame so the number always settles on the exact
+// figure, only the climb there is eased. Skipped for reduced-motion.
 function useCountUp(target, active) {
   const [value, setValue] = useState(0);
   const to = Number(target) || 0;
@@ -120,7 +142,7 @@ function useCountUp(target, active) {
       return;
     }
     let raf;
-    const duration = 900;
+    const duration = 700;
     const start = performance.now();
     const tick = (now) => {
       const p = Math.min((now - start) / duration, 1);
@@ -136,123 +158,170 @@ function useCountUp(target, active) {
   return value;
 }
 
-function PodiumSlot({ rank, entry, meta, isSelf, photoUrls, animate }) {
-  const score = useCountUp(entry ? meta.valueOf(entry) : 0, animate);
+// ================= Your Position =================
+function YourPositionCard({ me, category, loading }) {
+  const points = useCountUp(me?.points, !loading && me != null);
+
+  if (loading) return <Skeleton variant="card" height="132px" />;
+
+  if (!me) {
+    const cta = CATEGORY_CTA[category];
+    return (
+      <div className="card-elevated" style={{ marginBottom: "24px" }}>
+        <div className="card-title">Your Position</div>
+        <p style={{ fontSize: "13.5px", color: "var(--slate)", margin: "6px 0 14px" }}>
+          {category === "consistency"
+            ? "You don't have an active streak yet — complete something today to start one."
+            : "You haven't earned any points in this category yet — get on the board with real work."}
+        </p>
+        {cta && (
+          <Link to={cta.to} className="btn btn-primary">
+            {cta.label}
+          </Link>
+        )}
+      </div>
+    );
+  }
+
+  const isConsistency = category === "consistency";
+  const primaryValue = isConsistency ? me.streak : Math.round(points);
+  const primaryLabel = isConsistency ? "day streak" : "points";
+
+  return (
+    <div className="card-elevated" style={{ marginBottom: "24px", display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
+      <div
+        style={{
+          width: 64, height: 64, borderRadius: "16px", flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: me.rank === 1 ? "var(--gradient-gold)" : "var(--gradient-navy)",
+          color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "22px",
+        }}
+      >
+        #{me.rank}
+      </div>
+      <div style={{ flex: 1, minWidth: "200px" }}>
+        <div className="card-title" style={{ marginBottom: "2px" }}>
+          Your Position
+        </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: "10px", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>{me.displayName}</span>
+          {me.levelTitle && <span className="badge badge-neutral">{me.levelTitle}</span>}
+        </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: "16px", marginTop: "6px", flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: "var(--navy)" }}>
+            {primaryValue} <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--slate)" }}>{primaryLabel}</span>
+          </span>
+          {!isConsistency && me.streak > 0 && (
+            <span className="streak-badge">
+              <span aria-hidden="true">🔥</span> {me.streak} day{me.streak === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
+        <p style={{ fontSize: "13px", color: "var(--slate)", marginTop: "8px", marginBottom: 0 }}>
+          {me.rank === 1
+            ? "🏆 You're currently #1!"
+            : me.pointsToNextRank != null
+              ? `You're ${me.pointsToNextRank} point${me.pointsToNextRank === 1 ? "" : "s"} away from #${me.rank - 1}.`
+              : isConsistency && me.rank > 1
+                ? `#${me.rank - 1} has a longer streak — keep today going.`
+                : null}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ================= Top 3 =================
+const MEDAL = { 1: "🥇", 2: "🥈", 3: "🥉" };
+
+function PodiumSlot({ rank, entry, isSelf, photoUrls, category, animate }) {
+  const value = useCountUp(entry ? (category === "consistency" ? entry.streak : entry.points) : 0, animate);
   if (!entry) return <div className={`podium-slot rank-${rank}`} style={{ visibility: "hidden" }} />;
 
   return (
-    <div
-      className={`podium-slot rank-${rank}${isSelf ? " self" : ""}`}
-      style={{ animationDelay: `${(3 - rank) * 0.1}s` }}
-    >
+    <div className={`podium-slot rank-${rank}${isSelf ? " self" : ""}`} style={{ animationDelay: `${(3 - rank) * 0.1}s` }}>
       <div className="podium-medal">{MEDAL[rank]}</div>
       <div className="podium-avatar-wrap">
         <Avatar name={entry.displayName} photoUrl={photoUrls[entry.photoUrl]} size={rank === 1 ? 60 : 46} />
       </div>
-      <div className="podium-name">
-        {entry.displayName}
-        {isSelf && " (you)"}
+      <div className="podium-name">{entry.displayName}</div>
+      {isSelf && (
+        <div style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--blue)" }}>(you)</div>
+      )}
+      {entry.levelTitle && (
+        <div style={{ fontSize: "11px", color: "var(--slate)", marginTop: "1px" }}>{entry.levelTitle}</div>
+      )}
+      <div className="podium-score">
+        {Math.round(value)} {category === "consistency" ? (Math.round(value) === 1 ? "day" : "days") : "pts"}
       </div>
-      <div className="podium-score">{meta.format(score)}</div>
+      {category !== "consistency" && entry.streak > 0 && (
+        <div style={{ fontSize: "11px", color: "var(--slate)", marginTop: "2px" }}>
+          🔥 {entry.streak} day{entry.streak === 1 ? "" : "s"}
+        </div>
+      )}
     </div>
   );
 }
 
-function BoardCard({ category, entries, currentUid, valueOf, revealed }) {
-  const meta = { ...CATEGORY[category], valueOf };
-  const photoUrls = useSignedPhotoUrls(useMemo(() => ({ [category]: entries }), [category, entries]));
-  const top3 = (entries ?? []).slice(0, 3);
-  const rest = (entries ?? []).slice(3, 10);
-
+// ================= Main ranked list =================
+function LeaderboardRow({ entry, isSelf, photoUrls, category, index }) {
   return (
-    <div className="card-elevated">
-      <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <Icon name={meta.icon} size={16} />
-        {meta.label}
+    <li className={`leaderboard-row${isSelf ? " self" : ""}`} style={{ animationDelay: `${0.25 + index * 0.03}s` }}>
+      <span className={`leaderboard-rank ${rankClass(entry.rank)}`}>{entry.rank}</span>
+      <Avatar name={entry.displayName} photoUrl={photoUrls[entry.photoUrl]} size={30} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: isSelf ? 700 : 600, fontSize: "13.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {entry.displayName}
+          {isSelf && " (you)"}
+        </div>
+        {entry.levelTitle && <div style={{ fontSize: "11.5px", color: "var(--slate)" }}>{entry.levelTitle}</div>}
       </div>
-      <p className="card-subtitle">This week, resets every Monday</p>
-
-      {(!entries || entries.length === 0) && (
-        <EmptyState icon={<Icon name={meta.icon} size={24} />} title="Nobody on the board yet this week" />
-      )}
-
-      {entries && entries.length > 0 && (
+      {category === "consistency" ? (
+        <span style={{ fontWeight: 700, fontSize: "13.5px", flexShrink: 0 }}>
+          🔥 {entry.streak} day{entry.streak === 1 ? "" : "s"}
+        </span>
+      ) : (
         <>
-          <div className="leaderboard-podium">
-            <PodiumSlot rank={2} entry={top3[1]} meta={meta} isSelf={top3[1]?.uid === currentUid} photoUrls={photoUrls} animate={revealed} />
-            <PodiumSlot rank={1} entry={top3[0]} meta={meta} isSelf={top3[0]?.uid === currentUid} photoUrls={photoUrls} animate={revealed} />
-            <PodiumSlot rank={3} entry={top3[2]} meta={meta} isSelf={top3[2]?.uid === currentUid} photoUrls={photoUrls} animate={revealed} />
-          </div>
-
-          {rest.length > 0 && (
-            <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
-              {rest.map((entry, i) => {
-                const rank = i + 4;
-                const isSelf = entry.uid === currentUid;
-                return (
-                  <li
-                    key={entry.uid}
-                    className={`leaderboard-row${isSelf ? " self" : ""}`}
-                    style={{ animationDelay: `${0.3 + i * 0.05}s` }}
-                  >
-                    <span className={`leaderboard-rank ${rankClass(rank)}`}>{rank}</span>
-                    <Avatar name={entry.displayName} photoUrl={photoUrls[entry.photoUrl]} size={26} />
-                    <span
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        fontWeight: isSelf ? 700 : 500,
-                        fontSize: "13.5px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {entry.displayName}
-                      {isSelf && " (you)"}
-                    </span>
-                    <span style={{ fontWeight: 700, fontSize: "13.5px", flexShrink: 0 }}>{meta.format(valueOf(entry))}</span>
-                  </li>
-                );
-              })}
-            </ul>
+          {entry.streak > 0 && (
+            <span style={{ fontSize: "12px", color: "var(--slate)", flexShrink: 0 }}>🔥 {entry.streak}</span>
           )}
+          <span style={{ fontWeight: 700, fontSize: "13.5px", flexShrink: 0, minWidth: "56px", textAlign: "right" }}>
+            {entry.points} pts
+          </span>
         </>
       )}
-    </div>
+    </li>
   );
 }
 
-function CelebrationBanner({ winners }) {
-  if (!winners || winners.length === 0) return null;
+// ================= This Week's Highlights =================
+const HIGHLIGHT_META = {
+  consistency: { icon: "activity", label: "Consistency Champion", emoji: "🔥", format: (v) => `${v} day${v === 1 ? "" : "s"}` },
+  learning: { icon: "book", label: "Learning Champion", emoji: "🎓", format: (v) => `${v} pts` },
+  work: { icon: "check-square", label: "Work Champion", emoji: "💼", format: (v) => `${v} pts` },
+  network: { icon: "network", label: "Network Builder", emoji: "🌐", format: (v) => `${v} pts` },
+};
+
+function HighlightsSection({ highlights }) {
+  const entries = Object.entries(HIGHLIGHT_META).filter(([key]) => highlights?.[key]);
+  if (entries.length === 0) return null;
+
   return (
-    <div className="hero-banner gold celebration-banner" style={{ marginBottom: "24px" }}>
-      <h1>🎉 Last Week's Champions</h1>
-      <p>Fresh board, fresh chance — anyone can take the top spot this week.</p>
-      <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", marginTop: "20px" }}>
-        {winners.map((w, i) => {
-          const meta = CATEGORY[w.category];
-          if (!meta) return null;
+    <div className="card-elevated" style={{ marginBottom: "24px" }}>
+      <div className="card-title">This Week's Highlights</div>
+      <div className="grid grid-3" style={{ marginTop: "14px", gap: "14px" }}>
+        {entries.map(([key, meta]) => {
+          const winner = highlights[key];
           return (
-            <div
-              key={w.category}
-              style={{ display: "flex", alignItems: "center", gap: "10px", opacity: 0, animation: "lb-rise .5s ease both", animationDelay: `${0.15 + i * 0.12}s` }}
-            >
-              <span
-                style={{
-                  width: 38, height: 38, borderRadius: "10px", flexShrink: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "rgba(255,255,255,0.18)", color: "#fff",
-                }}
-              >
-                <Icon name={meta.icon} size={17} />
-              </span>
-              <div>
-                <div style={{ fontWeight: 700, color: "#fff", fontSize: "14.5px" }}>🏆 {w.displayName}</div>
-                <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.75)" }}>
-                  {meta.label} · {meta.format(w.score)}
-                </div>
+            <div key={key} className="card" style={{ padding: "14px", textAlign: "center" }}>
+              <div style={{ fontSize: "20px" }}>{meta.emoji}</div>
+              <div style={{ fontSize: "11px", color: "var(--slate)", fontWeight: 600, margin: "4px 0 8px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                {meta.label}
               </div>
+              <div style={{ fontWeight: 700, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {winner.displayName}
+              </div>
+              <div style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "2px" }}>{meta.format(winner.value)}</div>
             </div>
           );
         })}
@@ -261,65 +330,81 @@ function CelebrationBanner({ winners }) {
   );
 }
 
-// Fires once per member per week the moment they land on the board while
-// sitting at #1 in any category — a small unearned bonus of delight, not
-// something to repeat on every visit, so it's gated behind sessionStorage.
-function useTopSpotConfetti(data, uid) {
-  const [show, setShow] = useState(false);
-  const firedRef = useRef(false);
+// ================= How Points Work =================
+function PointRuleRow({ rule, isAdmin, onSaved }) {
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const [points, setPoints] = useState(rule.points);
+  const [dailyCap, setDailyCap] = useState(rule.daily_cap ?? "");
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!data || !uid || firedRef.current || prefersReducedMotion()) return;
-    const isTop = [data.tasks?.[0], data.prospects?.[0], data.earnings?.[0]].some((e) => e?.uid === uid);
-    if (!isTop) return;
-
-    const key = `lb_confetti_${uid}_${data.weekStart}`;
-    if (sessionStorage.getItem(key)) return;
-
-    sessionStorage.setItem(key, "1");
-    firedRef.current = true;
-    setShow(true);
-    const t = setTimeout(() => setShow(false), 3200);
-    return () => clearTimeout(t);
-  }, [data, uid]);
-
-  return show;
-}
-
-function Confetti() {
-  const pieces = useMemo(() => {
-    const colors = ["var(--gold)", "var(--blue)", "var(--blue-bright)", "var(--success)"];
-    return Array.from({ length: 44 }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      delay: Math.random() * 0.5,
-      duration: 2.2 + Math.random() * 1.3,
-      color: colors[i % colors.length],
-      width: 6 + Math.random() * 4,
-      height: 10 + Math.random() * 6,
-    }));
-  }, []);
+  const save = async () => {
+    setSaving(true);
+    try {
+      await adminUpdatePointRule(rule.key, Number(points), dailyCap === "" ? null : Number(dailyCap));
+      toast.success("Point rule updated.");
+      setEditing(false);
+      onSaved();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't update that rule.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 500, overflow: "hidden" }} aria-hidden="true">
-      {pieces.map((p) => (
-        <span
-          key={p.id}
-          className="confetti-piece"
-          style={{
-            left: `${p.left}%`,
-            width: `${p.width}px`,
-            height: `${p.height}px`,
-            background: p.color,
-            animationDuration: `${p.duration}s`,
-            animationDelay: `${p.delay}s`,
-          }}
-        />
-      ))}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "9px 0", borderBottom: "1px solid var(--line)" }}>
+      <span style={{ fontSize: "13.5px" }}>{rule.label}</span>
+      {editing ? (
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+          <input type="number" min="0" value={points} onChange={(e) => setPoints(e.target.value)} style={{ width: "64px", padding: "5px 8px" }} />
+          <span style={{ fontSize: "12px", color: "var(--slate)" }}>pts, cap/day</span>
+          <input type="number" min="1" value={dailyCap} onChange={(e) => setDailyCap(e.target.value)} placeholder="none" style={{ width: "64px", padding: "5px 8px" }} />
+          <button type="button" className="btn btn-primary" style={{ padding: "5px 10px", fontSize: "12px" }} onClick={save} disabled={saving}>
+            {saving ? "…" : "Save"}
+          </button>
+          <button type="button" className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "12px" }} onClick={() => setEditing(false)}>
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+          <span className="badge badge-info">
+            +{rule.points} pt{rule.points === 1 ? "" : "s"}
+          </span>
+          {rule.daily_cap && <span style={{ fontSize: "11.5px", color: "var(--slate)" }}>up to {rule.daily_cap}/day</span>}
+          {isAdmin && (
+            <button type="button" className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "12px" }} onClick={() => setEditing(true)}>
+              Edit
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
+function HowPointsWorkSection({ isAdmin }) {
+  const { loading, data: rules, refetch } = useSupabaseQuery(
+    () => supabase.from("leaderboard_point_rules").select("*").order("points", { ascending: false }),
+    [],
+  );
+
+  return (
+    <div className="card-elevated" style={{ marginBottom: "24px" }}>
+      <div className="card-title">How Points Work</div>
+      <p style={{ fontSize: "13.5px", color: "var(--slate)", margin: "6px 0 4px" }}>
+        Points come from real activity only — completing tasks, learning, reporting your work, and building your
+        network. Income isn't part of the score.
+      </p>
+      {loading && <Skeleton variant="text" height="18px" />}
+      {!loading &&
+        (rules ?? []).map((r) => <PointRuleRow key={r.key} rule={r} isAdmin={isAdmin} onSaved={refetch} />)}
+    </div>
+  );
+}
+
+// ================= Earnings log (unchanged behavior, no longer ranked) =================
 function LogEarningForm({ onLogged }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
@@ -337,7 +422,7 @@ function LogEarningForm({ onLogged }) {
     setSaving(true);
     try {
       await logEarning(parsed, note.trim());
-      toast.success("Earning submitted — an admin will verify it before it counts.");
+      toast.success("Earning submitted — an admin will verify it.");
       setAmount("");
       setNote("");
       setOpen(false);
@@ -379,13 +464,12 @@ function LogEarningForm({ onLogged }) {
   );
 }
 
-const SUBMISSION_ICON = { pending: "clock", verified: "check", rejected: "x" };
+const EARNING_STATUS_BADGE = { pending: "badge-warning", verified: "badge-success", rejected: "badge-danger" };
+const EARNING_STATUS_ICON = { pending: "clock", verified: "check", rejected: "x" };
 
-function MySubmissions({ uid }) {
+function MyEarnings({ uid }) {
   const { data: entries } = useSupabaseQuery(
-    () =>
-      uid &&
-      supabase.from("earnings_logs").select("*").eq("uid", uid).order("created_at", { ascending: false }).limit(5),
+    () => uid && supabase.from("earnings_logs").select("*").eq("uid", uid).order("created_at", { ascending: false }).limit(5),
     [uid],
   );
 
@@ -394,25 +478,14 @@ function MySubmissions({ uid }) {
   return (
     <div style={{ marginTop: "16px" }}>
       <div className="row-meta" style={{ marginBottom: "8px" }}>
-        Your recent reports
+        Your recent entries
       </div>
       <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
-        {entries.map((e, i) => (
-          <li
-            key={e.id}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontSize: "13.5px",
-              opacity: 0,
-              animation: "lb-rise .35s ease both",
-              animationDelay: `${i * 0.05}s`,
-            }}
-          >
+        {entries.map((e) => (
+          <li key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13.5px" }}>
             <span>${e.amount}</span>
             <span className={`badge ${EARNING_STATUS_BADGE[e.status] ?? "badge-neutral"}`} style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
-              <Icon name={SUBMISSION_ICON[e.status] ?? "clock"} size={11} />
+              <Icon name={EARNING_STATUS_ICON[e.status] ?? "clock"} size={11} />
               {e.status}
             </span>
           </li>
@@ -422,11 +495,6 @@ function MySubmissions({ uid }) {
   );
 }
 
-// Admin-only: log an earning on an arbitrary member's behalf. Unlike
-// LogEarningForm (self-report, lands 'pending'), an admin entering this
-// directly is already the trusted party, so admin_log_earning inserts
-// straight to 'verified' -- no separate review step, see
-// supabase/migrations/0048_admin_log_earning.sql.
 function AdminLogEarningForm({ onLogged }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
@@ -475,10 +543,7 @@ function AdminLogEarningForm({ onLogged }) {
           </p>
           <div className="field">
             <label>Member</label>
-            <SponsorPicker
-              value={picked}
-              onChange={(v) => setPicked({ selected: v.selected, claimedName: "" })}
-            />
+            <SponsorPicker value={picked} onChange={(v) => setPicked({ selected: v.selected, claimedName: "" })} />
           </div>
           <div className="field">
             <label>Amount ($)</label>
@@ -502,9 +567,6 @@ function AdminLogEarningForm({ onLogged }) {
   );
 }
 
-// Admin-only: the pending-review queue, formerly its own page
-// (pages/admin/EarningsReview.jsx) -- folded in here since it's really just
-// another view onto the same earnings_logs table this page already reads.
 function EarningRow({ entry, onResolved }) {
   const toast = useToast();
   const [note, setNote] = useState("");
@@ -535,14 +597,11 @@ function EarningRow({ entry, onResolved }) {
         </div>
         <div style={{ fontSize: "20px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>${entry.amount}</div>
       </div>
-
       {entry.note && <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "12px" }}>"{entry.note}"</p>}
-
       <div className="field" style={{ marginBottom: "10px" }}>
         <label>Note (optional)</label>
         <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason, if rejecting" />
       </div>
-
       <div style={{ display: "flex", gap: "8px" }}>
         <button type="button" className="btn btn-primary" onClick={() => decide("verified")} disabled={busy}>
           Verify
@@ -570,14 +629,11 @@ function PendingEarningsReview() {
     <div className="card-elevated">
       <div className="card-title">Pending earnings to verify</div>
       <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
-        Members self-report earnings for the weekly leaderboard. Only verified amounts count toward Top Earner —
-        review each report before it's counted.
+        Members self-report earnings here for their own records — review each one, but note it no longer affects
+        ranking.
       </p>
-
       {loading && <Skeleton variant="card" height="140px" />}
-      {!loading && (entries ?? []).length === 0 && (
-        <EmptyState icon={<Icon name="dollar-sign" size={26} />} title="No earnings waiting for review" />
-      )}
+      {!loading && (entries ?? []).length === 0 && <EmptyState icon={<Icon name="dollar-sign" size={26} />} title="No earnings waiting for review" />}
       {(entries ?? []).map((e) => (
         <EarningRow key={e.id} entry={e} onResolved={refetch} />
       ))}
@@ -585,30 +641,72 @@ function PendingEarningsReview() {
   );
 }
 
+// ================= Page =================
 export default function Leaderboard() {
   const { user, role } = useAuth();
+  const [period, setPeriod] = useState("week");
+  const [category, setCategory] = useState("overall");
 
-  const { loading, error, data, refetch } = useSupabaseQuery(() => user && supabase.rpc("get_leaderboards", {}), [user?.id]);
-  const showConfetti = useTopSpotConfetti(data, user?.id);
-  const revealedRef = useRef(false);
+  const { loading, error, data, refetch } = useSupabaseQuery(
+    () => user && supabase.rpc("get_leaderboard", { p_period: period, p_category: category }),
+    [user?.id, period, category],
+  );
+  const { data: highlights } = useSupabaseQuery(() => user && supabase.rpc("get_weekly_highlights", {}), [user?.id]);
+
+  // Memoized: data?.entries ?? [] would otherwise be a brand-new array
+  // reference on every render while data is still null (loading), which
+  // fed a fresh array into useSignedPhotoUrls' effect below every single
+  // render and looped forever (setState -> re-render -> new [] -> effect
+  // fires again). One stable reference per real data change fixes it.
+  const entries = useMemo(() => data?.entries ?? [], [data]);
+  const top3 = entries.slice(0, 3);
+  const rest = entries.slice(3);
+  const photoUrls = useSignedPhotoUrls(entries);
   const revealed = !loading && !error && !!data;
-  useEffect(() => {
-    if (revealed) revealedRef.current = true;
-  }, [revealed]);
+
+  const isEmpty = !loading && !error && (data?.totalRanked ?? 0) === 0;
 
   return (
     <div>
-      {showConfetti && <Confetti />}
-
       <div className="hero-banner" style={{ marginBottom: "24px" }}>
-        <h1>🏆 Weekly Leaderboard</h1>
-        <p>100% task completion, most prospects, top earner — a fresh board every Monday. Anyone can win it.</p>
+        <h1>Leaderboard</h1>
+        <p>See who's putting in the work and challenge yourself to move up.</p>
+      </div>
+
+      <div className="task-filter-row">
+        {PERIODS.map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            className={`btn btn-sm ${period === p.key ? "btn-primary" : "btn-secondary"}`}
+            onClick={() => setPeriod(p.key)}
+            disabled={category === "consistency"}
+          >
+            {p.label}
+          </button>
+        ))}
+        {category === "consistency" && (
+          <span style={{ fontSize: "12.5px", color: "var(--slate)", alignSelf: "center" }}>
+            Streaks are always current — the period filter doesn't apply here.
+          </span>
+        )}
+      </div>
+      <div className="task-filter-row">
+        {CATEGORIES.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            className={`btn btn-sm ${category === c.key ? "btn-primary" : "btn-secondary"}`}
+            onClick={() => setCategory(c.key)}
+          >
+            <Icon name={c.icon} size={12} style={{ verticalAlign: "-2px", marginRight: "5px" }} />
+            {c.label}
+          </button>
+        ))}
       </div>
 
       {loading && (
         <div className="grid grid-3" style={{ marginBottom: "24px" }}>
-          <Skeleton variant="card" height="280px" />
-          <Skeleton variant="card" height="280px" />
           <Skeleton variant="card" height="280px" />
         </div>
       )}
@@ -616,25 +714,54 @@ export default function Leaderboard() {
 
       {!loading && !error && (
         <>
-          <CelebrationBanner winners={data?.lastWeekWinners} />
+          <YourPositionCard me={data?.me} category={category} loading={false} />
 
-          <div className="grid grid-3" style={{ marginBottom: "24px" }}>
-            <BoardCard category="tasks" entries={data?.tasks} currentUid={user?.id} valueOf={(e) => e.completionPercent} revealed={revealed && !revealedRef.current} />
-            <BoardCard category="prospects" entries={data?.prospects} currentUid={user?.id} valueOf={(e) => e.prospectCount} revealed={revealed && !revealedRef.current} />
-            <BoardCard category="earnings" entries={data?.earnings} currentUid={user?.id} valueOf={(e) => e.totalAmount} revealed={revealed && !revealedRef.current} />
-          </div>
+          {isEmpty ? (
+            <div className="card-elevated" style={{ marginBottom: "24px", textAlign: "center", padding: "40px 24px" }}>
+              <div style={{ fontSize: "28px", marginBottom: "10px" }}>🚀</div>
+              <div className="card-title" style={{ justifyContent: "center" }}>
+                The leaderboard is getting started
+              </div>
+              <p style={{ fontSize: "13.5px", color: "var(--slate)", maxWidth: "420px", margin: "6px auto 0" }}>
+                Keep showing up and completing your work. Rankings will appear here as members build activity.
+              </p>
+            </div>
+          ) : (
+            <>
+              <HighlightsSection highlights={highlights} />
 
-          <div className="card-elevated">
-            <div className="card-title">Log this week's earnings</div>
+              <div className="card-elevated" style={{ marginBottom: "24px" }}>
+                <div className="leaderboard-podium">
+                  <PodiumSlot rank={2} entry={top3[1]} isSelf={top3[1]?.uid === user?.id} photoUrls={photoUrls} category={category} animate={revealed} />
+                  <PodiumSlot rank={1} entry={top3[0]} isSelf={top3[0]?.uid === user?.id} photoUrls={photoUrls} category={category} animate={revealed} />
+                  <PodiumSlot rank={3} entry={top3[2]} isSelf={top3[2]?.uid === user?.id} photoUrls={photoUrls} category={category} animate={revealed} />
+                </div>
+
+                {rest.length > 0 && (
+                  <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "4px", margin: 0, padding: 0 }}>
+                    {rest.map((entry, i) => (
+                      <LeaderboardRow key={entry.uid} entry={entry} isSelf={entry.uid === user?.id} photoUrls={photoUrls} category={category} index={i} />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
+
+          <HowPointsWorkSection isAdmin={role === "admin"} />
+
+          <div className="card-elevated" style={{ marginBottom: role === "admin" ? "24px" : 0 }}>
+            <div className="card-title">Earnings Log</div>
             <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
-              Submit a sale or commission — it counts toward Top Earner once an admin verifies it.
+              Keep track of what you've earned. This is informational only — the leaderboard above rewards
+              consistent activity, not income.
             </p>
             <LogEarningForm onLogged={refetch} />
-            <MySubmissions uid={user?.id} />
+            <MyEarnings uid={user?.id} />
           </div>
 
           {role === "admin" && (
-            <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "24px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
               <AdminLogEarningForm onLogged={refetch} />
               <PendingEarningsReview />
             </div>

@@ -90,6 +90,14 @@ export const adminLogEarning = (uid, amount, note) =>
 
 export const getLeaderboards = () => call("get_leaderboards", {});
 
+// ---------- points-based leaderboard (0099) ----------
+// get_leaderboard/get_weekly_highlights and leaderboard_point_rules' plain
+// select are called directly via useSupabaseQuery (Leaderboard.jsx), same
+// split this file already uses elsewhere for declarative reads -- only the
+// one admin write needs a wrapper.
+export const adminUpdatePointRule = (key, points, dailyCap) =>
+  call("admin_update_point_rule", { p_key: key, p_points: points, p_daily_cap: dailyCap });
+
 export const submitContentEvidence = (contentAssignmentId, textResponse, fileUrls) =>
   call("submit_content_evidence", { p_content_assignment_id: contentAssignmentId, p_text_response: textResponse, p_file_urls: fileUrls });
 
