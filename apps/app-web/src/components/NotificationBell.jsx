@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
 import { useAuth } from "../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../lib/useSupabaseQuery.js";
+import { notificationIcon } from "../lib/notificationIcons.js";
 import Icon from "./Icon.jsx";
 
 function relativeTime(iso) {
@@ -97,7 +98,9 @@ export default function NotificationBell() {
               {items.slice(0, 8).map((n) => (
                 <li key={n.id}>
                   <button type="button" className={`notification-item${n.read ? "" : " unread"}`} onClick={() => openNotification(n)}>
-                    <div className="notification-item-title">{n.title}</div>
+                    <div className="notification-item-title">
+                      <span aria-hidden="true">{notificationIcon(n.type)}</span> {n.title}
+                    </div>
                     <div className="notification-item-body">{n.body}</div>
                     <div className="notification-item-time">{relativeTime(n.created_at)}</div>
                   </button>

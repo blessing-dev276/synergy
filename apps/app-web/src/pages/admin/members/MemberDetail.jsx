@@ -7,9 +7,13 @@ import {
   assignSponsor,
   setMemberStatus,
   adminSetMemberRank,
+  adminSetDistributorStatus,
   adminSetParticipationPath,
   reviewParticipationPathRequest,
+  resolveSponsorRequest,
+  rejectSponsorRequest,
 } from "../../../lib/rpc.js";
+import { DISTRIBUTOR_STATUSES } from "../../../lib/distributorStatus.js";
 import { useToast } from "../../../components/state/Toast.jsx";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
@@ -207,15 +211,31 @@ function ProfilePanel({ member }) {
 // and can affect downline calculations once a compensation plan is
 // configured, so the copy below says so up front rather than only in an
 // audit trail nobody reads day-to-day.
+//
+// Also doubles as where a pending sponsor_requests row (someone claimed a
+// sponsor by name at signup that couldn't be matched automatically, 0064)
+// gets resolved — resolveSponsorRequest/rejectSponsorRequest existed with
+// no caller anywhere in the app until this. No separate review queue page:
+// the "Sponsor/referral issue" notification (0101) links straight here,
+// and assigning a sponsor while a request is pending closes it out in the
+// same action instead of leaving it orphaned.
 function SponsorPanel({ member, onChanged }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState({ selected: null, claimedName: "" });
   const [saving, setSaving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
 
   const { data: currentSponsor, refetch: refetchCurrentSponsor } = useSupabaseQuery(
     () => member?.sponsor_uid && supabase.from("profiles").select("*").eq("id", member.sponsor_uid).single(),
     [member?.sponsor_uid],
+  );
+
+  const { data: pendingRequest, refetch: refetchPendingRequest } = useSupabaseQuery(
+    () =>
+      member?.id &&
+      supabase.from("sponsor_requests").select("*").eq("member_uid", member.id).eq("status", "pending").maybeSingle(),
+    [member?.id],
   );
 
   const openModal = () => {
@@ -227,15 +247,36 @@ function SponsorPanel({ member, onChanged }) {
     if (!picked.selected) return;
     setSaving(true);
     try {
-      await assignSponsor(member.id, picked.selected.id);
+      if (pendingRequest) {
+        await resolveSponsorRequest(pendingRequest.id, picked.selected.id, "");
+      } else {
+        await assignSponsor(member.id, picked.selected.id);
+      }
       toast.success("Sponsor updated.");
       setOpen(false);
       refetchCurrentSponsor();
+      refetchPendingRequest();
       onChanged();
     } catch (err) {
       toast.error(err.message ?? "Couldn't update sponsor.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!pendingRequest) return;
+    if (!window.confirm(`Reject "${pendingRequest.claimed_sponsor_name}" as this member's claimed sponsor? They'll stay unsponsored.`)) return;
+    setRejecting(true);
+    try {
+      await rejectSponsorRequest(pendingRequest.id, "");
+      toast.success("Sponsor request rejected.");
+      refetchPendingRequest();
+      onChanged();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't reject that request.");
+    } finally {
+      setRejecting(false);
     }
   };
 
@@ -254,19 +295,37 @@ function SponsorPanel({ member, onChanged }) {
           <span style={{ color: "var(--slate)" }}>No sponsor assigned yet.</span>
         )}
       </p>
+
+      {pendingRequest && (
+        <div className="card" style={{ background: "var(--gold-soft)", padding: "12px 14px", marginBottom: "14px" }}>
+          <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--navy)", marginBottom: "2px" }}>
+            <Icon name="ban" size={13} style={{ verticalAlign: "-2px", color: "var(--gold)", marginRight: "5px" }} />
+            Sponsor/referral needs review
+          </div>
+          <p style={{ fontSize: "12.5px", color: "var(--slate)", marginBottom: "8px" }}>
+            Claimed <strong>"{pendingRequest.claimed_sponsor_name}"</strong> as their sponsor at signup — this
+            couldn't be matched to a real member automatically. Assign the right sponsor below, or reject it.
+          </p>
+          <button type="button" className="btn btn-secondary" style={{ padding: "6px 12px", fontSize: "12.5px" }} onClick={handleReject} disabled={rejecting}>
+            {rejecting ? "Rejecting…" : "Reject request"}
+          </button>
+        </div>
+      )}
+
       <button type="button" className="btn btn-secondary" onClick={openModal}>
-        {currentSponsor ? "Change sponsor" : "Assign sponsor"}
+        {pendingRequest ? "Resolve — assign sponsor" : currentSponsor ? "Change sponsor" : "Assign sponsor"}
       </button>
 
-      <Modal open={open} onClose={() => setOpen(false)} title={currentSponsor ? "Change sponsor" : "Assign sponsor"}>
+      <Modal open={open} onClose={() => setOpen(false)} title={pendingRequest ? "Resolve sponsor request" : currentSponsor ? "Change sponsor" : "Assign sponsor"}>
         <p style={{ fontSize: "12.5px", color: "var(--slate)", marginBottom: "12px" }}>
-          {currentSponsor ? "Reassigning" : "Assigning"} a sponsor is logged and can affect downline calculations
-          once a compensation plan is configured.
+          {pendingRequest
+            ? `This also resolves their pending request (claimed "${pendingRequest.claimed_sponsor_name}").`
+            : `${currentSponsor ? "Reassigning" : "Assigning"} a sponsor is logged and can affect downline calculations once a compensation plan is configured.`}
         </p>
         <SponsorPicker value={picked} onChange={(v) => setPicked({ selected: v.selected, claimedName: "" })} />
         {picked.selected && (
           <button type="button" className="btn btn-primary" onClick={handleAssign} disabled={saving} style={{ marginTop: "14px" }}>
-            {saving ? "Saving…" : currentSponsor ? "Reassign sponsor" : "Assign sponsor"}
+            {saving ? "Saving…" : pendingRequest ? "Resolve request" : currentSponsor ? "Reassign sponsor" : "Assign sponsor"}
           </button>
         )}
       </Modal>

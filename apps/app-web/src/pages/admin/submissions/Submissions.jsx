@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "../../../supabaseClient.js";
 import { useSupabaseQuery } from "../../../lib/useSupabaseQuery.js";
 import { useToast } from "../../../components/state/Toast.jsx";
@@ -551,6 +551,7 @@ const SECTIONS = [
   { id: "assignments", label: "Course Assignments", icon: "folder", Component: AssignmentGradingSection },
   { id: "evidence", label: "Task Evidence", icon: "check-square", Component: TaskEvidenceSection },
 ];
+const SECTION_IDS = new Set(SECTIONS.map((s) => s.id));
 
 function SectionBlock({ section, isOpen, onToggle }) {
   const { label, icon, Component } = section;
@@ -580,7 +581,24 @@ function SectionBlock({ section, isOpen, onToggle }) {
 }
 
 export default function Submissions() {
-  const [openSection, setOpenSection] = useState("daily-reports");
+  const [searchParams] = useSearchParams();
+  const [openSection, setOpenSection] = useState(() => {
+    const requested = searchParams.get("section");
+    return requested && SECTION_IDS.has(requested) ? requested : "daily-reports";
+  });
+
+  // Admin notifications link here with ?section=<id> (e.g. a Task Evidence
+  // notification points at ?section=evidence) -- same deep-link pattern
+  // NetworkOverview.jsx already uses. Reacts to the param rather than only
+  // reading it once, since this page is already mounted when a second
+  // notification click changes just the query string, not the route.
+  useEffect(() => {
+    const requested = searchParams.get("section");
+    if (requested && SECTION_IDS.has(requested)) {
+      setOpenSection(requested);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   return (
     <div>
