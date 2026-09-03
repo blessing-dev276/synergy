@@ -42,8 +42,9 @@ function initials(name) {
 }
 
 // Everything a member sees/edits on their own Profile page (photo, bio,
-// interests, why's, goals, sponsor) — the admin side had none of it
-// visible, only the journey/sponsor/activity management panels.
+// location, skills picked at onboarding, why's, goals, sponsor) — the
+// admin side had none of it visible, only the journey/sponsor/activity
+// management panels.
 function ProfilePanel({ member }) {
   const [signedPhotoUrl, setSignedPhotoUrl] = useState(null);
 
@@ -78,7 +79,10 @@ function ProfilePanel({ member }) {
     };
   }, [member.photo_url]);
 
-  const interests = member.onboarding?.interests ?? [];
+  // onboarding.interests is the old field name (pre skill-picker
+  // restructure) -- fall back to it so a member who onboarded before that
+  // change still shows their picks here instead of going blank.
+  const skills = member.onboarding?.skills ?? member.onboarding?.interests ?? [];
   const avatarStyle = {
     width: 64,
     height: 64,
@@ -111,18 +115,24 @@ function ProfilePanel({ member }) {
           ) : (
             <p style={{ fontSize: "13.5px", color: "var(--slate)", fontStyle: "italic" }}>No bio yet.</p>
           )}
+          {member.location && (
+            <p style={{ fontSize: "12.5px", color: "var(--slate)", marginTop: "4px" }}>
+              <Icon name="compass" size={11} style={{ verticalAlign: "-1px", marginRight: "4px" }} />
+              {member.location}
+            </p>
+          )}
         </div>
       </div>
 
-      {interests.length > 0 && (
+      {skills.length > 0 && (
         <div style={{ marginTop: "16px" }}>
           <div className="row-meta" style={{ marginBottom: "6px" }}>
-            Interested in
+            Skills they want to learn
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-            {interests.map((i) => (
-              <span key={i} className="badge badge-neutral">
-                {i}
+            {skills.map((s) => (
+              <span key={s} className="badge badge-neutral">
+                {s}
               </span>
             ))}
           </div>

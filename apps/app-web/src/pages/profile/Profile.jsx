@@ -131,6 +131,7 @@ export default function Profile() {
 
   const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
   const [bio, setBio] = useState(profile?.bio ?? "");
+  const [location, setLocation] = useState(profile?.location ?? "");
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [signedPhotoUrl, setSignedPhotoUrl] = useState(null);
@@ -299,6 +300,7 @@ export default function Profile() {
       .update({
         display_name: displayName.trim(),
         bio: bio.trim(),
+        location: location.trim(),
         last_active_at: new Date().toISOString(),
       })
       .eq("id", user.id);
@@ -389,6 +391,10 @@ export default function Profile() {
         <div className="field">
           <label>Email</label>
           <input value={user?.email ?? ""} disabled />
+        </div>
+        <div className="field">
+          <label htmlFor="location">Location</label>
+          <input id="location" placeholder="e.g. Lagos, Nigeria" value={location} onChange={(e) => setLocation(e.target.value)} />
         </div>
         <div className="field">
           <label htmlFor="bio">About you</label>

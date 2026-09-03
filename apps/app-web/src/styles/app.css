@@ -79,6 +79,11 @@
   display:flex; align-items:center; justify-content:space-between;
   padding:14px 28px;
 }
+/* Redundant once the sidebar's own wordmark is visible (expanded desktop)
+   -- only shown as a stand-in once that wordmark isn't: collapsed sidebar
+   (icon-only) or mobile (sidebar replaced by the bottom nav below). */
+.topbar-title{ display:none; }
+.topbar-title.is-visible{ display:block; }
 .topbar-actions{ display:flex; align-items:center; gap:14px; }
 .topbar-user{
   display:flex; align-items:center; gap:10px;
@@ -176,6 +181,7 @@
   .app-bottom-nav{ display:block; }
   .app-content{ padding:18px 16px 90px; }
   .app-topbar{ padding:14px 16px; }
+  .topbar-title{ display:block; }
 }
 
 /* ---------- primitives ---------- */
@@ -507,6 +513,12 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
   transition:all .15s ease;
 }
 .option-card.selected .option-check{ background:var(--blue); border-color:var(--blue); color:#fff; }
+.option-card:disabled{ cursor:default; }
+.option-card:disabled:hover{ border-color:var(--blue); background:rgba(76,141,255,0.14); }
+.option-required-badge{
+  display:block; margin-top:2px; font-size:10.5px; font-weight:700; letter-spacing:0.02em;
+  text-transform:uppercase; color:var(--gold);
+}
 
 .onboarding-actions{ display:flex; gap:10px; }
 
