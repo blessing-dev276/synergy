@@ -8,11 +8,15 @@ import EmptyState from "../../../../components/state/EmptyState.jsx";
 import Icon from "../../../../components/Icon.jsx";
 import Modal from "../../../../components/Modal.jsx";
 
+// Labels match what the member sees on /goals (Goals.jsx's own CATEGORIES) --
+// same four DB keys (monthly_goals' check constraint), just kept in sync so
+// an admin reviewing a goal isn't looking at different category names than
+// the member used to set it.
 const CATEGORIES = [
-  { key: "skill", label: "Skill" },
+  { key: "skill", label: "Learning" },
   { key: "freelancing", label: "Freelancing" },
   { key: "network_marketing", label: "Network Marketing" },
-  { key: "personal", label: "Personal" },
+  { key: "personal", label: "Personal Development" },
 ];
 
 const STATUS_BADGE = {
@@ -72,7 +76,7 @@ function ReviewModal({ uid, period, onClose, onResolved }) {
                       {item.target != null && (
                         <span style={{ color: "var(--slate)" }}>
                           {" "}
-                          ({item.progress ?? 0} / {item.target})
+                          ({item.progress ?? 0} / {item.target} {item.unit ?? ""})
                         </span>
                       )}
                     </li>

@@ -600,7 +600,7 @@ function BusinessWorkCard({ uid }) {
               "No follow-ups due right now"
             )}
           </p>
-          <Link to="/network/prospects" className="btn btn-secondary">
+          <Link to="/network" className="btn btn-secondary">
             Prospects
           </Link>
         </div>
@@ -853,7 +853,7 @@ const QUICK_ACTIONS = [
   { to: "/assignments", icon: "clipboard", label: "Assignments" },
   { to: "/tasks", icon: "check-square", label: "Tasks" },
   { to: "/goals", icon: "target", label: "Monthly Goals" },
-  { to: "/network/prospects", icon: "network", label: "Prospects" },
+  { to: "/network", icon: "network", label: "Prospects" },
   { to: "/leaderboard", icon: "trophy", label: "Leaderboard" },
   { to: "/notifications", icon: "bell", label: "Notifications" },
 ];

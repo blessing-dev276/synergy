@@ -240,6 +240,13 @@ export const logProspectActivity = (prospectId, activityType, note, nextFollowUp
 
 export const getAdminProspectingOverview = () => call("get_admin_prospecting_overview", {});
 
+// Links a prospect to the real member account it became -- only allowed
+// when that member is already one of the caller's own directly-sponsored
+// members (0098), so this can label an existing sponsor relationship, not
+// create one.
+export const linkProspectToMember = (prospectId, memberUid) =>
+  call("link_prospect_to_member", { p_prospect_id: prospectId, p_member_uid: memberUid });
+
 // ---------- Mind Training (independent from the Learning Hub's courses/modules/lessons) ----------
 // get_my_mind_training_paths/get_my_mind_training_path are read via
 // useSupabaseQuery + supabase.rpc(...) directly wherever they're used

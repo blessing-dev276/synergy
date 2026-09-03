@@ -14,7 +14,9 @@ export function rankTaskActionLink(proxyType, proxyPathId) {
     case "mind_training_modules_count":
       return proxyPathId ? { to: `/learning/mind-training/${proxyPathId}`, label: "Continue" } : null;
     case "prospects_count":
-      return { to: "/network/prospects", label: "Add prospects" };
+      // Prospects lives as a section of My Network now, not its own page
+      // (consolidated per the My Network rebuild) -- same route either way.
+      return { to: "/network", label: "Add prospects" };
     default:
       return null;
   }
