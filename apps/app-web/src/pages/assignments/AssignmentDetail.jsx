@@ -97,7 +97,7 @@ export default function AssignmentDetail() {
 
       {submission && (
         <div className="card" style={{ marginBottom: "20px" }}>
-          <div className="card-title">Your submission</div>
+          <div className="card-title">Your report</div>
           <span
             className={`badge ${submission.status === "approved" ? "badge-success" : submission.status === "needs_revision" ? "badge-danger" : "badge-neutral"}`}
           >

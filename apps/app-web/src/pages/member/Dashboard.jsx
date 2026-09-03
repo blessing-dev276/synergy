@@ -683,13 +683,13 @@ function NetworkTeamCard({ uid }) {
   );
 }
 
-// ================= Today's submissions (accountability) =================
-// The honest shape of "daily report" this platform actually has: no
-// separate daily_report/activity_report table exists anywhere, so rather
-// than invent one, this summarizes the same evidence-required tasks
-// Today's Work already fetched -- content_assignments needing admin-
-// reviewed evidence, whose real status (not submitted / pending / done)
-// already flows through get_my_content_assignments.
+// ================= Today's reports (accountability) =================
+// Narrower than the Daily Report on /tasks (daily_reports, 0094, one
+// free-form wrap-up per day covering all of today's work): this card is
+// specifically about content_assignments that need admin-reviewed written
+// evidence, whose real status (not submitted / pending / done) already
+// flows through get_my_content_assignments -- a different, more specific
+// kind of reporting, not a duplicate of the Daily Report.
 function AccountabilityCard({ today }) {
   const { loading, items } = today;
   if (loading) return null;
@@ -700,18 +700,18 @@ function AccountabilityCard({ today }) {
     <div className="card-elevated rise-in" style={{ animationDelay: "0.26s" }}>
       <div className="card-title" style={{ marginBottom: "4px" }}>
         <Icon name="clipboard" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        Today's Submissions
+        Today's Reports
       </div>
 
       {evidenceItems.length === 0 ? (
         <p className="card-subtitle" style={{ marginBottom: 0 }}>
-          Nothing needs a submission today.
+          Nothing needs a report today.
         </p>
       ) : (
         <>
           <p className="card-subtitle">
             {evidenceItems.every((i) => i.done)
-              ? "All of today's submissions are in."
+              ? "All of today's reports are in."
               : `${evidenceItems.filter((i) => i.done).length} of ${evidenceItems.length} submitted`}
           </p>
           <ul className="accountability-list">

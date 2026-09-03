@@ -370,7 +370,7 @@ function RankTaskRow({ task, paths, onChanged, onEdit, drag }) {
   const auto = proxySummary(task, pathTitleById);
 
   const remove = async () => {
-    if (!window.confirm(`Delete task "${task.title}"? Any submissions for it go with it.`)) return;
+    if (!window.confirm(`Delete task "${task.title}"? Any reports for it go with it.`)) return;
     try {
       await adminDeleteRankTask(task.id);
       toast.success("Task deleted.");
@@ -845,8 +845,8 @@ export default function RankBuilder() {
       </div>
       <p style={{ color: "var(--slate)", marginTop: "-10px", marginBottom: "16px" }}>
         Ranks are free-form — create as many as you need, attach whole Learning Hub paths to each, and assign members
-        directly. Click a rank to open it — opening another one closes this. Pending task submissions are reviewed at{" "}
-        <Link to="/admin/submissions">Submissions</Link>.
+        directly. Click a rank to open it — opening another one closes this. Pending task reports are reviewed at{" "}
+        <Link to="/admin/submissions">Reports</Link>.
       </p>
 
       {loading && <Skeleton variant="card" height="80px" />}

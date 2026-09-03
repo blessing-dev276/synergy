@@ -378,7 +378,7 @@ const OFFICE_ITEMS = [
   { icon: "layers", title: "Learning Hub", text: "Follow structured learning paths instead of random courses." },
   { icon: "network", title: "Network", text: "Build and manage your business network." },
   { icon: "users", title: "Team", text: "Work with your sponsor and team." },
-  { icon: "folder", title: "Submissions", text: "Stay accountable by reporting your activities." },
+  { icon: "folder", title: "Reports", text: "Stay accountable by reporting your activities." },
   { icon: "bar-chart", title: "Progress", text: "See how consistently you're showing up." },
 ];
 
@@ -502,7 +502,7 @@ function AccountabilitySection() {
         </Reveal>
 
         <Reveal className="lp-flow">
-          {["Monthly Goal", "Daily Tasks", "Daily Action", "Submission", "Progress", "Better Results"].map((step, i, arr) => (
+          {["Monthly Goal", "Daily Tasks", "Daily Action", "Report", "Progress", "Better Results"].map((step, i, arr) => (
             <div key={step} style={{ width: "100%" }}>
               <div className={`lp-flow-step${i === arr.length - 1 ? " strong" : ""}`}>{step}</div>
               {i < arr.length - 1 && (

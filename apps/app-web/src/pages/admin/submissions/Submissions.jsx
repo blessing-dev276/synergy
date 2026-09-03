@@ -580,7 +580,7 @@ function SectionBlock({ section, isOpen, onToggle }) {
 }
 
 export default function Submissions() {
-  const [openSection, setOpenSection] = useState("rank-advancement");
+  const [openSection, setOpenSection] = useState("daily-reports");
 
   return (
     <div>

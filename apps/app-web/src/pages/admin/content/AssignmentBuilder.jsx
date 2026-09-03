@@ -101,7 +101,7 @@ function AssignmentRow({ assignment, onChanged, onEdit }) {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Delete assignment "${assignment.title}"? Any member submissions for it will be removed too.`)) return;
+    if (!window.confirm(`Delete assignment "${assignment.title}"? Any member reports for it will be removed too.`)) return;
     const { error } = await supabase.from("assignments").delete().eq("id", assignment.id);
     if (error) {
       toast.error("Couldn't delete that assignment.");

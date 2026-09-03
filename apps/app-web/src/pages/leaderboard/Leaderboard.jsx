@@ -394,7 +394,7 @@ function MySubmissions({ uid }) {
   return (
     <div style={{ marginTop: "16px" }}>
       <div className="row-meta" style={{ marginBottom: "8px" }}>
-        Your recent submissions
+        Your recent reports
       </div>
       <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
         {entries.map((e, i) => (
@@ -511,14 +511,14 @@ function EarningRow({ entry, onResolved }) {
   const [busy, setBusy] = useState(false);
 
   const decide = async (decision) => {
-    if (decision === "rejected" && !window.confirm(`Reject this $${entry.amount} earning submission?`)) return;
+    if (decision === "rejected" && !window.confirm(`Reject this $${entry.amount} earning report?`)) return;
     setBusy(true);
     try {
       await reviewEarning(entry.id, decision, note.trim());
       toast.success(decision === "verified" ? "Earning verified." : "Earning rejected.");
       onResolved();
     } catch (err) {
-      toast.error(err.message ?? "Couldn't review that submission.");
+      toast.error(err.message ?? "Couldn't review that report.");
     } finally {
       setBusy(false);
     }
@@ -571,7 +571,7 @@ function PendingEarningsReview() {
       <div className="card-title">Pending earnings to verify</div>
       <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
         Members self-report earnings for the weekly leaderboard. Only verified amounts count toward Top Earner —
-        review each submission before it's counted.
+        review each report before it's counted.
       </p>
 
       {loading && <Skeleton variant="card" height="140px" />}

@@ -39,12 +39,19 @@ const PROXY_TYPE_CATEGORY = {
   profile_completion_percent: "Personal Development",
   goals_submitted: "Personal Development",
 };
+// Ordered most-specific-subject first, generic "training/course/module"
+// words last -- a title like "Complete 1 Network Marketing Business
+// Training Learning Path" contains both "Network Marketing" (specific,
+// correct) and "Training" (generic, would wrongly win if checked first).
+// Real titles from the live rank_tasks catalog drove this list (Business
+// Explanation, Network Varsity, Skill Set, Digital Skill, Mind Training),
+// not guesswork -- update it if a genuinely new naming pattern shows up.
 const TITLE_KEYWORD_CATEGORY = [
-  [/prospect|follow[\s-]?up|customer|business activity/i, "Network Marketing"],
-  [/portfolio|fiverr|upwork|freelanc|proposal|client/i, "Freelancing"],
-  [/lesson|course|module|training|learn/i, "Learning"],
-  [/read|reflect|mindset|personal development|journal/i, "Personal Development"],
+  [/network marketing|network varsity|business explanation|prospect|follow[\s-]?up|customer|business activity/i, "Network Marketing"],
+  [/skill set|digital skill|portfolio|fiverr|upwork|freelanc|proposal|client/i, "Freelancing"],
+  [/mind training|mindset|reflect|personal development|journal|self-awareness/i, "Personal Development"],
   [/team|sponsor|mentor/i, "Team"],
+  [/lesson|course|module|training|learn/i, "Learning"],
 ];
 
 function categorizeRankTask(t) {

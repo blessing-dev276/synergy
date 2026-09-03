@@ -612,7 +612,7 @@ function WalletSummaryPanel({ member }) {
               ? `Current tier allows up to ${formatMoney(summary.tier.capAmount, summary.tier.capCurrency)} per request.`
               : "No withdrawal limit set for this member's rank."}
             {summary?.pendingRequest &&
-              ` Pending request: ${formatMoney(summary.pendingRequest.amount, summary.pendingRequest.currency)} — review it under Submissions.`}
+              ` Pending request: ${formatMoney(summary.pendingRequest.amount, summary.pendingRequest.currency)} — review it under Reports.`}
           </p>
         </>
       )}
