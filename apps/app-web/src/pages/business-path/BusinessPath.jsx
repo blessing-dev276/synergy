@@ -151,7 +151,7 @@ function MilestoneRow({ milestone, canToggle, onToggle, busy }) {
         {done && completedAt && <div style={{ fontSize: "11.5px", color: "var(--slate)" }}>Completed {formatDate(completedAt)}</div>}
       </div>
       {autoKey && <span className="badge badge-neutral" title="Tracked automatically from your real activity">Auto</span>}
-      {linkTo && (
+      {!done && linkTo && (
         <Link to={linkTo} className="badge badge-neutral">
           {linkLabel ?? "Open"}
         </Link>
