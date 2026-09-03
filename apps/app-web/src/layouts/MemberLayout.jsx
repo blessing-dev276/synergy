@@ -26,6 +26,7 @@ const sections = [
     label: "Build",
     items: [
       { to: "/network", label: "My Network", icon: "network", end: true },
+      { to: "/rank-journey", label: "Rank Journey", icon: "compass" },
       { to: "/leaderboard", label: "Leaderboard", icon: "trophy" },
       { to: "/wallet", label: "Wallet", icon: "dollar-sign" },
     ],

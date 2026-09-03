@@ -36,6 +36,7 @@ import NotificationList from "./pages/notifications/NotificationList.jsx";
 import Profile from "./pages/profile/Profile.jsx";
 import NetworkDashboard from "./pages/network/NetworkDashboard.jsx";
 import Goals from "./pages/goals/Goals.jsx";
+import RankJourney from "./pages/rank-journey/RankJourney.jsx";
 import Leaderboard from "./pages/leaderboard/Leaderboard.jsx";
 import Wallet from "./pages/wallet/Wallet.jsx";
 
@@ -128,6 +129,7 @@ function App() {
                   this keeps any old bookmark/link working instead of 404ing. */}
               <Route path="/network/prospects" element={<Navigate to="/network" replace />} />
               <Route path="/goals" element={<Goals />} />
+              <Route path="/rank-journey" element={<RankJourney />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/wallet" element={<Wallet />} />
             </Route>

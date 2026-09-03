@@ -14,9 +14,18 @@ export function rankTaskActionLink(proxyType, proxyPathId) {
     case "mind_training_modules_count":
       return proxyPathId ? { to: `/learning/mind-training/${proxyPathId}`, label: "Continue" } : null;
     case "prospects_count":
+    case "referral_count":
       // Prospects lives as a section of My Network now, not its own page
       // (consolidated per the My Network rebuild) -- same route either way.
-      return { to: "/network", label: "Add prospects" };
+      // Referrals (personally-sponsored count, 0093) are also grown from
+      // that same page.
+      return { to: "/network", label: proxyType === "referral_count" ? "Grow your network" : "Add prospects" };
+    case "profile_completion_percent":
+      return { to: "/profile", label: "Finish your profile" };
+    case "earnings_amount":
+      return { to: "/wallet", label: "View wallet" };
+    case "goals_submitted":
+      return { to: "/goals", label: "Set your goals" };
     default:
       return null;
   }

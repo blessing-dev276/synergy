@@ -54,7 +54,9 @@ const TITLE_KEYWORD_CATEGORY = [
   [/lesson|course|module|training|learn/i, "Learning"],
 ];
 
-function categorizeRankTask(t) {
+// Exported for Rank Journey (0100), which needs the same real category
+// inference for a rank's tasks -- one definition, not a second copy.
+export function categorizeRankTask(t) {
   if (t.proxyPathSection && SECTION_CATEGORY[t.proxyPathSection]) return SECTION_CATEGORY[t.proxyPathSection];
   if (PROXY_TYPE_CATEGORY[t.proxyType]) return PROXY_TYPE_CATEGORY[t.proxyType];
   const match = TITLE_KEYWORD_CATEGORY.find(([re]) => re.test(t.title));

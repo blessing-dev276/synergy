@@ -386,8 +386,8 @@ function RankJourneyCard({ profile }) {
         ))}
       </div>
 
-      <Link to="/learning" className="btn btn-secondary" style={{ marginTop: "20px" }}>
-        Browse Learning Hub
+      <Link to="/rank-journey" className="btn btn-secondary" style={{ marginTop: "20px" }}>
+        View Rank Journey
       </Link>
     </div>
   );

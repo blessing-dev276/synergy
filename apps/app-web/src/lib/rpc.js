@@ -61,6 +61,12 @@ export const getMyContentAssignments = (uid) => call("get_my_content_assignments
 
 export const getLearningPaths = () => call("get_learning_paths", {});
 
+// Rank Journey (0100): real per-path completion for a given rank's
+// attached learning paths -- works for any rank, not just the caller's
+// current one, since path completion is a fact about the member
+// independent of which rank they're actually sitting at.
+export const getRankLearningPaths = (rankId) => call("get_rank_learning_paths", { p_rank_id: rankId });
+
 // Freelancing's sequential skill lock (0095): a path's skillLock field on
 // get_learning_paths' rows is 'unlocked' | 'locked' | 'choosable' (or null
 // outside skill_set, where the lock concept doesn't apply) -- this is the
