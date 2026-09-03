@@ -4,11 +4,27 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#0B1F3A" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <title>Synergy App</title>
+    <title>Synergy — Learn. Work. Build. Earn.</title>
+    <meta
+      name="description"
+      content="Synergy is a digital office for learning practical skills, building a freelance career, growing a Network Marketing business, and staying accountable to your goals."
+    />
+    <!-- Client-rendered SPA (no per-route SSR) -- these describe whatever
+         page a crawler/link-preview actually fetches first, which in
+         practice is the public root ("/", LandingPage.jsx). The rest of
+         the app (dashboard, admin) sits behind ProtectedRoute regardless
+         of these tags, so there's nothing sensitive an indexer could
+         reach even without the robots meta this page used to carry. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Synergy — Learn. Work. Build. Earn." />
+    <meta
+      property="og:description"
+      content="A digital office for learning, working, and building through Freelancing and Network Marketing."
+    />
+    <meta property="og:url" content="https://app.synergyteamm.com/" />
     <script>
       // Sets the theme attribute synchronously, before any CSS/React loads,
       // so the very first paint already matches the user's saved (or system)

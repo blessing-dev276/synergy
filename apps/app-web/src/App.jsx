@@ -4,6 +4,8 @@ import RoleGuard from "./components/RoleGuard.jsx";
 import OnboardingGate from "./components/OnboardingGate.jsx";
 import StatusGate from "./components/StatusGate.jsx";
 
+import LandingPage from "./pages/marketing/LandingPage.jsx";
+import LegalPage from "./pages/marketing/LegalPage.jsx";
 import Login from "./pages/auth/Login.jsx";
 import Signup from "./pages/auth/Signup.jsx";
 import ForgotPassword from "./pages/auth/ForgotPassword.jsx";
@@ -58,10 +60,13 @@ import NotFound from "./pages/NotFound.jsx";
 function App() {
   return (
     <Routes>
-      {/* ProtectedRoute bounces unauthenticated visitors to /login, and
-          RoleGuard further redirects to the right role's home — so a
-          single target here correctly resolves for every visitor. */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* Public marketing root -- everything below (ProtectedRoute/
+          RoleGuard/etc.) is completely unaffected; a signed-in visitor who
+          navigates back to "/" just sees this page again, same as any
+          other public route, since nothing here checks auth state. */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/privacy" element={<LegalPage page="privacy" />} />
+      <Route path="/terms" element={<LegalPage page="terms" />} />
 
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
