@@ -30,14 +30,12 @@ const sections = [
       { to: "/wallet", label: "Wallet", icon: "dollar-sign" },
     ],
   },
-  {
-    label: "Settings",
-    items: [
-      { to: "/notifications", label: "Notifications", icon: "bell" },
-      { to: "/profile", label: "Profile", icon: "user" },
-    ],
-  },
 ];
+// Settings (Notifications/Profile) dropped as its own sidebar group --
+// both are already one click away from every page via the topbar
+// (NotificationBell's bell icon, and the avatar/name link to /profile,
+// see AppShell.jsx), so a dedicated sidebar section for them was pure
+// duplication. Routes are untouched, just not surfaced here too.
 
 const bottomItems = [
   { to: "/dashboard", label: "Home", icon: "home", end: true },

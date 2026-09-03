@@ -556,7 +556,8 @@ function ContinueLearningCard() {
 // No portfolio/client-work/Fiverr-Upwork tracking exists anywhere in the
 // schema -- rather than invent numbers for it, Freelancing links straight
 // into the real skill_set learning content. Network Marketing's follow-up
-// count is the same live prospects query NetworkTabs.jsx's badge uses.
+// count is the same live prospects query My Network's own Follow-ups Due
+// section (NetworkDashboard.jsx) is built from.
 function BusinessWorkCard({ uid }) {
   const today = todayISO();
   const { data: dueProspects } = useSupabaseQuery(

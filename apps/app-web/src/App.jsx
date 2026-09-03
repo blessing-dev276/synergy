@@ -35,7 +35,6 @@ import MyReports from "./pages/reports/MyReports.jsx";
 import NotificationList from "./pages/notifications/NotificationList.jsx";
 import Profile from "./pages/profile/Profile.jsx";
 import NetworkDashboard from "./pages/network/NetworkDashboard.jsx";
-import Prospects from "./pages/network/Prospects.jsx";
 import Goals from "./pages/goals/Goals.jsx";
 import Leaderboard from "./pages/leaderboard/Leaderboard.jsx";
 import Wallet from "./pages/wallet/Wallet.jsx";
@@ -125,7 +124,9 @@ function App() {
               <Route path="/notifications" element={<NotificationList />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/network" element={<NetworkDashboard />} />
-              <Route path="/network/prospects" element={<Prospects />} />
+              {/* Prospects is now a section of My Network, not its own page --
+                  this keeps any old bookmark/link working instead of 404ing. */}
+              <Route path="/network/prospects" element={<Navigate to="/network" replace />} />
               <Route path="/goals" element={<Goals />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/wallet" element={<Wallet />} />

@@ -113,6 +113,14 @@
 .theme-toggle-icon{ display:flex; animation:theme-icon-in .4s cubic-bezier(.34,1.56,.64,1) both; }
 @keyframes theme-icon-in{ from{ transform:rotate(-95deg) scale(.35); opacity:0; } to{ transform:rotate(0) scale(1); opacity:1; } }
 
+/* ---------- refresh button (topbar, next to .notification-bell) ---------- */
+.refresh-icon{ display:flex; }
+.refresh-icon.is-spinning{ animation:refresh-spin .6s ease; }
+@keyframes refresh-spin{ from{ transform:rotate(0); } to{ transform:rotate(-360deg); } }
+@media (prefers-reduced-motion: reduce){
+  .refresh-icon.is-spinning{ animation:none; }
+}
+
 /* ---------- notification bell (topbar, next to .theme-toggle) ---------- */
 .notification-bell{ position:relative; }
 .notification-badge{

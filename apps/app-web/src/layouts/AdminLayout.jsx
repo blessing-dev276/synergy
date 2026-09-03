@@ -44,7 +44,11 @@ export default function AdminLayout() {
       items: [{ to: "/admin/leaderboard", label: "Leaderboard", icon: "dollar-sign", end: true }],
     },
     {
-      label: "Settings",
+      // No group label -- unlike member's Settings (dropped entirely,
+      // MemberLayout.jsx), these three have no topbar equivalent an admin
+      // could reach them from instead, so the items stay; only the
+      // "Settings" section header goes, matching every other section here
+      // (all unlabeled already).
       items: [
         { to: "/admin/settings/activity", label: "Activity Log", icon: "activity" },
         { to: "/admin/settings/general", label: "General", icon: "briefcase" },

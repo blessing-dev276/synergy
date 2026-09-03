@@ -7,6 +7,7 @@ import Icon from "./Icon.jsx";
 import Avatar from "./Avatar.jsx";
 import ThemeToggle from "./ThemeToggle.jsx";
 import NotificationBell from "./NotificationBell.jsx";
+import RefreshButton from "./RefreshButton.jsx";
 import Sidebar from "./Sidebar.jsx";
 import BottomNav from "./BottomNav.jsx";
 
@@ -21,6 +22,9 @@ export default function AppShell({ sections, bottomItems, title }) {
   // shrinks to icon-only (collapsed) or disappears for the mobile bottom
   // nav (handled in CSS, see .topbar-title's media query).
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Bumped by RefreshButton -- see its own comment for why remounting the
+  // routed page (key below) is how "refresh all data" works here.
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -45,6 +49,7 @@ export default function AppShell({ sections, bottomItems, title }) {
             {title}
           </div>
           <div className="topbar-actions">
+            <RefreshButton onRefresh={() => setRefreshKey((k) => k + 1)} />
             <NotificationBell />
             <ThemeToggle />
             <Link to="/profile" className="topbar-user">
@@ -57,7 +62,7 @@ export default function AppShell({ sections, bottomItems, title }) {
           </div>
         </header>
         <main className="app-content">
-          <Outlet />
+          <Outlet key={refreshKey} />
         </main>
       </div>
       {bottomItems && <BottomNav items={bottomItems} />}
