@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import logoIcon from "../assets/images/logo-icon.png";
 
-export default function Sidebar({ sections, footer }) {
+export default function Sidebar({ sections, footer, onCollapsedChange }) {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sidebarCollapsed") === "true");
+
+  // AppShell's topbar title only makes sense once the sidebar's own brand
+  // mark shrinks to icon-only (collapsed) or disappears entirely (mobile,
+  // handled in CSS) -- this is the one bit of that state it needs.
+  useEffect(() => {
+    onCollapsedChange?.(collapsed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsed]);
 
   const toggle = () => {
     setCollapsed((prev) => {

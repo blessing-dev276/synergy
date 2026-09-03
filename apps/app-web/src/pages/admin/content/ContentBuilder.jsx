@@ -23,16 +23,17 @@ function pathHue(id) {
 
 // One admin entry point for the whole member-facing Learning Hub (mirrors
 // PathList.jsx's own four tabs exactly, same order: Business Basics first,
-// then Skill Set, Mind Training, Personal Development). Business Basics
-// (section key unchanged: nm_business) and Skill Set share this page's
-// courses/modules/lessons editor below, same as always -- Mind Training
-// and Personal Development instead render their own dedicated, purpose-
-// built managers (MindTrainingManager.jsx / PersonalDevelopmentManager.jsx)
-// inline for their tab, unchanged themselves, just no longer needing a
-// separate top-level sidebar entry each (AdminLayout.jsx) to be reached.
+// then Freelancing, Mind Training, Personal Development). Business Basics
+// (section key unchanged: nm_business) and Freelancing (section key
+// unchanged: skill_set) share this page's courses/modules/lessons editor
+// below, same as always -- Mind Training and Personal Development instead
+// render their own dedicated, purpose-built managers (MindTrainingManager.jsx
+// / PersonalDevelopmentManager.jsx) inline for their tab, unchanged
+// themselves, just no longer needing a separate top-level sidebar entry
+// each (AdminLayout.jsx) to be reached.
 const SECTIONS = [
   { key: "nm_business", label: "Business Basics", icon: "briefcase" },
-  { key: "skill_set", label: "Skill Set Training", icon: "layers" },
+  { key: "skill_set", label: "Freelancing", icon: "layers" },
   { key: "mind_training", label: "Mind Training", icon: "brain" },
   { key: "personal_development", label: "Personal Development", icon: "book" },
 ];

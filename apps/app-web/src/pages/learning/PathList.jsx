@@ -11,13 +11,13 @@ import PersonalDevelopmentLibrary from "./PersonalDevelopmentLibrary.jsx";
 
 // Four tabs now: the original three (unchanged, still backed by
 // get_learning_paths/courses) plus Mind Training's own restructured tree
-// and Personal Development, the new standalone resource library (Part 18 --
-// "Freelancing" isn't a real separate section today, Fiverr/Upwork are
-// just ordinary skill_set paths, so this stays 4 tabs rather than inventing
-// a 5th).
+// and Personal Development, the new standalone resource library (Part 18).
+// "Freelancing" (renamed from "Skill Set Training") isn't a real separate
+// section -- Fiverr/Upwork and friends are just ordinary skill_set paths,
+// wearing that label now instead of a 5th tab.
 const SECTIONS = [
   { key: "nm_business", label: "Business Basics", icon: "briefcase" },
-  { key: "skill_set", label: "Skill Set Training", icon: "layers" },
+  { key: "skill_set", label: "Freelancing", icon: "layers" },
   { key: "mind_training", label: "Mind Training", icon: "brain" },
   { key: "personal_development", label: "Personal Development", icon: "book" },
 ];
@@ -101,7 +101,7 @@ function MindTrainingPaths() {
 // /learning/mind-training and /learning/personal-development (both also
 // routed here, App.jsx) exist so a "back to this tab" link from a detail
 // page lands with the right tab pre-selected, instead of always resetting
-// to Skill Set Training.
+// to Freelancing.
 function initialSectionFor(pathname) {
   if (pathname.startsWith("/learning/personal-development")) return "personal_development";
   if (pathname.startsWith("/learning/mind-training")) return "mind_training";

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
 import { useAuth } from "../lib/AuthContext.jsx";
@@ -15,6 +16,11 @@ import BottomNav from "./BottomNav.jsx";
 export default function AppShell({ sections, bottomItems, title }) {
   const { profile, user, role } = useAuth();
   const navigate = useNavigate();
+  // The sidebar already shows its own "Synergy" wordmark once expanded --
+  // this title is only useful as a stand-in for that when the sidebar
+  // shrinks to icon-only (collapsed) or disappears for the mobile bottom
+  // nav (handled in CSS, see .topbar-title's media query).
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -25,6 +31,7 @@ export default function AppShell({ sections, bottomItems, title }) {
     <div className="app-shell">
       <Sidebar
         sections={sections}
+        onCollapsedChange={setSidebarCollapsed}
         footer={(collapsed) => (
           <button type="button" className="btn btn-secondary logout-btn" onClick={handleLogout} title={collapsed ? "Log out" : undefined}>
             <Icon name="log-out" size={16} />
@@ -34,7 +41,7 @@ export default function AppShell({ sections, bottomItems, title }) {
       />
       <div className="app-main">
         <header className="app-topbar">
-          <div className="display" style={{ fontSize: "17px", fontWeight: 600 }}>
+          <div className={`display topbar-title${sidebarCollapsed ? " is-visible" : ""}`} style={{ fontSize: "17px", fontWeight: 600 }}>
             {title}
           </div>
           <div className="topbar-actions">

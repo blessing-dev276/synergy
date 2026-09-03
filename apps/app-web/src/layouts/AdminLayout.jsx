@@ -20,7 +20,7 @@ export default function AdminLayout() {
       items: [{ to: "/admin", label: "Overview", icon: "bar-chart", end: true }],
     },
     {
-      // Business Basics, Skill Set, Mind Training and Personal Development
+      // Business Basics, Freelancing, Mind Training and Personal Development
       // all live as tabs inside this one page now (ContentBuilder.jsx) --
       // no separate top-level entry for Mind Training/Personal Development
       // any more.
