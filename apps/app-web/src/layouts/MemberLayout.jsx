@@ -20,7 +20,14 @@ const sections = [
   },
   {
     label: "Learn",
-    items: [{ to: "/learning", label: "Learning Hub", icon: "book" }],
+    items: [
+      { to: "/learning", label: "Learning Hub", icon: "book" },
+      // New HQ360-shaped journey (Onboarding/Personal Development live now,
+      // Skill/Income/Network Marketing stages coming) -- a separate page
+      // from Learning Hub, not a replacement; nothing here touches
+      // learning_paths/courses.
+      { to: "/training", label: "Training", icon: "layers" },
+    ],
   },
   {
     label: "Build",

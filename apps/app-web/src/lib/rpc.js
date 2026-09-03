@@ -342,3 +342,86 @@ export const getAdminAnnouncements = () => call("get_admin_announcements", {});
 export const createAnnouncement = (title, body) => call("create_announcement", { p_title: title, p_body: body });
 
 export const deleteAnnouncement = (id) => call("delete_announcement", { p_id: id });
+
+// ---------- Training: shared `resources` library (0105) ----------
+export const createResource = (title, fileUrl, fileType, purpose, skillTags = []) =>
+  call("create_resource", { p_title: title, p_file_url: fileUrl, p_file_type: fileType, p_purpose: purpose, p_skill_tags: skillTags });
+
+export const deleteResource = (id) => call("delete_resource", { p_id: id });
+
+// ---------- Training: Onboarding stage (0106) ----------
+// get_admin_onboarding_overview/etc. reads happen directly via
+// supabase.rpc(...) inside useSupabaseQuery wherever they're used -- no
+// wrapper for those here, on purpose (see the note above getRankLearningPaths
+// history: a call() wrapper unwraps straight to .data, the wrong shape for
+// useSupabaseQuery).
+export const adminAddOnboardingItem = (step, type, title, filePath, linkUrl) =>
+  call("admin_add_onboarding_item", { p_step: step, p_type: type, p_title: title, p_file_path: filePath, p_link_url: linkUrl });
+
+export const adminRemoveOnboardingItem = (id) => call("admin_remove_onboarding_item", { p_id: id });
+
+export const adminSetRegistrationLink = (link) => call("admin_set_registration_link", { p_link: link });
+
+export const completeOnboardingStep = (step) => call("complete_onboarding_step", { p_step: step });
+
+// ---------- Training: Personal Development stage (0107/0108) ----------
+export const adminAddPdResource = (title, fileType, fileUrl) =>
+  call("admin_add_pd_resource", { p_title: title, p_file_type: fileType, p_file_url: fileUrl });
+
+export const adminRemovePdResource = (linkId) => call("admin_remove_pd_resource", { p_link_id: linkId });
+
+export const togglePersonalDevelopmentItem = (resourceId, done) =>
+  call("toggle_personal_development_item", { p_resource_id: resourceId, p_done: done });
+
+// ---------- Training: Skill Development stage (0111/0116) ----------
+// Class detail (modules + items + trainers) is read directly via nested
+// supabase.from("classes").select(...) wherever it's used -- these are the
+// write actions only. get_my_class_progress is a read RPC but goes through
+// useSupabaseQuery + supabase.rpc(...) directly for the same reason as
+// every other read RPC in this file (see the note above deleteAnnouncement).
+export const createClass = (title, description, purpose) => call("create_class", { p_title: title, p_description: description, p_purpose: purpose });
+
+export const updateClassDetails = (id, title, description) => call("update_class_details", { p_id: id, p_title: title, p_description: description });
+
+export const publishClass = (id) => call("publish_class", { p_id: id });
+
+export const unpublishClass = (id) => call("unpublish_class", { p_id: id });
+
+export const archiveClass = (id) => call("archive_class", { p_id: id });
+
+export const deleteClass = (id) => call("delete_class", { p_id: id });
+
+export const addClassModule = (classId, title) => call("add_class_module", { p_class_id: classId, p_title: title });
+
+export const renameClassModule = (id, title) => call("rename_class_module", { p_id: id, p_title: title });
+
+export const deleteClassModule = (id) => call("delete_class_module", { p_id: id });
+
+export const moveClassModule = (id, direction) => call("move_class_module", { p_id: id, p_direction: direction });
+
+export const addClassTrainer = (classId, userId) => call("add_class_trainer", { p_class_id: classId, p_user_id: userId });
+
+export const removeClassTrainer = (id) => call("remove_class_trainer", { p_id: id });
+
+export const addClassItem = (moduleId, type, title, resourceId, body, examId) =>
+  call("add_class_item", { p_module_id: moduleId, p_type: type, p_title: title, p_resource_id: resourceId, p_body: body, p_exam_id: examId });
+
+export const addClassAssignmentItem = (moduleId, title, instructions, referenceLink, requireNote, requireLink, dueDate) =>
+  call("add_class_assignment_item", {
+    p_module_id: moduleId,
+    p_title: title,
+    p_instructions: instructions,
+    p_reference_link: referenceLink,
+    p_require_note: requireNote,
+    p_require_link: requireLink,
+    p_due_date: dueDate,
+  });
+
+export const removeClassItem = (id) => call("remove_class_item", { p_id: id });
+
+export const toggleClassItemProgress = (itemId, done) => call("toggle_class_item_progress", { p_item_id: itemId, p_done: done });
+
+export const askClassTrainerQuestion = (classId, trainerId, message) =>
+  call("ask_class_trainer_question", { p_class_id: classId, p_trainer_id: trainerId, p_message: message });
+
+export const submitCoursework = (assignmentId, note, link) => call("submit_coursework", { p_assignment_id: assignmentId, p_note: note, p_link: link });

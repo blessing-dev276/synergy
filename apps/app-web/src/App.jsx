@@ -39,6 +39,8 @@ import Goals from "./pages/goals/Goals.jsx";
 import RankJourney from "./pages/rank-journey/RankJourney.jsx";
 import Leaderboard from "./pages/leaderboard/Leaderboard.jsx";
 import Wallet from "./pages/wallet/Wallet.jsx";
+import Training from "./pages/training/Training.jsx";
+import ClassPlayer from "./pages/training/ClassPlayer.jsx";
 
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import ActivityLog from "./pages/admin/ActivityLog.jsx";
@@ -48,6 +50,8 @@ import RankBuilder from "./pages/admin/business-path/RankBuilder.jsx";
 import MindTrainingManager from "./pages/admin/mind-training/MindTrainingManager.jsx";
 import MindTrainingPathManager from "./pages/admin/mind-training/MindTrainingPathManager.jsx";
 import PersonalDevelopmentManager from "./pages/admin/personal-development/PersonalDevelopmentManager.jsx";
+import TrainingAdmin from "./pages/admin/training/TrainingAdmin.jsx";
+import ClassEditor from "./pages/admin/training/ClassEditor.jsx";
 import MemberDetail from "./pages/admin/members/MemberDetail.jsx";
 import NetworkOverview from "./pages/admin/network/NetworkOverview.jsx";
 import Submissions from "./pages/admin/submissions/Submissions.jsx";
@@ -135,6 +139,8 @@ function App() {
               <Route path="/business-path" element={<Navigate to="/rank-journey" replace />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/wallet" element={<Wallet />} />
+              <Route path="/training" element={<Training />} />
+              <Route path="/training/classes/:classId" element={<ClassPlayer />} />
             </Route>
           </Route>
 
@@ -148,6 +154,8 @@ function App() {
               <Route path="/admin/mind-training" element={<MindTrainingManager />} />
               <Route path="/admin/mind-training/:pathId" element={<MindTrainingPathManager />} />
               <Route path="/admin/personal-development" element={<PersonalDevelopmentManager />} />
+              <Route path="/admin/training" element={<TrainingAdmin />} />
+              <Route path="/admin/training/classes/:classId" element={<ClassEditor />} />
               <Route path="/admin/members/:uid" element={<MemberDetail />} />
               <Route path="/admin/submissions" element={<Submissions />} />
               <Route path="/admin/leaderboard" element={<Leaderboard />} />

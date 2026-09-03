@@ -1329,3 +1329,23 @@ button.today-task-check:disabled{ cursor:not-allowed; opacity:0.6; }
 .rank-requirement-row{ display:flex; align-items:center; gap:10px; padding:8px 2px; font-size:13.5px; }
 .rank-requirement-row + .rank-requirement-row{ border-top:1px solid var(--line); }
 .rank-requirement-tag{ margin-left:8px; font-size:11px; font-weight:600; color:var(--slate); }
+
+/* ---------- Training: Onboarding + Personal Development (HQ360 restructure) ---------- */
+.training-stepper{ flex-wrap:wrap; row-gap:10px; }
+.onboarding-step-card.is-locked{ opacity:0.55; }
+.onboarding-step-header{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.onboarding-step-num{
+  width:28px; height:28px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:700; background:var(--surface); border:1px solid var(--line);
+}
+.onboarding-step-num.done{ background:var(--gradient-navy); color:#fff; border-color:transparent; }
+.onboarding-item-row{
+  display:flex; align-items:center; gap:10px;
+  padding:9px 10px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px;
+}
+.pd-streak-badge{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:5px 12px; border-radius:999px;
+  background:var(--gradient-gold); color:#fff; font-weight:700; font-size:12.5px;
+}
