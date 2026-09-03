@@ -527,6 +527,56 @@ function RankPanel({ member, ranks, onChanged }) {
   );
 }
 
+// "Status" (0103) -- a fixed leadership title, separate from the Rank
+// Journey ladder above. Same shape as RankPanel (currently-set line +
+// select + save), but against a plain enum column instead of a ranks FK --
+// no prerequisites to earn it yet, an admin can set or clear it directly.
+function DistributorStatusPanel({ member, onChanged }) {
+  const toast = useToast();
+  const [selected, setSelected] = useState(member.distributor_status ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const currentLabel = DISTRIBUTOR_STATUSES.find((s) => s.key === member.distributor_status)?.label;
+
+  const handleSet = async () => {
+    setSaving(true);
+    try {
+      await adminSetDistributorStatus(member.id, selected || null);
+      toast.success("Status updated.");
+      onChanged();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't update status.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card-elevated">
+      <div className="card-title">
+        <Icon name="award" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Status
+      </div>
+      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
+        Currently: <strong style={{ color: "var(--navy)" }}>{currentLabel ?? "No status assigned"}</strong>
+      </p>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <select value={selected} onChange={(e) => setSelected(e.target.value)} style={{ flex: 1, border: "1px solid var(--line)", borderRadius: "10px", padding: "9px 12px" }}>
+          <option value="">No status</option>
+          {DISTRIBUTOR_STATUSES.map((s) => (
+            <option key={s.key} value={s.key}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+        <button type="button" className="btn btn-primary" onClick={handleSet} disabled={saving || selected === (member.distributor_status ?? "")}>
+          {saving ? "Saving…" : "Set status"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const PATH_LABEL = {
   full: "Skill + Freelancing + Network Marketing",
   network_marketing_only: "Network Marketing only",
@@ -927,6 +977,7 @@ export default function MemberDetail() {
         <>
           <div className="grid grid-2" style={{ alignItems: "start" }}>
             <RankPanel member={member} ranks={ranks} onChanged={refetchMember} />
+            <DistributorStatusPanel member={member} onChanged={refetchMember} />
             <SponsorPanel member={member} onChanged={refetchMember} />
           </div>
           <div style={{ marginTop: "16px" }}>

@@ -67,6 +67,16 @@ export const getLearningPaths = () => call("get_learning_paths", {});
 // independent of which rank they're actually sitting at.
 export const getRankLearningPaths = (rankId) => call("get_rank_learning_paths", { p_rank_id: rankId });
 
+// Business Path (0102): the six-stage development roadmap, separate from
+// the rank ladder above. get_my_business_path (read) is called directly
+// via supabase.rpc(...) wherever it's used, same convention as
+// get_my_rank_tasks/get_leaderboards -- only the two writes need a wrapper.
+export const completeBusinessPathMilestone = (milestoneId) =>
+  call("complete_business_path_milestone", { p_milestone_id: milestoneId });
+
+export const uncompleteBusinessPathMilestone = (milestoneId) =>
+  call("uncomplete_business_path_milestone", { p_milestone_id: milestoneId });
+
 // Freelancing's sequential skill lock (0095): a path's skillLock field on
 // get_learning_paths' rows is 'unlocked' | 'locked' | 'choosable' (or null
 // outside skill_set, where the lock concept doesn't apply) -- this is the
@@ -125,6 +135,12 @@ export const adminSetRankLearningPaths = (rankId, learningPathIds) =>
 
 export const adminSetMemberRank = (uid, rankId) =>
   call("admin_set_member_rank", { p_uid: uid, p_rank_id: rankId });
+
+// "Status" (0103) -- fixed leadership titles, separate from the rank ladder
+// above. p_status is one of DISTRIBUTOR_STATUSES' keys (distributorStatus.js)
+// or null to clear it.
+export const adminSetDistributorStatus = (uid, status) =>
+  call("admin_set_distributor_status", { p_uid: uid, p_status: status });
 
 export const adminGetMembersByRank = () => call("admin_get_members_by_rank", {});
 

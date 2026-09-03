@@ -19,8 +19,15 @@ const sections = [
     ],
   },
   {
+    // Business Path is the roadmap (why you're learning what you're
+    // learning); Learning Hub is the content library itself -- listed
+    // first so the roadmap frames the content beneath it, not the other
+    // way around.
     label: "Learn",
-    items: [{ to: "/learning", label: "Learning Hub", icon: "book" }],
+    items: [
+      { to: "/business-path", label: "Business Path", icon: "layers" },
+      { to: "/learning", label: "Learning Hub", icon: "book" },
+    ],
   },
   {
     label: "Build",
