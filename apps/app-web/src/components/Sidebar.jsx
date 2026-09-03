@@ -17,7 +17,12 @@ export default function Sidebar({ sections, footer }) {
   return (
     <aside className={`app-sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="brand">
-        <img src={logoIcon} alt="Synergy" />
+        <img src={logoIcon} alt={collapsed ? "Synergy" : ""} />
+        {!collapsed && (
+          <span className="brand-name" style={{ fontSize: "17px" }}>
+            Synergy
+          </span>
+        )}
       </div>
 
       <nav className="app-nav">

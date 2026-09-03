@@ -2,31 +2,35 @@ import AppShell from "../components/AppShell.jsx";
 
 const sections = [
   {
+    label: "Overview",
     items: [{ to: "/dashboard", label: "Dashboard", icon: "home", end: true }],
   },
   {
-    items: [{ to: "/learning", label: "My Learning", icon: "book" }],
-  },
-  {
+    label: "My Work",
     items: [
+      { to: "/tasks", label: "Today's Tasks", icon: "check-square" },
       { to: "/assignments", label: "Assignments", icon: "clipboard" },
-      { to: "/tasks", label: "Tasks", icon: "check-square" },
+      { to: "/goals", label: "Monthly Goals", icon: "target" },
     ],
   },
   {
-    items: [{ to: "/network", label: "My Network", icon: "network", end: true }],
+    label: "Learn",
+    items: [{ to: "/learning", label: "Learning Hub", icon: "book" }],
   },
   {
-    items: [{ to: "/goals", label: "Monthly Goals", icon: "target" }],
+    label: "Build",
+    items: [
+      { to: "/network", label: "My Network", icon: "network", end: true },
+      { to: "/leaderboard", label: "Leaderboard", icon: "trophy" },
+      { to: "/wallet", label: "Wallet", icon: "dollar-sign" },
+    ],
   },
   {
-    items: [{ to: "/leaderboard", label: "Leaderboard", icon: "trophy" }],
-  },
-  {
-    items: [{ to: "/wallet", label: "Wallet", icon: "dollar-sign" }],
-  },
-  {
-    items: [{ to: "/profile", label: "Profile", icon: "user" }],
+    label: "Settings",
+    items: [
+      { to: "/notifications", label: "Notifications", icon: "bell" },
+      { to: "/profile", label: "Profile", icon: "user" },
+    ],
   },
 ];
 

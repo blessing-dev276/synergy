@@ -250,3 +250,14 @@ export const getWalletSummary = (uid) => call("get_wallet_summary", { p_uid: uid
 export const getWalletTransactions = (uid) => call("get_wallet_transactions", { p_uid: uid });
 
 export const adminSetWalletReferenceRate = (rate) => call("admin_set_wallet_reference_rate", { p_rate: rate });
+
+// ---------- dashboard: streak + announcements (0090) ----------
+export const getMyStreak = () => call("get_my_streak", {});
+
+export const getActiveAnnouncements = () => call("get_active_announcements", {});
+
+export const getAdminAnnouncements = () => call("get_admin_announcements", {});
+
+export const createAnnouncement = (title, body) => call("create_announcement", { p_title: title, p_body: body });
+
+export const deleteAnnouncement = (id) => call("delete_announcement", { p_id: id });

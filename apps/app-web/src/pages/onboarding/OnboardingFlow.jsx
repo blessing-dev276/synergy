@@ -60,7 +60,10 @@ export default function OnboardingFlow() {
     <div className="onboarding-shell">
       <div className="onboarding-topbar">
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <img src={logoIcon} alt="Synergy" style={{ height: "26px" }} />
+          <img src={logoIcon} alt="" style={{ height: "26px" }} />
+          <span className="brand-name" style={{ fontSize: "17px" }}>
+            Synergy
+          </span>
         </div>
         <Stepper step={step} total={totalSteps} />
       </div>

@@ -161,6 +161,8 @@ export default function AdminDashboard() {
         pendingAssignments,
         pendingEvidence,
         pendingRankTasks,
+        pendingRankAdvancement,
+        pendingWithdrawals,
         quizAgg,
         activeNetwork,
         verifiedEarnings,
@@ -184,6 +186,8 @@ export default function AdminDashboard() {
         supabase.from("assignment_submissions").select("*", { count: "exact", head: true }).eq("status", "submitted"),
         supabase.from("content_evidence_submissions").select("*", { count: "exact", head: true }).eq("status", "submitted"),
         supabase.from("rank_task_submissions").select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("rank_advancement_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("withdrawal_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("quiz_attempts").select("score"),
         supabase.from("sponsor_relationships").select("*", { count: "exact", head: true }).eq("active", true),
         supabase.from("earnings_logs").select("amount").eq("status", "verified"),
@@ -205,7 +209,15 @@ export default function AdminDashboard() {
         newThisMonth: newThisMonth.count ?? 0,
         coursesPublished: coursesPublished.count ?? 0,
         coursesTotal: coursesTotal.count ?? 0,
-        pendingReviews: (pendingAssignments.count ?? 0) + (pendingEvidence.count ?? 0) + (pendingRankTasks.count ?? 0),
+        // Same 5 queues admin_count_pending_submissions() (the sidebar's
+        // "Submissions" badge) sums -- keep these in sync or the banner and
+        // the badge disagree on what "pending" means.
+        pendingReviews:
+          (pendingAssignments.count ?? 0) +
+          (pendingEvidence.count ?? 0) +
+          (pendingRankTasks.count ?? 0) +
+          (pendingRankAdvancement.count ?? 0) +
+          (pendingWithdrawals.count ?? 0),
         avgQuizScore,
         activeNetwork: activeNetwork.count ?? 0,
         earningsTotal,

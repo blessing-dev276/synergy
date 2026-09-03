@@ -132,7 +132,10 @@ export default function OrientationFlow() {
     <div className="onboarding-shell">
       <div className="onboarding-topbar">
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <img src={logoIcon} alt="Synergy" style={{ height: "26px" }} />
+          <img src={logoIcon} alt="" style={{ height: "26px" }} />
+          <span className="brand-name" style={{ fontSize: "17px" }}>
+            Synergy
+          </span>
         </div>
         <div className="badge badge-info">
           <Icon name="award" size={12} /> {points} point{points === 1 ? "" : "s"}

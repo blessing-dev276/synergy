@@ -28,6 +28,17 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// The only real distinction Today's Work can honestly label a task with --
+// there's no category/pillar column on either content_assignments or
+// rank_tasks (checked; doesn't exist) -- but the two task *sources* really
+// are two different systems: Learning Hub coursework vs. the Business Path
+// rank ladder (this platform's Network Marketing progression). Labeling by
+// kind is real, not invented.
+const TASK_KIND_CATEGORY = {
+  assignment: "Learning",
+  rank: "Network Marketing",
+};
+
 // ================= Today's Tasks =================
 // Merges the two task sources a member actually has (Business Path v2 --
 // see supabase/migrations/0058_business_path_v2_drop_v1.sql -- dropped
@@ -180,12 +191,18 @@ function TodayTaskRow({ item, busy, onComplete, index }) {
       </span>
       {bodyLinkTo ? (
         <Link to={bodyLinkTo} className="today-task-body">
-          <div className="today-task-title">{title}</div>
+          <div className="today-task-title">
+            {title}
+            <span className="today-task-category">{TASK_KIND_CATEGORY[kind]}</span>
+          </div>
           {description && <div className="today-task-desc">{description}</div>}
         </Link>
       ) : (
         <div className="today-task-body">
-          <div className="today-task-title">{title}</div>
+          <div className="today-task-title">
+            {title}
+            <span className="today-task-category">{TASK_KIND_CATEGORY[kind]}</span>
+          </div>
           {description && <div className="today-task-desc">{description}</div>}
         </div>
       )}
@@ -227,7 +244,7 @@ function TodayTasksCard({ today }) {
         <div>
           <div className="card-title" style={{ marginBottom: "2px" }}>
             <Icon name="check-square" size={17} style={{ verticalAlign: "-3px", marginRight: "7px" }} />
-            Today's Tasks
+            Today's Work
           </div>
           <p className="card-subtitle" style={{ marginBottom: 0 }}>
             {loading ? "Checking what's due…" : total === 0 ? "Nothing on your plate today." : `${doneCount} of ${total} done`}
@@ -282,6 +299,77 @@ function TodayTasksCard({ today }) {
           {percent === 100 && <div className="today-tasks-celebrate">🎉 Everything's done for today — great work.</div>}
         </>
       )}
+    </div>
+  );
+}
+
+// ================= Daily progress: totals + per-category breakdown + streak =================
+// Same `today` data Today's Work already fetched -- no extra queries beyond
+// the streak, which is genuinely new (get_my_streak, 0090): consecutive
+// days with at least one real submission (content_evidence_submissions /
+// assignment_submissions / rank_task_submissions), not a fabricated counter.
+function ProgressCategoryRow({ label, icon, done, total }) {
+  const complete = total > 0 && done === total;
+  return (
+    <li className="progress-category-row">
+      <span className="progress-category-label">
+        <Icon name={icon} size={14} />
+        {label}
+      </span>
+      {total === 0 ? (
+        <span className="progress-category-status muted">Nothing today</span>
+      ) : complete ? (
+        <span className="progress-category-status done">
+          <Icon name="check" size={12} />
+        </span>
+      ) : (
+        <span className="progress-category-status">
+          {done} / {total}
+        </span>
+      )}
+    </li>
+  );
+}
+
+function DailyProgressCard({ today, streak }) {
+  const { loading, items, doneCount, total } = today;
+  if (loading || total === 0) return null;
+
+  const percent = Math.round((doneCount / total) * 100);
+  const learning = items.filter((i) => i.kind === "assignment");
+  const networkMarketing = items.filter((i) => i.kind === "rank");
+
+  return (
+    <div className="card-elevated rise-in" style={{ animationDelay: "0.04s" }}>
+      <div className="daily-progress-header">
+        <div>
+          <div className="card-title" style={{ marginBottom: "2px" }}>
+            Today's Progress
+          </div>
+          <p className="card-subtitle" style={{ marginBottom: 0 }}>
+            {doneCount} / {total} tasks completed
+          </p>
+        </div>
+        {streak > 0 && (
+          <div className="streak-badge" title={`${streak}-day streak — keep it going`}>
+            <span aria-hidden="true">🔥</span> {streak} day{streak === 1 ? "" : "s"}
+          </div>
+        )}
+      </div>
+
+      <div className="progress-bar" style={{ margin: "14px 0" }}>
+        <div className="progress-bar-fill" style={{ width: `${percent}%` }} />
+      </div>
+
+      <ul className="progress-category-list">
+        <ProgressCategoryRow label="Learning" icon="book" done={learning.filter((i) => i.done).length} total={learning.length} />
+        <ProgressCategoryRow
+          label="Network Marketing"
+          icon="network"
+          done={networkMarketing.filter((i) => i.done).length}
+          total={networkMarketing.length}
+        />
+      </ul>
     </div>
   );
 }
@@ -387,34 +475,378 @@ function RankJourneyCard({ profile }) {
   );
 }
 
-// Nudges toward the categorized Skill/Freelancing/NM/Personal monthly goals
-// flow (submit -> admin review, see supabase/migrations/0045_monthly_goals.sql)
+// ================= Monthly goals =================
+// The categorized Skill/Freelancing/Network Marketing/Personal monthly
+// goals flow (submit -> admin review, supabase/migrations/0045_monthly_goals.sql)
 // -- distinct from the always-editable income/team-size targets on Profile.
-function GoalsNudgeCard({ uid }) {
+// Per-category done/total below is real: each category is a jsonb array of
+// {text, target, progress, done} items the member maintains on /goals, not
+// a computed aggregate the DB provides -- summed here client-side.
+const GOAL_CATEGORIES = [
+  { key: "skill", label: "Skill" },
+  { key: "freelancing", label: "Freelancing" },
+  { key: "network_marketing", label: "Network Marketing" },
+  { key: "personal", label: "Personal" },
+];
+
+function MonthlyGoalsCard({ uid }) {
   const period = currentPeriod();
-  const { data: row } = useSupabaseQuery(
-    () => uid && supabase.from("monthly_goals").select("status").eq("uid", uid).eq("period", period).maybeSingle(),
+  const { loading, data: row } = useSupabaseQuery(
+    () => uid && supabase.from("monthly_goals").select("status, goals").eq("uid", uid).eq("period", period).maybeSingle(),
     [uid, period],
   );
-
-  if (row && (row.status === "submitted" || row.status === "approved")) return null;
-
   const monthLabel = new Date(`${period}-01T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+  if (loading) {
+    return (
+      <div className="card-elevated rise-in" style={{ animationDelay: "0.14s" }}>
+        <Skeleton variant="text" width="140px" height="16px" style={{ marginBottom: "12px" }} />
+        <Skeleton variant="card" height="90px" />
+      </div>
+    );
+  }
 
   return (
     <div className="card-elevated rise-in" style={{ animationDelay: "0.14s" }}>
       <div className="card-title">
         <Icon name="target" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        Monthly Goals
+        {monthLabel} Goals
       </div>
-      <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
-        {row?.status === "needs_revision"
-          ? "An admin asked for changes to your goals — take another look."
-          : `Set what you're working toward for ${monthLabel} across Skill, Freelancing, Network Marketing, and Personal.`}
-      </p>
-      <Link to="/goals" className="btn btn-primary">
-        {row ? "Review your goals" : "Set your goals"}
+
+      {!row ? (
+        <>
+          <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "14px" }}>
+            You haven't set your goals for {monthLabel} yet.
+          </p>
+          <Link to="/goals" className="btn btn-primary">
+            Set My Monthly Goals
+          </Link>
+        </>
+      ) : (
+        <>
+          {row.status === "needs_revision" && (
+            <p className="field-error" style={{ marginBottom: "12px" }}>
+              An admin asked for changes to your goals — take another look.
+            </p>
+          )}
+          <ul className="goal-category-list">
+            {GOAL_CATEGORIES.map((c) => {
+              const items = row.goals?.[c.key] ?? [];
+              const done = items.filter((i) => i.done).length;
+              const total = items.length;
+              const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+              return (
+                <li key={c.key} className="goal-category-row">
+                  <div className="goal-category-top">
+                    <span>{c.label}</span>
+                    <span className="goal-category-count">{total > 0 ? `${done} / ${total}` : "—"}</span>
+                  </div>
+                  {total > 0 && (
+                    <div className="progress-bar goal-category-bar">
+                      <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <Link to="/goals" className="btn btn-primary" style={{ marginTop: "16px" }}>
+            View My Goals
+          </Link>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ================= Continue learning =================
+// Picks one path to feature, preferring Mind Training's real per-lesson
+// progress (get_my_mind_training_paths returns completedItems/totalItems --
+// nothing else does) over a Learning Hub path, which only has a static
+// courseCount, not a lesson counter -- shown honestly as "N courses"
+// instead of a fabricated "lesson X of Y".
+const LEARNING_SECTION_LABEL = {
+  skill_set: "Freelancing",
+  nm_business: "Network Marketing",
+  mind_training: "Mind Training",
+};
+
+function ContinueLearningCard() {
+  const { loading: loadingMT, data: mtPaths } = useSupabaseQuery(() => supabase.rpc("get_my_mind_training_paths", {}), []);
+  const { loading: loadingLP, data: lpPaths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths", {}), []);
+  const loading = loadingMT || loadingLP;
+
+  if (loading) {
+    return (
+      <div className="card-elevated rise-in" style={{ animationDelay: "0.18s" }}>
+        <Skeleton variant="text" width="140px" height="16px" style={{ marginBottom: "12px" }} />
+        <Skeleton variant="card" height="70px" />
+      </div>
+    );
+  }
+
+  const mtInProgress = (mtPaths ?? []).find((p) => !p.locked && p.totalItems > 0 && p.completedItems < p.totalItems);
+  const lpInProgress = !mtInProgress ? (lpPaths ?? []).find((p) => !p.completed) : null;
+
+  let content = null;
+  if (mtInProgress) {
+    content = {
+      track: "Mind Training",
+      title: mtInProgress.title,
+      sub: `${mtInProgress.completedItems} of ${mtInProgress.totalItems} complete`,
+      to: `/learning/mind-training/${mtInProgress.id}`,
+    };
+  } else if (lpInProgress) {
+    content = {
+      track: LEARNING_SECTION_LABEL[lpInProgress.section] ?? "Learning",
+      title: lpInProgress.title,
+      sub: `${lpInProgress.courseCount} course${lpInProgress.courseCount === 1 ? "" : "s"}`,
+      to: `/learning/${lpInProgress.id}`,
+    };
+  }
+
+  return (
+    <div className="card-elevated rise-in" style={{ animationDelay: "0.18s" }}>
+      <div className="card-title" style={{ marginBottom: "4px" }}>
+        <Icon name="book" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Continue Learning
+      </div>
+      {!content ? (
+        <>
+          <p className="card-subtitle">You're all caught up on your learning paths.</p>
+          <Link to="/learning" className="btn btn-secondary">
+            Browse Learning Hub
+          </Link>
+        </>
+      ) : (
+        <>
+          <div className="continue-learning-track">{content.track}</div>
+          <div className="continue-learning-title">{content.title}</div>
+          <p className="card-subtitle" style={{ marginBottom: "16px" }}>
+            {content.sub}
+          </p>
+          <Link to={content.to} className="btn btn-primary">
+            Continue Learning
+          </Link>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ================= Your business: NM + Freelancing, learning -> work -> income =================
+// No portfolio/client-work/Fiverr-Upwork tracking exists anywhere in the
+// schema -- rather than invent numbers for it, Freelancing links straight
+// into the real skill_set learning content. Network Marketing's follow-up
+// count is the same live prospects query NetworkTabs.jsx's badge uses.
+function BusinessWorkCard({ uid }) {
+  const today = todayISO();
+  const { data: dueProspects } = useSupabaseQuery(
+    () =>
+      uid &&
+      supabase
+        .from("prospects")
+        .select("id")
+        .eq("owner_uid", uid)
+        .not("status", "in", "(joined,not_interested)")
+        .not("next_follow_up_at", "is", null)
+        .lte("next_follow_up_at", today),
+    [uid],
+  );
+  const { data: lpPaths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths", {}), []);
+
+  const dueCount = dueProspects?.length ?? 0;
+  const freelancingPaths = (lpPaths ?? []).filter((p) => p.section === "skill_set");
+  const freelancingDone = freelancingPaths.filter((p) => p.completed).length;
+
+  return (
+    <div className="card-elevated rise-in" style={{ animationDelay: "0.2s" }}>
+      <div className="card-title" style={{ marginBottom: "4px" }}>
+        <Icon name="briefcase" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Your Business
+      </div>
+      <p className="card-subtitle">Where learning turns into real work.</p>
+
+      <div className="business-work-grid">
+        <div className="business-work-col">
+          <div className="business-work-col-title">
+            <Icon name="network" size={14} />
+            Network Marketing
+          </div>
+          <p className="business-work-stat">
+            {dueCount > 0 ? (
+              <>
+                <strong style={{ color: "var(--navy)" }}>{dueCount}</strong> follow-up{dueCount === 1 ? "" : "s"} due
+              </>
+            ) : (
+              "No follow-ups due right now"
+            )}
+          </p>
+          <Link to="/network/prospects" className="btn btn-secondary">
+            Prospects
+          </Link>
+        </div>
+        <div className="business-work-col">
+          <div className="business-work-col-title">
+            <Icon name="laptop" size={14} />
+            Freelancing
+          </div>
+          <p className="business-work-stat">
+            {freelancingPaths.length > 0 ? (
+              <>
+                <strong style={{ color: "var(--navy)" }}>{freelancingDone}</strong> of {freelancingPaths.length} path
+                {freelancingPaths.length === 1 ? "" : "s"} complete
+              </>
+            ) : (
+              "No freelancing paths yet"
+            )}
+          </p>
+          <Link to="/learning" className="btn btn-secondary">
+            Freelancing Skills
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ================= My network / team =================
+// Real fields only -- get_network_overview (0060) has no "active this
+// week"/"new this month" scoped to a member's own downline, so those
+// aren't shown rather than faked.
+function NetworkTeamCard({ uid }) {
+  const { loading, data: overview } = useSupabaseQuery(
+    () => uid && supabase.rpc("get_network_overview", { p_uid: uid }),
+    [uid],
+  );
+  const { data: sponsor } = useSupabaseQuery(() => supabase.rpc("get_my_sponsor", {}), []);
+
+  return (
+    <div className="card-elevated rise-in" style={{ animationDelay: "0.24s" }}>
+      <div className="card-title" style={{ marginBottom: "4px" }}>
+        <Icon name="network" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        My Network
+      </div>
+
+      {loading ? (
+        <Skeleton variant="card" height="80px" />
+      ) : (
+        <>
+          {sponsor && (
+            <div className="network-sponsor-row">
+              <Avatar name={sponsor.display_name} photoPath={sponsor.photo_url} size={32} />
+              <div>
+                <div className="row-meta">Sponsor</div>
+                <div style={{ fontWeight: 600, fontSize: "13.5px" }}>{sponsor.display_name}</div>
+              </div>
+            </div>
+          )}
+          <ul className="network-stat-list">
+            <li>
+              <span>Team members</span>
+              <strong>{overview?.networkSize ?? 0}</strong>
+            </li>
+            <li>
+              <span>Active</span>
+              <strong>{overview?.activeCount ?? 0}</strong>
+            </li>
+            <li>
+              <span>Inactive</span>
+              <strong>{overview?.inactiveCount ?? 0}</strong>
+            </li>
+          </ul>
+        </>
+      )}
+
+      <Link to="/network" className="btn btn-secondary" style={{ marginTop: "16px" }}>
+        View Network
       </Link>
+    </div>
+  );
+}
+
+// ================= Today's submissions (accountability) =================
+// The honest shape of "daily report" this platform actually has: no
+// separate daily_report/activity_report table exists anywhere, so rather
+// than invent one, this summarizes the same evidence-required tasks
+// Today's Work already fetched -- content_assignments needing admin-
+// reviewed evidence, whose real status (not submitted / pending / done)
+// already flows through get_my_content_assignments.
+function AccountabilityCard({ today }) {
+  const { loading, items } = today;
+  if (loading) return null;
+
+  const evidenceItems = items.filter((i) => i.kind === "assignment" && i.needsEvidence);
+
+  return (
+    <div className="card-elevated rise-in" style={{ animationDelay: "0.26s" }}>
+      <div className="card-title" style={{ marginBottom: "4px" }}>
+        <Icon name="clipboard" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Today's Submissions
+      </div>
+
+      {evidenceItems.length === 0 ? (
+        <p className="card-subtitle" style={{ marginBottom: 0 }}>
+          Nothing needs a submission today.
+        </p>
+      ) : (
+        <>
+          <p className="card-subtitle">
+            {evidenceItems.every((i) => i.done)
+              ? "All of today's submissions are in."
+              : `${evidenceItems.filter((i) => i.done).length} of ${evidenceItems.length} submitted`}
+          </p>
+          <ul className="accountability-list">
+            {evidenceItems.map((i) => (
+              <li key={i.id} className="accountability-row">
+                <span>{i.title}</span>
+                <span className={`badge ${i.done ? "badge-success" : i.evidenceStatus === "submitted" ? "badge-info" : "badge-neutral"}`}>
+                  {i.done ? "Approved" : i.evidenceStatus === "submitted" ? "Pending review" : "Not submitted"}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {!evidenceItems.every((i) => i.done) && (
+            <Link to="/tasks" className="btn btn-primary" style={{ marginTop: "14px" }}>
+              Submit Evidence
+            </Link>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ================= Announcements =================
+// get_active_announcements (0090) -- the one broadcast-to-everyone
+// notification concept the platform has; admin-authored on
+// /admin/settings/notifications. Hidden entirely when empty rather than
+// showing an empty card -- nothing to scan is not a status worth a card.
+function AnnouncementsCard() {
+  const { loading, data } = useSupabaseQuery(() => supabase.rpc("get_active_announcements", {}), []);
+  if (!loading && (!data || data.length === 0)) return null;
+
+  return (
+    <div className="card-elevated rise-in" style={{ animationDelay: "0.28s" }}>
+      <div className="card-title" style={{ marginBottom: "4px" }}>
+        <Icon name="bell" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Announcements
+      </div>
+      {loading ? (
+        <Skeleton variant="table-row" />
+      ) : (
+        <ul className="announcement-list">
+          {data.map((a) => (
+            <li key={a.id} className="announcement-row">
+              <span aria-hidden="true">📢</span>
+              <div>
+                <div className="announcement-title">{a.title}</div>
+                {a.body && <div className="announcement-body">{a.body}</div>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -432,7 +864,7 @@ function TopLeadersCard({ uid }) {
   const { loading, data } = useSupabaseQuery(() => uid && supabase.rpc("get_leaderboards", {}), [uid]);
 
   return (
-    <div className="card-elevated leaders-card rise-in" style={{ animationDelay: "0.22s" }}>
+    <div className="card-elevated leaders-card rise-in" style={{ animationDelay: "0.3s" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
         <span className="icon-badge tone-warning" style={{ width: "46px", height: "46px", borderRadius: "13px" }}>
           <Icon name="trophy" size={22} />
@@ -509,20 +941,22 @@ const QUICK_ACTIONS = [
 ];
 
 function Hero({ firstName, today }) {
+  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
   const outstanding = today.total - today.doneCount;
   const subtitle = today.loading
-    ? "Loading your day…"
+    ? "Here's what you need to get done today."
     : today.total === 0
-      ? "You're all caught up — nothing needs your attention today."
+      ? "Here's what you need to get done today — you're all caught up already."
       : outstanding === 0
-        ? "Everything's done for today. Nice work."
-        : `You have ${outstanding} thing${outstanding === 1 ? "" : "s"} to knock out today.`;
+        ? "Here's what you need to get done today — and you've already finished it. Nice work."
+        : `Here's what you need to get done today — ${outstanding} thing${outstanding === 1 ? "" : "s"} left.`;
 
   const percent = !today.loading && today.total > 0 ? Math.round((today.doneCount / today.total) * 100) : null;
 
   return (
     <div className="hero-banner rise-in">
       <div className="hero-banner-main">
+        <div className="hero-date">{dateLabel}</div>
         <h1>
           {greeting()}, {firstName} 👋
         </h1>
@@ -552,6 +986,7 @@ export default function Dashboard() {
     () => user && supabase.from("member_goals").select("*").eq("uid", user.id).maybeSingle(),
     [user?.id],
   );
+  const { data: streak } = useSupabaseQuery(() => supabase.rpc("get_my_streak", {}), []);
   const health = computeProfileHealth({ profile, whysCount: whys?.length, goals: goalsRow });
   const today = useTodayTasks(user?.id);
 
@@ -563,13 +998,31 @@ export default function Dashboard() {
 
       <TodayTasksCard today={today} />
 
+      <div style={{ marginBottom: "24px" }}>
+        <DailyProgressCard today={today} streak={streak ?? 0} />
+      </div>
+
       <div className="grid grid-2" style={{ marginBottom: "24px" }}>
-        <ProfileProgressCard health={health} />
-        <RankJourneyCard profile={profile} />
+        <MonthlyGoalsCard uid={user?.id} />
+        <ContinueLearningCard />
       </div>
 
       <div style={{ marginBottom: "24px" }}>
-        <GoalsNudgeCard uid={user?.id} />
+        <BusinessWorkCard uid={user?.id} />
+      </div>
+
+      <div className="grid grid-2" style={{ marginBottom: "24px" }}>
+        <NetworkTeamCard uid={user?.id} />
+        <AccountabilityCard today={today} />
+      </div>
+
+      <div style={{ marginBottom: "24px" }}>
+        <AnnouncementsCard />
+      </div>
+
+      <div className="grid grid-2" style={{ marginBottom: "24px" }}>
+        <ProfileProgressCard health={health} />
+        <RankJourneyCard profile={profile} />
       </div>
 
       <div style={{ marginBottom: "24px" }}>
