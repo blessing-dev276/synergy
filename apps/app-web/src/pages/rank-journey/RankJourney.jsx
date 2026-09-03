@@ -5,10 +5,15 @@ import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { categorizeRankTask } from "../../lib/useTodayTasks.js";
 import { rankTaskActionLink } from "../../lib/rankTaskLinks.js";
-import { getRankLearningPaths } from "../../lib/rpc.js";
+import { useToast } from "../../components/state/Toast.jsx";
+import { completeBusinessPathMilestone, uncompleteBusinessPathMilestone } from "../../lib/rpc.js";
 import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+}
 
 // learning_paths.section -> the same display names used across Goals.jsx/
 // Dashboard.jsx/useTodayTasks.js -- kept in sync with those, not reinvented.
@@ -40,6 +45,20 @@ function useMyRankTasks() {
     proxyThreshold: t.proxyThreshold,
   }));
   return { loading, error, items, refetch };
+}
+
+// Merged in from the old, separate Business Path page (0104) -- a rank's
+// milestones (real per-member completion, auto-detected or self-checked),
+// same "works for any rank" posture as learning paths above.
+function useRankMilestones(rankId) {
+  const { loading, data, refetch } = useSupabaseQuery(() => rankId && supabase.rpc("get_rank_milestones", { p_rank_id: rankId }), [rankId]);
+  return {
+    loading,
+    stagePurpose: data?.stagePurpose ?? null,
+    stageDescription: data?.stageDescription ?? null,
+    milestones: data?.milestones ?? [],
+    refetch,
+  };
 }
 
 // ================= Current Rank card =================
@@ -101,7 +120,7 @@ function CurrentRankCard({ currentRank, nextRank, currentIndex, totalRanks, path
 }
 
 // ================= Your Next Step =================
-function NextStepSection({ currentRank, nextRank, paths, tasks, pendingRequest }) {
+function NextStepSection({ currentRank, nextRank, paths, tasks, milestones, pendingRequest }) {
   if (!nextRank) return null;
 
   const pathSteps = paths.map((p) => ({ key: `path-${p.id}`, label: p.title, done: p.completed, to: pathHref(p) }));
@@ -112,15 +131,30 @@ function NextStepSection({ currentRank, nextRank, paths, tasks, pendingRequest }
     pending: t.pending,
     to: t.actionLink?.to ?? "/tasks",
   }));
-  const steps = [...pathSteps, ...taskSteps].sort((a, b) => Number(a.done) - Number(b.done));
-  const firstIncomplete = steps.find((s) => !s.done);
+  const milestoneSteps = milestones.map((m) => ({ key: `milestone-${m.id}`, label: m.title, done: m.done, to: m.linkTo ?? "/rank-journey" }));
+  const allSteps = [...pathSteps, ...taskSteps, ...milestoneSteps];
+  const incomplete = allSteps.filter((s) => !s.done);
+  // Focused, not exhaustive -- a rank can easily have 15+ real requirements
+  // (a big Mind Training path alone), and this section answers "what
+  // should I do right now", not "list everything". The full set is what
+  // the Requirements card below is for.
+  const MAX_VISIBLE = 5;
+  const steps = incomplete.slice(0, MAX_VISIBLE);
+  const remaining = incomplete.length - steps.length;
+  const firstIncomplete = steps[0];
 
   return (
     <div className="card-elevated" style={{ marginBottom: "24px" }}>
       <div className="card-title">Your Next Step</div>
-      {steps.length === 0 ? (
+      {allSteps.length === 0 ? (
         <p className="card-subtitle" style={{ marginBottom: 0 }}>
           No requirements are configured for {currentRank.title} yet — check back once they're set up.
+        </p>
+      ) : incomplete.length === 0 ? (
+        <p className="card-subtitle" style={{ marginBottom: 0 }}>
+          {pendingRequest
+            ? "Everything's done — your promotion is awaiting admin review."
+            : "Everything here is complete — your promotion will be filed automatically."}
         </p>
       ) : (
         <>
@@ -130,25 +164,20 @@ function NextStepSection({ currentRank, nextRank, paths, tasks, pendingRequest }
           <ul className="next-step-list">
             {steps.map((s) => (
               <li key={s.key} className="next-step-row">
-                <span className={`today-task-check${s.done ? " done" : ""}`} aria-hidden="true">
-                  {s.done && <Icon name="check" size={11} />}
-                </span>
+                <span className="today-task-check" aria-hidden="true" />
                 <span style={{ flex: 1 }}>{s.label}</span>
                 {s.pending && <span className="badge badge-info">Pending review</span>}
               </li>
             ))}
           </ul>
-          {firstIncomplete ? (
-            <Link to={firstIncomplete.to} className="btn btn-primary">
-              Continue
-            </Link>
-          ) : (
-            <p className="card-subtitle" style={{ marginBottom: 0 }}>
-              {pendingRequest
-                ? "Everything's done — your promotion is awaiting admin review."
-                : "Everything here is complete — your promotion will be filed automatically."}
+          {remaining > 0 && (
+            <p className="card-subtitle" style={{ marginBottom: "14px" }}>
+              +{remaining} more requirement{remaining === 1 ? "" : "s"} — see the full list below.
             </p>
           )}
+          <Link to={firstIncomplete.to} className="btn btn-primary">
+            Continue
+          </Link>
         </>
       )}
     </div>
@@ -189,7 +218,20 @@ function RankRoadmap({ ranks, currentIndex, selectedRankId, onSelect }) {
 }
 
 // ================= Requirements for the selected rank =================
-function RankRequirementsSection({ rank, state, paths, pathsLoading, tasks, tasksLoading }) {
+function RankRequirementsSection({
+  rank,
+  state,
+  paths,
+  pathsLoading,
+  tasks,
+  tasksLoading,
+  stagePurpose,
+  stageDescription,
+  milestones,
+  milestonesLoading,
+  onToggleMilestone,
+  milestoneBusyId,
+}) {
   const total = paths.length;
   const completed = paths.filter((p) => p.completed).length;
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -207,8 +249,17 @@ function RankRequirementsSection({ rank, state, paths, pathsLoading, tasks, task
       {state === "done" && <p className="card-subtitle">✓ You've already achieved this rank.</p>}
       {state === "locked" && (
         <p className="card-subtitle">
-          This rank isn't active for you yet — but the learning requirements below are real, so you can get a head start any time.
+          This rank isn't active for you yet — but the requirements below are real, so you can get a head start any time.
         </p>
+      )}
+      {stagePurpose && (
+        <div className="rank-requirement-group" style={{ marginTop: state === "current" ? 0 : "12px" }}>
+          <div className="row-meta" style={{ marginBottom: "4px" }}>
+            Your Objective
+          </div>
+          <p style={{ fontSize: "14px", color: "var(--navy-soft)", marginBottom: stageDescription ? "4px" : 0 }}>{stagePurpose}</p>
+          {stageDescription && <p style={{ fontSize: "13px", color: "var(--slate)" }}>{stageDescription}</p>}
+        </div>
       )}
 
       {total > 0 && (
@@ -250,6 +301,59 @@ function RankRequirementsSection({ rank, state, paths, pathsLoading, tasks, task
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {(milestonesLoading || milestones.length > 0) && (
+        <div style={{ marginTop: "20px" }}>
+          <div className="rank-requirement-group-title">
+            <Icon name="target" size={13} />
+            Milestones
+          </div>
+          {milestonesLoading ? (
+            <Skeleton variant="table-row" />
+          ) : (
+            <ul className="rank-requirement-list">
+              {milestones.map((m) => (
+                <li key={m.id} className="rank-requirement-row">
+                  {m.autoKey ? (
+                    <span className={`today-task-check${m.done ? " done" : ""}`} aria-hidden="true">
+                      {m.done && <Icon name="check" size={11} />}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className={`today-task-check${m.done ? " done" : ""}`}
+                      onClick={() => onToggleMilestone(m)}
+                      disabled={milestoneBusyId === m.id}
+                      title={m.done ? "Mark not done" : "Mark done"}
+                      aria-label={m.done ? `Mark "${m.title}" not done` : `Mark "${m.title}" done`}
+                    >
+                      {m.done && <Icon name="check" size={11} />}
+                    </button>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ textDecoration: m.done ? "line-through" : "none", color: m.done ? "var(--slate)" : "inherit" }}>
+                      {m.title}
+                    </div>
+                    {m.done && m.completedAt && (
+                      <div style={{ fontSize: "11.5px", color: "var(--slate)" }}>Completed {formatDate(m.completedAt)}</div>
+                    )}
+                  </div>
+                  {m.autoKey && (
+                    <span className="badge badge-neutral" title="Tracked automatically from your real activity">
+                      Auto
+                    </span>
+                  )}
+                  {!m.done && m.linkTo && (
+                    <Link to={m.linkTo} className="badge badge-neutral">
+                      {m.linkLabel ?? "Open"}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -333,13 +437,13 @@ export default function RankJourney() {
   // one would make the top card go blank the moment someone clicks a
   // different rank to look at its requirements.
   const { loading: currentPathsLoading, data: currentPathsData } = useSupabaseQuery(
-    () => currentRank && getRankLearningPaths(currentRank.id),
+    () => currentRank && supabase.rpc("get_rank_learning_paths", { p_rank_id: currentRank.id }),
     [currentRank?.id],
   );
   const currentPaths = currentPathsData ?? [];
 
   const { loading: selectedPathsLoading, data: selectedPathsData } = useSupabaseQuery(
-    () => activeRankId && getRankLearningPaths(activeRankId),
+    () => activeRankId && supabase.rpc("get_rank_learning_paths", { p_rank_id: activeRankId }),
     [activeRankId],
   );
   const selectedPaths = selectedPathsData ?? [];
@@ -348,6 +452,31 @@ export default function RankJourney() {
     () => profile?.id && supabase.from("rank_advancement_requests").select("id, to_rank_id").eq("uid", profile.id).eq("status", "pending").maybeSingle(),
     [profile?.id],
   );
+
+  // Same split as the two paths fetches above, same reason: the top card's
+  // "what's next" can't go blank just because the roadmap below is
+  // previewing a different rank.
+  const currentMilestones = useRankMilestones(currentRank?.id);
+  const selectedMilestones = useRankMilestones(activeRankId);
+
+  const toast = useToast();
+  const [milestoneBusyId, setMilestoneBusyId] = useState(null);
+  const toggleMilestone = async (milestone) => {
+    setMilestoneBusyId(milestone.id);
+    try {
+      if (milestone.done) {
+        await uncompleteBusinessPathMilestone(milestone.id);
+      } else {
+        await completeBusinessPathMilestone(milestone.id);
+      }
+      currentMilestones.refetch();
+      selectedMilestones.refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't update that.");
+    } finally {
+      setMilestoneBusyId(null);
+    }
+  };
 
   const nextRank = currentIndex >= 0 && ranks ? (ranks[currentIndex + 1] ?? null) : null;
 
@@ -413,6 +542,7 @@ export default function RankJourney() {
             nextRank={nextRank}
             paths={currentPaths}
             tasks={myTasks.items}
+            milestones={currentMilestones.milestones}
             pendingRequest={Boolean(pendingRequests)}
           />
 
@@ -426,6 +556,12 @@ export default function RankJourney() {
               pathsLoading={selectedPathsLoading}
               tasks={myTasks.items}
               tasksLoading={myTasks.loading}
+              stagePurpose={selectedMilestones.stagePurpose}
+              stageDescription={selectedMilestones.stageDescription}
+              milestones={selectedMilestones.milestones}
+              milestonesLoading={selectedMilestones.loading}
+              onToggleMilestone={toggleMilestone}
+              milestoneBusyId={milestoneBusyId}
             />
           )}
         </>

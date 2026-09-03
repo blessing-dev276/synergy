@@ -61,16 +61,16 @@ export const getMyContentAssignments = (uid) => call("get_my_content_assignments
 
 export const getLearningPaths = () => call("get_learning_paths", {});
 
-// Rank Journey (0100): real per-path completion for a given rank's
-// attached learning paths -- works for any rank, not just the caller's
-// current one, since path completion is a fact about the member
-// independent of which rank they're actually sitting at.
-export const getRankLearningPaths = (rankId) => call("get_rank_learning_paths", { p_rank_id: rankId });
+// get_rank_learning_paths/get_rank_milestones (Rank Journey, 0100/0104) --
+// both reads, called directly via supabase.rpc(...) inside useSupabaseQuery
+// wherever they're used (RankJourney.jsx), same convention as
+// get_my_rank_tasks/get_leaderboards -- no wrapper here for either, on
+// purpose: this file's call() unwraps straight to .data, which is the
+// wrong shape for useSupabaseQuery (it awaits a query builder's own
+// {data, error}) -- exactly the bug a wrapper here caused once already.
 
-// Business Path (0102): the six-stage development roadmap, separate from
-// the rank ladder above. get_my_business_path (read) is called directly
-// via supabase.rpc(...) wherever it's used, same convention as
-// get_my_rank_tasks/get_leaderboards -- only the two writes need a wrapper.
+// The two milestone writes (self-checked ones only -- auto-tracked
+// milestones have nothing to toggle).
 export const completeBusinessPathMilestone = (milestoneId) =>
   call("complete_business_path_milestone", { p_milestone_id: milestoneId });
 

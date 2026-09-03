@@ -19,15 +19,8 @@ const sections = [
     ],
   },
   {
-    // Business Path is the roadmap (why you're learning what you're
-    // learning); Learning Hub is the content library itself -- listed
-    // first so the roadmap frames the content beneath it, not the other
-    // way around.
     label: "Learn",
-    items: [
-      { to: "/business-path", label: "Business Path", icon: "layers" },
-      { to: "/learning", label: "Learning Hub", icon: "book" },
-    ],
+    items: [{ to: "/learning", label: "Learning Hub", icon: "book" }],
   },
   {
     label: "Build",
@@ -39,6 +32,11 @@ const sections = [
     ],
   },
 ];
+// Business Path used to be its own item here, above Learning Hub -- merged
+// into Rank Journey instead (0104): the real rank ladder and Business
+// Path's six stages turned out to be the same progression under two
+// names, so its milestones now show inside a rank's own requirements
+// there rather than on a second, near-identical page.
 // Settings (Notifications/Profile) dropped as its own sidebar group --
 // both are already one click away from every page via the topbar
 // (NotificationBell's bell icon, and the avatar/name link to /profile,
