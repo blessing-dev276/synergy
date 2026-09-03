@@ -282,6 +282,24 @@ function NativeVideoPlayer({ src, onWatched }) {
   );
 }
 
+// Replaces the old bare "← Back to course" link with real wayfinding —
+// same destination, same slot, just named instead of generic. courseTitle
+// can still be null for a beat while its query resolves; falls back to
+// "Course" rather than rendering a blank crumb.
+function LessonBreadcrumb({ pathId, courseId, courseTitle }) {
+  return (
+    <div style={{ fontSize: "13.5px", color: "var(--slate)" }}>
+      <Link to="/learning" style={{ color: "var(--slate)" }}>
+        Learning Hub
+      </Link>
+      {" → "}
+      <Link to={`/learning/${pathId}/${courseId}`} style={{ color: "var(--slate)" }}>
+        {courseTitle ?? "Course"}
+      </Link>
+    </div>
+  );
+}
+
 export default function LessonViewer() {
   const { pathId, courseId, moduleId, lessonId } = useParams();
   const { user } = useAuth();
@@ -293,6 +311,14 @@ export default function LessonViewer() {
   const { loading, data: lesson } = useSupabaseQuery(
     () => supabase.from("lessons").select("*").eq("id", lessonId).single(),
     [lessonId],
+  );
+
+  // Real breadcrumb, not decorative -- Learning Hub is always the top
+  // level, the course title is the one bit of context worth surfacing this
+  // deep (module/lesson titles are already right below in the page itself).
+  const { data: breadcrumbCourse } = useSupabaseQuery(
+    () => supabase.from("courses").select("title").eq("id", courseId).maybeSingle(),
+    [courseId],
   );
 
   const { data: progress, loading: loadingProgress, refetch: refetchProgress } = useSupabaseQuery(
@@ -439,9 +465,7 @@ export default function LessonViewer() {
   if (locked) {
     return (
       <div>
-        <Link to={`/learning/${pathId}/${courseId}`} style={{ color: "var(--slate)", fontSize: "13.5px" }}>
-          ← Back to course
-        </Link>
+        <LessonBreadcrumb pathId={pathId} courseId={courseId} courseTitle={breadcrumbCourse?.title} />
         <h1 style={{ marginTop: "10px" }}>{lesson.title}</h1>
         <EmptyState
           icon={<Icon name="lock" size={26} />}
@@ -454,9 +478,7 @@ export default function LessonViewer() {
 
   return (
     <div>
-      <Link to={`/learning/${pathId}/${courseId}`} style={{ color: "var(--slate)", fontSize: "13.5px" }}>
-        ← Back to course
-      </Link>
+      <LessonBreadcrumb pathId={pathId} courseId={courseId} courseTitle={breadcrumbCourse?.title} />
       <h1 style={{ marginTop: "10px" }}>{lesson.title}</h1>
 
       <div className="card" style={{ marginTop: "20px", marginBottom: "20px" }}>

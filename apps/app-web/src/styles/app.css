@@ -1142,3 +1142,86 @@ table.data-table{ width:100%; border-collapse:collapse; font-size:14px; }
 @media (max-width: 640px){
   .business-work-grid{ grid-template-columns:1fr; }
 }
+
+/* ================= My Goals page ================= */
+.goals-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+.goals-period-selector{ display:flex; align-items:center; gap:10px; }
+.goals-period-label{ font-family:'Space Grotesk', sans-serif; font-size:16px; font-weight:700; min-width:150px; text-align:center; }
+.goals-admin-note{ padding:12px 14px; border-radius:10px; background:var(--surface); border:1px solid var(--line); margin-bottom:16px; font-size:13.5px; }
+.goals-admin-note.warning{ background:var(--gold-soft); border-color:var(--gold); }
+
+/* ---------- monthly overview ---------- */
+.goals-overview-bar-row{ display:flex; align-items:center; gap:12px; margin:4px 0 20px; }
+.goals-overview-percent{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:16px; flex-shrink:0; }
+.goals-overview-stats{ display:grid; grid-template-columns:repeat(auto-fit, minmax(100px, 1fr)); gap:16px; }
+.goals-overview-stat-value{ font-family:'Space Grotesk', sans-serif; font-size:24px; font-weight:700; line-height:1.1; }
+.goals-overview-stat-label{ font-size:12px; color:var(--slate); margin-top:4px; }
+
+/* ---------- goal cards ---------- */
+.goal-card-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px; }
+.goal-card{
+  display:flex; flex-direction:column;
+  background:var(--surface-elevated); border:1px solid var(--line); border-radius:14px; padding:18px;
+  transition:border-color .2s ease, box-shadow .2s ease;
+}
+.goal-card:hover{ border-color:var(--line-strong); box-shadow:var(--shadow-sm); }
+.goal-card.is-completed{ opacity:0.72; }
+.goal-card-header{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.goal-card-category{
+  display:flex; align-items:center; gap:6px;
+  font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:600;
+  letter-spacing:0.05em; text-transform:uppercase; color:var(--slate);
+}
+.goal-card-actions{ display:flex; gap:4px; }
+.goal-card-title{ font-size:15px; font-weight:700; color:var(--navy); margin-bottom:10px; line-height:1.35; }
+.goal-card-progress-line{ font-size:13px; color:var(--navy-soft); margin-bottom:6px; }
+.goal-card-bar{ margin-bottom:6px; }
+.goal-card-percent{ font-family:'JetBrains Mono', monospace; font-size:12px; font-weight:600; color:var(--slate); margin-bottom:12px; }
+.goal-card-footer{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto; padding-top:10px; border-top:1px solid var(--line); }
+.goal-card-deadline{ display:flex; align-items:center; gap:5px; font-size:12px; color:var(--slate); }
+
+/* ---------- at-risk ---------- */
+.at-risk-card{ border-color:rgba(227,169,74,0.32); background:rgba(227,169,74,0.05); }
+.at-risk-list{ display:flex; flex-direction:column; gap:14px; }
+.at-risk-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; padding:12px 0; }
+.at-risk-row + .at-risk-row{ border-top:1px solid var(--line); }
+.at-risk-title{ font-weight:700; font-size:14px; margin-bottom:4px; }
+.at-risk-meta{ font-size:12.5px; color:var(--slate); margin-bottom:6px; }
+.at-risk-note{ font-size:13px; color:var(--gold); }
+
+/* ---------- completed ---------- */
+.completed-goals-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+.completed-goal-card{ padding:14px 16px; border-radius:12px; background:var(--surface); border:1px solid var(--line); opacity:0.75; }
+.completed-goal-title{ font-size:13.5px; font-weight:600; color:var(--navy-soft); text-decoration:line-through; margin-bottom:4px; }
+.completed-goal-meta{ font-size:12px; color:var(--slate); }
+
+/* ---------- goal detail modal ---------- */
+.goal-detail-eyebrow{
+  display:flex; align-items:center; gap:6px;
+  font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:600;
+  letter-spacing:0.06em; text-transform:uppercase; color:var(--blue-bright); margin-bottom:6px;
+}
+.goal-detail-title{ font-family:'Space Grotesk', sans-serif; font-size:21px; margin-bottom:10px; }
+.goal-detail-progress-line{ font-size:13.5px; color:var(--navy-soft); margin-bottom:8px; }
+.goal-detail-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:14px; margin:18px 0; }
+.goal-detail-value{ font-size:14px; font-weight:600; margin-top:2px; }
+.goal-detail-why{ padding:12px 14px; border-radius:10px; background:var(--surface); border:1px solid var(--line); margin-bottom:18px; }
+.goal-detail-why p{ font-size:13.5px; color:var(--navy-soft); margin-top:4px; }
+.goal-detail-progress-form{ margin-bottom:18px; }
+.goal-detail-progress-form label{ display:block; font-size:13px; font-weight:600; margin-bottom:6px; }
+.goal-detail-checklist-toggle{ display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; margin-bottom:18px; cursor:pointer; }
+.goal-detail-tasks{ padding-top:16px; border-top:1px solid var(--line); }
+.goal-detail-task-list{ list-style:none; display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+.goal-detail-task-row{ display:flex; align-items:center; gap:10px; font-size:13.5px; }
+.goal-detail-tasks-link{ display:inline-flex; align-items:center; gap:4px; font-size:13px; font-weight:600; color:var(--blue-bright); }
+
+/* ---------- weekly check-in / month review ---------- */
+.checkin-readonly{ display:flex; flex-direction:column; gap:14px; margin-bottom:16px; }
+.checkin-readonly p{ font-size:13.5px; color:var(--navy-soft); margin-top:3px; }
+.month-review-summary{ display:flex; gap:18px; flex-wrap:wrap; font-size:13.5px; font-weight:600; margin-bottom:18px; }
+
+@media (max-width: 640px){
+  .goal-card-grid{ grid-template-columns:1fr; }
+  .completed-goals-grid{ grid-template-columns:1fr; }
+  .goals-period-label{ min-width:0; }
+}

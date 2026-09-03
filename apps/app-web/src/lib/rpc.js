@@ -197,6 +197,21 @@ export const reviewMemberGoals = (uid, period, decision, comment) =>
 
 export const getAdminGoalOverview = (period) => call("get_admin_goal_overview", { p_period: period });
 
+// Weekly accountability check-in (goal_checkins, 0096) -- one per member
+// per ISO week, no admin review; resubmitting the same week upserts.
+export const saveWeeklyCheckin = (weekStart, whatsWorking, whatsSlowing, nextFocus) =>
+  call("save_weekly_checkin", {
+    p_week_start: weekStart,
+    p_whats_working: whatsWorking,
+    p_whats_slowing: whatsSlowing,
+    p_next_focus: nextFocus,
+  });
+
+// Month-end reflection, stored directly on that period's monthly_goals row
+// (0096) -- requires goals to already exist for the period.
+export const saveMonthReview = (period, accomplished, missed, nextFocus) =>
+  call("save_month_review", { p_period: period, p_accomplished: accomplished, p_missed: missed, p_next_focus: nextFocus });
+
 // ---------- prospecting / follow-up CRM ----------
 export const addProspect = (name, phone, whatsapp, source, notes) =>
   call("add_prospect", { p_name: name, p_phone: phone, p_whatsapp: whatsapp, p_source: source, p_notes: notes });
