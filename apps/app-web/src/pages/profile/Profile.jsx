@@ -5,6 +5,7 @@ import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
 import { ROLE_LABEL } from "../../lib/roles.js";
+import { DISTRIBUTOR_STATUS_LABEL } from "../../lib/distributorStatus.js";
 import { computeProfileHealth } from "../../lib/profileHealth.js";
 import { requestParticipationPath, leaveOffice } from "../../lib/rpc.js";
 import Skeleton from "../../components/state/Skeleton.jsx";
@@ -542,6 +543,9 @@ export default function Profile() {
         <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", rowGap: "10px", columnGap: "16px", fontSize: "13.5px" }}>
           <dt style={{ color: "var(--slate)" }}>Role</dt>
           <dd>{ROLE_LABEL[profile.role] ?? profile.role}</dd>
+
+          <dt style={{ color: "var(--slate)" }}>Status</dt>
+          <dd>{DISTRIBUTOR_STATUS_LABEL[profile.distributor_status] ?? "No status assigned"}</dd>
 
           <dt style={{ color: "var(--slate)" }}>Member since</dt>
           <dd>{profile.created_at ? new Date(profile.created_at).toLocaleDateString() : "—"}</dd>

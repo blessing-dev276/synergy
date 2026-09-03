@@ -11,6 +11,19 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [ready, setReady] = useState(false);
+  // "View as Member" (admin-only preview toggle) -- sessionStorage, not
+  // localStorage: it's a transient "what I'm doing right now" mode, not a
+  // lasting preference, so it shouldn't silently survive a browser restart.
+  // Doesn't touch `role` itself anywhere -- RoleGuard is the only thing
+  // that reads this, everything security-relevant (RLS) still runs off the
+  // real profiles.role in the database, completely unaffected by this flag.
+  const [viewingAsMember, setViewingAsMember] = useState(() => sessionStorage.getItem("viewAsMember") === "true");
+
+  const setViewAsMember = useCallback((next) => {
+    setViewingAsMember(next);
+    if (next) sessionStorage.setItem("viewAsMember", "true");
+    else sessionStorage.removeItem("viewAsMember");
+  }, []);
 
   const loadProfile = useCallback(async (uid) => {
     if (!uid) {
@@ -47,12 +60,20 @@ export function AuthProvider({ children }) {
 
   const refreshProfile = useCallback(() => loadProfile(session?.user?.id), [loadProfile, session]);
 
+  const role = profile?.role ?? null;
+  // Defensive only (a real member should never end up with this set, and
+  // the toggle is only ever rendered for admins) -- guards a stale flag
+  // left in sessionStorage from mattering on the wrong account.
+  const viewAsMember = role === "admin" && viewingAsMember;
+
   const value = {
     user: session?.user ?? null,
     profile,
-    role: profile?.role ?? null,
+    role,
     ready,
     refreshProfile,
+    viewAsMember,
+    setViewAsMember,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
