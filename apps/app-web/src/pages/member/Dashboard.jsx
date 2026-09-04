@@ -11,6 +11,7 @@ import Icon from "../../components/Icon.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
+import Modal from "../../components/Modal.jsx";
 import DailyReportCard from "../../components/DailyReportCard.jsx";
 
 function greeting() {
@@ -317,16 +318,26 @@ function AttentionRow({ icon, count, label, to }) {
   );
 }
 
+// Shows only the single most urgent item (never a wall of rows to scan) --
+// the rest are one click away in a modal via "+N more", not hidden entirely.
 function AttentionCard({ loading, items }) {
+  const [showAll, setShowAll] = useState(false);
+  const [top, ...rest] = items;
+
   return (
     <div className="card-elevated rise-in" style={{ animationDelay: "0.06s" }}>
-      <div className="card-title" style={{ marginBottom: "10px" }}>
-        Needs Your Attention
+      <div className="card-title" style={{ marginBottom: "10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span>Needs Your Attention</span>
+        {items.length > 1 && (
+          <span className="badge badge-warning" title={`${items.length} things need your attention`}>
+            {items.length}
+          </span>
+        )}
       </div>
       {loading ? (
         <Skeleton variant="table-row" />
       ) : items.length === 0 ? (
-        <div className={`attention-card all-clear`} style={{ padding: "6px" }}>
+        <div className="attention-card all-clear" style={{ padding: "6px" }}>
           <div className="attention-row" style={{ cursor: "default" }}>
             <span className="icon-badge tone-success">
               <Icon name="check" size={16} />
@@ -338,11 +349,31 @@ function AttentionCard({ loading, items }) {
           </div>
         </div>
       ) : (
-        <div className="attention-card" style={{ padding: "6px" }}>
-          {items.map((item) => (
-            <AttentionRow key={item.key} {...item} />
-          ))}
-        </div>
+        <>
+          <div className="attention-card" style={{ padding: "6px" }}>
+            <AttentionRow {...top} />
+          </div>
+          {rest.length > 0 && (
+            <button
+              type="button"
+              className="today-tasks-more"
+              style={{ width: "100%", justifyContent: "center", background: "none", border: "none", padding: "14px 0 0", margin: "10px 0 0", font: "inherit", cursor: "pointer" }}
+              onClick={() => setShowAll(true)}
+            >
+              +{rest.length} more needing attention
+              <Icon name="chevron-right" size={14} />
+            </button>
+          )}
+          {showAll && (
+            <Modal open onClose={() => setShowAll(false)} title="Needs Your Attention">
+              <div className="attention-card" style={{ padding: "6px" }}>
+                {items.map((item) => (
+                  <AttentionRow key={item.key} {...item} />
+                ))}
+              </div>
+            </Modal>
+          )}
+        </>
       )}
     </div>
   );

@@ -5,6 +5,17 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B1F3A" />
+    <!-- Android: theme-color tints the browser toolbar and (by its
+         luminance) picks light-vs-dark status bar icons -- ThemeContext.jsx
+         updates this live on toggle. iOS is different: theme-color only
+         ever affects Safari's own tab bar, never the actual OS status bar
+         -- that's apple-mobile-web-app-status-bar-style, and only once the
+         page is "capable" (added to the home screen / opened standalone).
+         Without both of these, an iOS PWA's status bar stays stuck at
+         Safari's default (opaque white, black icons) regardless of the
+         app's theme -- the actual bug this fixes. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <title>Synergy — Learn. Work. Build. Earn.</title>
@@ -28,8 +39,13 @@
     <script>
       // Sets the theme attribute synchronously, before any CSS/React loads,
       // so the very first paint already matches the user's saved (or system)
-      // preference instead of flashing dark-then-light. Kept in sync with
-      // src/lib/ThemeContext.jsx's storage key and fallback logic.
+      // preference instead of flashing dark-then-light. Also sets the same
+      // two meta tags ThemeContext.jsx updates on every toggle (theme-color,
+      // apple-mobile-web-app-status-bar-style) -- otherwise they'd sit on
+      // this file's hardcoded dark defaults above until React mounts and
+      // that effect runs, which is a real (if brief) wrong-color window on
+      // a light-mode first load. Kept in sync with ThemeContext.jsx's
+      // storage key, fallback logic, and color/style values by hand.
       (function () {
         try {
           var stored = localStorage.getItem("synergy-theme");
@@ -40,6 +56,10 @@
                 ? "light"
                 : "dark";
           document.documentElement.setAttribute("data-theme", theme);
+          var themeColor = theme === "light" ? "#F3F6FB" : "#0B1F3A";
+          var barStyle = theme === "light" ? "default" : "black-translucent";
+          document.querySelector('meta[name="theme-color"]')?.setAttribute("content", themeColor);
+          document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute("content", barStyle);
         } catch (e) {}
       })();
     </script>
