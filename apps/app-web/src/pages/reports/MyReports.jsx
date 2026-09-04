@@ -15,11 +15,13 @@ const STATUS_BADGE = {
   submitted: "badge-info",
   reviewed: "badge-success",
   needs_attention: "badge-danger",
+  auto_generated: "badge-warning",
 };
 const STATUS_LABEL = {
   submitted: "Submitted",
   reviewed: "Reviewed",
   needs_attention: "Needs Attention",
+  auto_generated: "Auto-generated",
 };
 
 export default function MyReports() {
@@ -63,7 +65,16 @@ export default function MyReports() {
                 <tr key={r.id}>
                   <td>
                     <div style={{ fontWeight: 600 }}>{new Date(r.report_date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div>
-                    {r.summary && <div style={{ fontSize: "13px", color: "var(--slate)", maxWidth: "360px" }}>{r.summary}</div>}
+                    <div style={{ fontSize: "12px", color: "var(--slate)" }}>
+                      {r.status === "auto_generated" ? "Generated" : "Submitted"} at{" "}
+                      {new Date(r.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                    </div>
+                    {r.status === "auto_generated" && (
+                      <div style={{ fontSize: "12.5px", color: "var(--gold)", marginTop: "4px" }}>
+                        You didn't submit a report this day — this was filed automatically from your activity.
+                      </div>
+                    )}
+                    {r.summary && <div style={{ fontSize: "13px", color: "var(--slate)", maxWidth: "360px", marginTop: "4px" }}>{r.summary}</div>}
                     {r.status === "needs_attention" && r.review_note && (
                       <div style={{ fontSize: "12.5px", color: "var(--danger)", marginTop: "4px" }}>{r.review_note}</div>
                     )}

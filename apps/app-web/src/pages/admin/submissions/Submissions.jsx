@@ -26,17 +26,16 @@ import EmptyState from "../../../components/state/EmptyState.jsx";
 // for what this whole page is now called. "Submitted" reports need a
 // decision here; reviewed/needs_attention ones don't, same "only show
 // what's actually pending" rule every other section on this page follows.
+//
+// Also includes 'auto_generated' rows (0124) -- filed by the system, from
+// real activity records, for a member who didn't submit their own report
+// for a day. Reads via get_pending_daily_reports() rather than a plain
+// table select now, since something has to trigger finalize_missing_
+// daily_reports() before the queue is read -- same "perform the lazy
+// finalize, then return the read" shape get_leaderboards already uses.
 function DailyReportsSection() {
   const toast = useToast();
-  const { loading, data: reports, refetch } = useSupabaseQuery(
-    () =>
-      supabase
-        .from("daily_reports")
-        .select("*, member:profiles!daily_reports_uid_fkey(display_name, email)")
-        .eq("status", "submitted")
-        .order("created_at", { ascending: true }),
-    [],
-  );
+  const { loading, data: reports, refetch } = useSupabaseQuery(() => supabase.rpc("get_pending_daily_reports", {}), []);
   const [busyId, setBusyId] = useState(null);
   const [notes, setNotes] = useState({});
 
@@ -59,36 +58,53 @@ function DailyReportsSection() {
       {!loading && (!reports || reports.length === 0) && (
         <EmptyState icon={<Icon name="clipboard" size={26} />} title="Nothing pending review" />
       )}
-      {reports?.map((r) => (
-        <div key={r.id} className="card" style={{ marginBottom: "14px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
-            <Link to={`/admin/members/${r.uid}`} style={{ fontWeight: 600 }}>
-              {r.member?.display_name || r.member?.email}
-            </Link>
-            <span style={{ fontSize: "12px", color: "var(--slate)" }}>{new Date(r.created_at).toLocaleString()}</span>
+      {reports?.map((r) => {
+        const isAuto = r.status === "auto_generated";
+        return (
+          <div key={r.id} className="card" style={{ marginBottom: "14px", borderLeft: isAuto ? "3px solid var(--gold)" : undefined }}>
+            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Link to={`/admin/members/${r.uid}`} style={{ fontWeight: 600 }}>
+                  {r.displayName || r.email}
+                </Link>
+                {isAuto && <span className="badge badge-warning">Auto-generated</span>}
+              </div>
+              <span style={{ fontSize: "12px", color: "var(--slate)" }}>
+                {isAuto ? "Generated" : "Submitted"} {new Date(r.createdAt).toLocaleString()}
+              </span>
+            </div>
+            <p style={{ fontSize: "12.5px", color: "var(--slate)", marginBottom: "6px" }}>
+              For {new Date(r.reportDate).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
+            </p>
+            {isAuto && (
+              <p style={{ fontSize: "13px", color: "var(--gold)", marginBottom: "8px" }}>
+                <Icon name="ban" size={12} style={{ verticalAlign: "-1px", marginRight: "5px" }} />
+                No report submitted for this day — the numbers below are computed from their real activity records.
+              </p>
+            )}
+            <p style={{ fontSize: "13.5px", marginBottom: "8px" }}>
+              Tasks: <strong>{r.tasksCompleted}/{r.tasksTotal}</strong> · Activities: <strong>{r.activitiesCompleted}/{r.activitiesTotal}</strong>
+            </p>
+            {r.summary && !isAuto && <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "8px" }}>{r.summary}</p>}
+            <div className="field" style={{ marginBottom: "8px" }}>
+              <input
+                type="text"
+                placeholder="Note (optional, shown to the member)"
+                value={notes[r.id] ?? ""}
+                onChange={(e) => setNotes((prev) => ({ ...prev, [r.id]: e.target.value }))}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button type="button" className="btn btn-primary" disabled={busyId === r.id} onClick={() => decide(r, "reviewed")}>
+                Mark Reviewed
+              </button>
+              <button type="button" className="btn btn-danger" disabled={busyId === r.id} onClick={() => decide(r, "needs_attention")}>
+                Needs Attention
+              </button>
+            </div>
           </div>
-          <p style={{ fontSize: "13.5px", marginBottom: "8px" }}>
-            Tasks: <strong>{r.tasks_completed}/{r.tasks_total}</strong> · Activities: <strong>{r.activities_completed}/{r.activities_total}</strong>
-          </p>
-          {r.summary && <p style={{ fontSize: "13.5px", color: "var(--slate)", marginBottom: "8px" }}>{r.summary}</p>}
-          <div className="field" style={{ marginBottom: "8px" }}>
-            <input
-              type="text"
-              placeholder="Note (optional, shown to the member)"
-              value={notes[r.id] ?? ""}
-              onChange={(e) => setNotes((prev) => ({ ...prev, [r.id]: e.target.value }))}
-            />
-          </div>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button type="button" className="btn btn-primary" disabled={busyId === r.id} onClick={() => decide(r, "reviewed")}>
-              Mark Reviewed
-            </button>
-            <button type="button" className="btn btn-danger" disabled={busyId === r.id} onClick={() => decide(r, "needs_attention")}>
-              Needs Attention
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

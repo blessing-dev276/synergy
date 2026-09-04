@@ -24,6 +24,7 @@ const NOTIFICATION_ICON = {
 
   // ---------- needs attention ----------
   member_left_office: "🚩",
+  daily_reports_auto_generated: "🚩",
 
   // ---------- announcements ----------
   announcement_published: "📢",
