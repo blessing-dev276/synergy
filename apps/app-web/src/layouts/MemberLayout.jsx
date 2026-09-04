@@ -15,8 +15,9 @@ import { useMemberRank } from "../lib/useMemberRank.js";
 export default function MemberLayout() {
   // Onboarding (renamed from Training) is for PROSPECT-rank members only;
   // everyone promoted past it sees the classic Learning Hub instead (see
-  // App.jsx's RankGate for the matching route split). Mind Training sits
-  // outside the split -- always shown, regardless of rank.
+  // App.jsx's RankGate for the matching route split). Grouped with
+  // Dashboard under Overview, not under Learn -- it's the whole point of
+  // entry for a prospect, not one learning resource among others.
   const { isProspect } = useMemberRank();
   const learnItem = isProspect
     ? { to: "/training", label: "Onboarding", icon: "layers" }
@@ -25,7 +26,10 @@ export default function MemberLayout() {
   const sections = [
     {
       label: "Overview",
-      items: [{ to: "/dashboard", label: "Dashboard", icon: "home", end: true }],
+      items: [
+        { to: "/dashboard", label: "Dashboard", icon: "home", end: true },
+        ...(isProspect ? [learnItem] : []),
+      ],
     },
     {
       // Assignments (content_assignments' generic-course-assignment sibling,
@@ -40,10 +44,14 @@ export default function MemberLayout() {
         { to: "/reports", label: "Reports", icon: "clipboard" },
       ],
     },
-    {
-      label: "Learn",
-      items: [learnItem, { to: "/learning/mind-training", label: "Mind Training", icon: "brain" }],
-    },
+    // Mind Training isn't its own nav item any more -- it's a tab inside
+    // Learning Hub (ContentBuilder.jsx mirrors this on the admin side:
+    // Business Basics/Freelancing/Mind Training/Personal Development all
+    // live as tabs on one page, not separate top-level entries). Route
+    // (/learning/mind-training) stays reachable from inside that page.
+    // Section only exists for non-prospects, who see Learning Hub here
+    // instead of in Overview.
+    ...(isProspect ? [] : [{ label: "Learn", items: [learnItem] }]),
     {
       label: "Build",
       items: [

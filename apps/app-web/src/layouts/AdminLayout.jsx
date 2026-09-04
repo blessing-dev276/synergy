@@ -21,32 +21,28 @@ export default function AdminLayout() {
 
   const sections = [
     {
-      items: [{ to: "/admin", label: "Overview", icon: "bar-chart", end: true }],
+      // Onboarding (renamed from Training, PROSPECT-only -- see
+      // MemberLayout.jsx/App.jsx's RankGate; route/component internally
+      // still called Training) sits with Overview, not off in Learning
+      // Center -- it's a member's whole starting point, not one training
+      // resource among others.
+      items: [
+        { to: "/admin", label: "Overview", icon: "bar-chart", end: true },
+        { to: "/admin/training", label: "Onboarding", icon: "layers", end: true },
+      ],
     },
     {
       // Business Basics, Freelancing, Mind Training and Personal Development
       // all live as tabs inside this one page (ContentBuilder.jsx) -- real
       // and active again for every non-PROSPECT-rank member (App.jsx's
-      // RankGate); Onboarding below is PROSPECT-only.
+      // RankGate).
       items: [{ to: "/admin/content", label: "Learning Hub", icon: "layers", end: true }],
     },
     {
       items: [{ to: "/admin/business-path", label: "Business Path", icon: "compass", end: true }],
     },
     {
-      // HQ360 restructure: a "Learning Center" grouping for Exams /
-      // Assignments / Onboarding (LEARNING_CENTER_TRAINING_STRUCTURE.md §2,
-      // "Training" renamed "Onboarding" for members -- see MemberLayout.jsx/
-      // App.jsx's RankGate; route/component internally still called
-      // Training, not renamed, same "label changes, internals don't"
-      // convention Rank Journey/Business Path already used). Assignments
-      // (the coursework review/approve manager) is still next-phase work --
-      // lands here once built.
-      label: "Learning Center",
-      items: [
-        { to: "/admin/exams", label: "Exams", icon: "check-square" },
-        { to: "/admin/training", label: "Onboarding", icon: "layers", end: true },
-      ],
+      items: [{ to: "/admin/exams", label: "Exams", icon: "check-square", end: true }],
     },
     {
       items: [{ to: "/admin/evaluation", label: "Evaluation", icon: "clipboard", end: true, badge: pendingCount || 0 }],
