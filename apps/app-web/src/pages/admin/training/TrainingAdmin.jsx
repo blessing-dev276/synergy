@@ -8,11 +8,17 @@ import NetworkMarketingAdmin from "./NetworkMarketingAdmin.jsx";
 import TaskFlowAdmin from "./TaskFlowAdmin.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
 
-// Levels are now the primary frame (Level 1 - Prospect replaces the old
-// Onboarding stage; Level 2/3 are placeholders until described the same
-// way). The 4 remaining stages from the prior HQ360 pass stay reachable
-// after them -- real, live functionality, not yet known which future
-// level(s) they'll belong under.
+// Renamed "Training" -> "Onboarding" for members (AdminLayout.jsx's nav
+// label; route/component here stay Training/TrainingAdmin, matching Rank
+// Journey/Business Path's own label-only-rename convention). Members only
+// ever see this when PROSPECT-ranked (App.jsx's RankGate) -- admin access
+// itself isn't rank-gated, so this page stays reachable regardless.
+//
+// Levels are the primary frame (Level 1 - Prospect built out in full;
+// Level 2/3 are placeholders until described the same way). The 4
+// remaining stages from the prior HQ360 pass stay reachable after them --
+// real, live functionality, not yet known which future level(s) they'll
+// belong under.
 const LEVELS = [{ key: "level1", label: "Level 1 · Prospect", icon: "target" }];
 const LEVEL_PLACEHOLDERS = [
   { key: "level2", label: "Level 2", icon: "lock" },
@@ -39,8 +45,10 @@ export default function TrainingAdmin() {
 
   return (
     <div>
-      <h1>Training</h1>
-      <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "22px" }}>Author the Level-based growth journey, plus the Tasks daily-unlock sequence.</p>
+      <h1>Onboarding</h1>
+      <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "22px" }}>
+        Author the Level-based growth journey PROSPECT-rank members see, plus the Tasks daily-unlock sequence.
+      </p>
 
       <div className="page-tabs training-stepper">
         {[...LEVELS, ...LEVEL_PLACEHOLDERS].map((s) => (

@@ -4,7 +4,7 @@ import { supabase } from "../supabaseClient.js";
 
 const bottomItems = [
   { to: "/admin", label: "Overview", icon: "bar-chart", end: true },
-  { to: "/admin/content", label: "Mind Training", icon: "brain" },
+  { to: "/admin/content", label: "Learning Hub", icon: "layers" },
   { to: "/admin/network", label: "Network", icon: "network" },
 ];
 
@@ -24,25 +24,28 @@ export default function AdminLayout() {
       items: [{ to: "/admin", label: "Overview", icon: "bar-chart", end: true }],
     },
     {
-      // HQ360 restructure v2: Business Basics/Freelancing/Personal Development
-      // retired from this page -- their real content migrated into Training
-      // (0128; pd_resources migration script). Only Mind Training remains
-      // here (ContentBuilder.jsx), too large/real to migrate into Training's
-      // classes shape -- see that migration's notes.
-      items: [{ to: "/admin/content", label: "Mind Training", icon: "brain", end: true }],
+      // Business Basics, Freelancing, Mind Training and Personal Development
+      // all live as tabs inside this one page (ContentBuilder.jsx) -- real
+      // and active again for every non-PROSPECT-rank member (App.jsx's
+      // RankGate); Onboarding below is PROSPECT-only.
+      items: [{ to: "/admin/content", label: "Learning Hub", icon: "layers", end: true }],
     },
     {
       items: [{ to: "/admin/business-path", label: "Business Path", icon: "compass", end: true }],
     },
     {
       // HQ360 restructure: a "Learning Center" grouping for Exams /
-      // Assignments / Training (LEARNING_CENTER_TRAINING_STRUCTURE.md §2).
-      // Assignments (the coursework review/approve manager) is still
-      // next-phase work -- lands here once built.
+      // Assignments / Onboarding (LEARNING_CENTER_TRAINING_STRUCTURE.md §2,
+      // "Training" renamed "Onboarding" for members -- see MemberLayout.jsx/
+      // App.jsx's RankGate; route/component internally still called
+      // Training, not renamed, same "label changes, internals don't"
+      // convention Rank Journey/Business Path already used). Assignments
+      // (the coursework review/approve manager) is still next-phase work --
+      // lands here once built.
       label: "Learning Center",
       items: [
         { to: "/admin/exams", label: "Exams", icon: "check-square" },
-        { to: "/admin/training", label: "Training", icon: "layers", end: true },
+        { to: "/admin/training", label: "Onboarding", icon: "layers", end: true },
       ],
     },
     {

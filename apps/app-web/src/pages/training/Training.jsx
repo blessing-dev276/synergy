@@ -7,9 +7,16 @@ import IncomeDevelopmentMember from "./IncomeDevelopmentMember.jsx";
 import NetworkMarketingMember from "./NetworkMarketingMember.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 
-// Training's primary frame is now Levels (Level 1 - Prospect built out in
-// full; Level 2/3 are placeholders until described the same way Level 1
-// was). The 5 stages built in the prior HQ360 pass are real, live, tested
+// Renamed "Training" -> "Onboarding" for members (label only -- route
+// still /training, component/file still Training.jsx, same "UI text
+// changes, internals don't" convention Rank Journey/Business Path already
+// used; see MemberLayout.jsx/AdminLayout.jsx). Only shown to PROSPECT-rank
+// members (App.jsx's RankGate) -- everyone promoted past Prospect sees the
+// classic Learning Hub instead.
+//
+// Its primary frame is Levels (Level 1 - Prospect built out in full;
+// Level 2/3 are placeholders until described the same way Level 1 was).
+// The 5 stages built in the prior HQ360 pass are real, live, tested
 // functionality -- kept reachable rather than deleted, positioned after
 // the Levels rather than folded into one since it isn't yet known which
 // level(s) they'll eventually belong under.
@@ -38,7 +45,7 @@ export default function Training() {
 
   return (
     <div>
-      <h1>Training</h1>
+      <h1>Onboarding</h1>
       <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "22px" }}>Your growth journey, one level at a time.</p>
 
       <div className="page-tabs training-stepper">
