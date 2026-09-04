@@ -537,3 +537,29 @@ export const adminAddTaskStep = (title, description, type, classId, examId, cour
 export const adminRemoveTaskStep = (id) => call("admin_remove_task_step", { p_id: id });
 
 export const adminMoveTaskStep = (id, direction) => call("admin_move_task_step", { p_id: id, p_direction: direction });
+
+// ---------- Training: Levels (0125/0126) ----------
+// get_my_level_progress / get_admin_level_overview are read RPCs, called
+// directly via supabase.rpc(...) inside useSupabaseQuery -- same reasoning
+// as every other read RPC noted in this file.
+export const adminAddLevelLearnItem = (levelKey, type, title, filePath, linkUrl) =>
+  call("admin_add_level_learn_item", { p_level_key: levelKey, p_type: type, p_title: title, p_file_path: filePath, p_link_url: linkUrl });
+
+export const adminRemoveLevelLearnItem = (id) => call("admin_remove_level_learn_item", { p_id: id });
+
+export const adminAddLevelChecklistItem = (levelKey, section, title, signal) =>
+  call("admin_add_level_checklist_item", { p_level_key: levelKey, p_section: section, p_title: title, p_signal: signal });
+
+export const adminRemoveLevelChecklistItem = (id) => call("admin_remove_level_checklist_item", { p_id: id });
+
+export const adminSetLevelRegistrationLink = (levelKey, link) => call("admin_set_level_registration_link", { p_level_key: levelKey, p_link: link });
+
+export const completeLevelLearnItem = (itemId) => call("complete_level_learn_item", { p_item_id: itemId });
+
+export const toggleLevelChecklistItem = (itemId, done) => call("toggle_level_checklist_item", { p_item_id: itemId, p_done: done });
+
+export const submitLevelRegistrationDocument = (levelKey, documentPath) =>
+  call("submit_level_registration_document", { p_level_key: levelKey, p_document_path: documentPath });
+
+export const reviewLevelRegistration = (id, decision, reviewNote) =>
+  call("review_level_registration", { p_id: id, p_decision: decision, p_review_note: reviewNote });
