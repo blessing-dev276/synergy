@@ -10,6 +10,7 @@ import {
   reviewRankAdvancementRequest,
   reviewWithdrawalRequest,
   reviewDailyReport,
+  reviewCourseworkSubmission,
 } from "../../../lib/rpc.js";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
@@ -331,6 +332,79 @@ function AssignmentGradingSection() {
   );
 }
 
+// Coursework submitted against an assignment-type Skill/Income Development
+// class item (coursework_submissions, 0110/0117) -- the HQ360 restructure's
+// own assignment system, a distinct table from assignment_submissions
+// above (the older, pre-existing course-assignment flow). Same review shape,
+// folded into this one inbox rather than a second "/assignments" page,
+// since an admin already checks this page for everything else pending.
+function CourseworkSection() {
+  const toast = useToast();
+  const [reviewNote, setReviewNote] = useState({});
+  const [busyId, setBusyId] = useState(null);
+
+  const { loading, data: submissions, refetch } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("coursework_submissions")
+        .select("*, member:profiles!coursework_submissions_user_id_fkey(display_name), coursework_assignments(title, instructions, reference_link)")
+        .eq("status", "submitted")
+        .order("submitted_at", { ascending: true }),
+    [],
+  );
+
+  const decide = async (submission, decision) => {
+    setBusyId(submission.id);
+    try {
+      await reviewCourseworkSubmission(submission.id, decision, (reviewNote[submission.id] ?? "").trim());
+      toast.success(decision === "approved" ? "Approved." : decision === "rejected" ? "Rejected." : "Changes requested.");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't submit that review.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      {loading && <Skeleton variant="card" height="140px" />}
+      {!loading && (!submissions || submissions.length === 0) && (
+        <EmptyState icon={<Icon name="folder" size={26} />} title="Nothing pending review" />
+      )}
+      {submissions?.map((s) => (
+        <div key={s.id} className="card" style={{ marginBottom: "14px" }}>
+          <div className="card-title">
+            {s.coursework_assignments?.title ?? "Assignment"} — {s.member?.display_name || "Member"}
+          </div>
+          {s.coursework_assignments?.instructions && <p style={{ margin: "4px 0", color: "var(--slate)", fontSize: "13.5px" }}>{s.coursework_assignments.instructions}</p>}
+          {s.note && <p style={{ margin: "8px 0" }}>{s.note}</p>}
+          {s.link && (
+            <a href={s.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: "13.5px" }}>
+              Submitted link ↗
+            </a>
+          )}
+          <div className="field" style={{ marginTop: "14px" }}>
+            <label>Review note (optional)</label>
+            <textarea rows={2} value={reviewNote[s.id] ?? ""} onChange={(e) => setReviewNote((prev) => ({ ...prev, [s.id]: e.target.value }))} />
+          </div>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <button type="button" className="btn btn-primary" disabled={busyId === s.id} onClick={() => decide(s, "approved")}>
+              Approve
+            </button>
+            <button type="button" className="btn btn-secondary" disabled={busyId === s.id} onClick={() => decide(s, "changes_requested")}>
+              Request Changes
+            </button>
+            <button type="button" className="btn btn-danger" disabled={busyId === s.id} onClick={() => decide(s, "rejected")}>
+              Reject
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Evidence submitted for a bare content_assignment flagged
 // requires_admin_approval (see supabase/migrations/0033_milestones_and_
 // evidence_review.sql) — a sibling queue to course-assignment grading
@@ -549,6 +623,7 @@ const SECTIONS = [
   { id: "rank-tasks", label: "Rank Tasks", icon: "compass", Component: RankTaskSubmissionsSection },
   { id: "withdrawals", label: "Withdrawal Requests", icon: "dollar-sign", Component: WithdrawalRequestsSection },
   { id: "assignments", label: "Course Assignments", icon: "folder", Component: AssignmentGradingSection },
+  { id: "coursework", label: "Training Coursework", icon: "layers", Component: CourseworkSection },
   { id: "evidence", label: "Task Evidence", icon: "check-square", Component: TaskEvidenceSection },
 ];
 const SECTION_IDS = new Set(SECTIONS.map((s) => s.id));
@@ -604,7 +679,7 @@ export default function Submissions() {
     <div>
       <div className="hero-banner">
         <h1>Reports</h1>
-        <p>Every kind of member report waiting on a decision — daily reports, rank advancement, rank tasks, course assignments, and task evidence — in one place.</p>
+        <p>Every kind of member report waiting on a decision — daily reports, rank advancement, rank tasks, course assignments, Training coursework, and task evidence — in one place.</p>
       </div>
 
       <p style={{ color: "var(--slate)", margin: "20px 0 12px" }}>

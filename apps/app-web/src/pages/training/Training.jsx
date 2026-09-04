@@ -3,12 +3,13 @@ import Icon from "../../components/Icon.jsx";
 import OnboardingMember from "./OnboardingMember.jsx";
 import PersonalDevelopmentMember from "./PersonalDevelopmentMember.jsx";
 import SkillDevelopmentMember from "./SkillDevelopmentMember.jsx";
-import ComingSoonStage from "./ComingSoonStage.jsx";
+import IncomeDevelopmentMember from "./IncomeDevelopmentMember.jsx";
+import NetworkMarketingMember from "./NetworkMarketingMember.jsx";
 
 // The 5-stage HQ360 Training journey (LEARNING_CENTER_TRAINING_STRUCTURE.md
-// §1/§2). Onboarding and Personal Development are fully wired to real data;
-// the other three stages have schema + RPCs live already (§7/§8/§9) but
-// their editors/member views are next-phase work -- see ComingSoonStage.
+// §1/§2). All 5 stages are fully wired to real data now; the Exam Manager
+// and Assignment Manager (which Skill/Income Development's Test/Quiz and
+// Assignment item types point at) are still next-phase work.
 const STAGES = [
   { key: "onboarding", label: "Onboarding", icon: "check-square" },
   { key: "personal_development", label: "Personal Development", icon: "activity" },
@@ -37,20 +38,8 @@ export default function Training() {
       {stage === "onboarding" && <OnboardingMember />}
       {stage === "personal_development" && <PersonalDevelopmentMember />}
       {stage === "skill_development" && <SkillDevelopmentMember />}
-      {stage === "income_development" && (
-        <ComingSoonStage
-          icon="dollar-sign"
-          title="Income Development"
-          description="Milestones, a portfolio tracker and an income log to take you from learning a skill to earning from it are coming to Training soon."
-        />
-      )}
-      {stage === "network_marketing" && (
-        <ComingSoonStage
-          icon="network"
-          title="Network Marketing"
-          description="A personal prospecting pipeline is coming to Training soon. Your existing My Network page keeps working in the meantime."
-        />
-      )}
+      {stage === "income_development" && <IncomeDevelopmentMember />}
+      {stage === "network_marketing" && <NetworkMarketingMember />}
     </div>
   );
 }

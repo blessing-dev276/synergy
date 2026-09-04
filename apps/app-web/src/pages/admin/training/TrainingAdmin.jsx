@@ -1,9 +1,10 @@
 import { useState } from "react";
 import Icon from "../../../components/Icon.jsx";
-import ComingSoonStage from "../../training/ComingSoonStage.jsx";
 import OnboardingAdmin from "./OnboardingAdmin.jsx";
 import PersonalDevelopmentAdmin from "./PersonalDevelopmentAdmin.jsx";
 import SkillDevelopmentAdmin from "./SkillDevelopmentAdmin.jsx";
+import IncomeDevelopmentAdmin from "./IncomeDevelopmentAdmin.jsx";
+import NetworkMarketingAdmin from "./NetworkMarketingAdmin.jsx";
 
 const STAGES = [
   { key: "onboarding", label: "Onboarding", icon: "check-square" },
@@ -33,12 +34,8 @@ export default function TrainingAdmin() {
       {stage === "onboarding" && <OnboardingAdmin />}
       {stage === "personal_development" && <PersonalDevelopmentAdmin />}
       {stage === "skill_development" && <SkillDevelopmentAdmin />}
-      {stage === "income_development" && (
-        <ComingSoonStage icon="dollar-sign" title="Income Development" description="The Skill Catalog editor and per-member milestone/portfolio/income views are next-phase work; schema is already live." />
-      )}
-      {stage === "network_marketing" && (
-        <ComingSoonStage icon="network" title="Network Marketing" description="Products/Basics curation and the member CRM pipeline view are next-phase work; schema is already live." />
-      )}
+      {stage === "income_development" && <IncomeDevelopmentAdmin />}
+      {stage === "network_marketing" && <NetworkMarketingAdmin />}
     </div>
   );
 }

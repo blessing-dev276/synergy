@@ -41,6 +41,7 @@ import Leaderboard from "./pages/leaderboard/Leaderboard.jsx";
 import Wallet from "./pages/wallet/Wallet.jsx";
 import Training from "./pages/training/Training.jsx";
 import ClassPlayer from "./pages/training/ClassPlayer.jsx";
+import TakeExam from "./pages/training/TakeExam.jsx";
 
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import ActivityLog from "./pages/admin/ActivityLog.jsx";
@@ -52,6 +53,8 @@ import MindTrainingPathManager from "./pages/admin/mind-training/MindTrainingPat
 import PersonalDevelopmentManager from "./pages/admin/personal-development/PersonalDevelopmentManager.jsx";
 import TrainingAdmin from "./pages/admin/training/TrainingAdmin.jsx";
 import ClassEditor from "./pages/admin/training/ClassEditor.jsx";
+import ExamList from "./pages/admin/exams/ExamList.jsx";
+import ExamEditor from "./pages/admin/exams/ExamEditor.jsx";
 import MemberDetail from "./pages/admin/members/MemberDetail.jsx";
 import NetworkOverview from "./pages/admin/network/NetworkOverview.jsx";
 import Submissions from "./pages/admin/submissions/Submissions.jsx";
@@ -141,6 +144,7 @@ function App() {
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/training" element={<Training />} />
               <Route path="/training/classes/:classId" element={<ClassPlayer />} />
+              <Route path="/take/:token" element={<TakeExam />} />
             </Route>
           </Route>
 
@@ -156,6 +160,8 @@ function App() {
               <Route path="/admin/personal-development" element={<PersonalDevelopmentManager />} />
               <Route path="/admin/training" element={<TrainingAdmin />} />
               <Route path="/admin/training/classes/:classId" element={<ClassEditor />} />
+              <Route path="/admin/exams" element={<ExamList />} />
+              <Route path="/admin/exams/:examId" element={<ExamEditor />} />
               <Route path="/admin/members/:uid" element={<MemberDetail />} />
               <Route path="/admin/submissions" element={<Submissions />} />
               <Route path="/admin/leaderboard" element={<Leaderboard />} />

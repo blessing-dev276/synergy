@@ -425,3 +425,98 @@ export const askClassTrainerQuestion = (classId, trainerId, message) =>
   call("ask_class_trainer_question", { p_class_id: classId, p_trainer_id: trainerId, p_message: message });
 
 export const submitCoursework = (assignmentId, note, link) => call("submit_coursework", { p_assignment_id: assignmentId, p_note: note, p_link: link });
+
+export const reviewCourseworkSubmission = (id, decision, reviewNote) =>
+  call("review_coursework_submission", { p_id: id, p_decision: decision, p_review_note: reviewNote });
+
+// ---------- Training: Income Development stage (0112) ----------
+// admin_add/remove_income_resource wrap income_development_resources -- per
+// the spec's own note (§8.1), that link table is vestigial: in practice the
+// Skill Catalog tab reuses the Skill Development class editor with
+// purpose="income_development" instead, so no frontend calls these two.
+// Kept for schema fidelity only.
+export const adminAddIncomeResource = (title, fileType, fileUrl) =>
+  call("admin_add_income_resource", { p_title: title, p_file_type: fileType, p_file_url: fileUrl });
+
+export const adminRemoveIncomeResource = (linkId) => call("admin_remove_income_resource", { p_link_id: linkId });
+
+export const setIncomeSkill = (skillName) => call("set_income_skill", { p_skill_name: skillName });
+
+export const toggleIncomeMilestone = (milestone, done) => call("toggle_income_milestone", { p_milestone: milestone, p_done: done });
+
+export const addIncomePortfolioItem = (title, description, linkUrl) =>
+  call("add_income_portfolio_item", { p_title: title, p_description: description, p_link_url: linkUrl });
+
+export const removeIncomePortfolioItem = (id) => call("remove_income_portfolio_item", { p_id: id });
+
+export const addIncomeEntry = (amount, source, earnedOn, note) =>
+  call("add_income_entry", { p_amount: amount, p_source: source, p_earned_on: earnedOn, p_note: note });
+
+export const removeIncomeEntry = (id) => call("remove_income_entry", { p_id: id });
+
+// ---------- Training: Network Marketing stage (0113) ----------
+export const adminAddNmProduct = (name, description, linkUrl) => call("admin_add_nm_product", { p_name: name, p_description: description, p_link_url: linkUrl });
+
+export const adminRemoveNmProduct = (id) => call("admin_remove_nm_product", { p_id: id });
+
+export const adminAddNmBasic = (title, description, linkUrl) => call("admin_add_nm_basic", { p_title: title, p_description: description, p_link_url: linkUrl });
+
+export const adminRemoveNmBasic = (id) => call("admin_remove_nm_basic", { p_id: id });
+
+export const addNmContact = (fullName, phone, email, interestedProductId, notes) =>
+  call("add_nm_contact", { p_full_name: fullName, p_phone: phone, p_email: email, p_interested_product_id: interestedProductId, p_notes: notes });
+
+export const updateNmContact = (id, fullName, phone, email, interestedProductId, notes) =>
+  call("update_nm_contact", { p_id: id, p_full_name: fullName, p_phone: phone, p_email: email, p_interested_product_id: interestedProductId, p_notes: notes });
+
+export const setNmContactStage = (contactId, stage, note) => call("set_nm_contact_stage", { p_contact_id: contactId, p_stage: stage, p_note: note });
+
+export const addNmActivityNote = (contactId, note) => call("add_nm_activity_note", { p_contact_id: contactId, p_note: note });
+
+export const removeNmContact = (id) => call("remove_nm_contact", { p_id: id });
+
+// ---------- Learning Center: Exam Manager (0118) ----------
+// get_exam_attempts_admin is a read RPC -- called directly via
+// supabase.rpc(...) inside useSupabaseQuery, same reasoning as every other
+// read RPC noted in this file.
+export const createExam = (title, description) => call("create_exam", { p_title: title, p_description: description });
+
+export const updateExamDetails = (id, title, description) => call("update_exam_details", { p_id: id, p_title: title, p_description: description });
+
+export const upsertExamSettings = (examId, numQuestions, timeLimitMinutes, passMarkPercent, maxAttempts, shuffleQuestions, shuffleOptions) =>
+  call("upsert_exam_settings", {
+    p_exam_id: examId,
+    p_num_questions: numQuestions,
+    p_time_limit_minutes: timeLimitMinutes,
+    p_pass_mark_percent: passMarkPercent,
+    p_max_attempts: maxAttempts,
+    p_shuffle_questions: shuffleQuestions,
+    p_shuffle_options: shuffleOptions,
+  });
+
+export const setExamPublicLink = (examId, enabled) => call("set_exam_public_link", { p_exam_id: examId, p_enabled: enabled });
+
+export const publishExam = (id) => call("publish_exam", { p_id: id });
+
+export const unpublishExam = (id) => call("unpublish_exam", { p_id: id });
+
+export const archiveExam = (id) => call("archive_exam", { p_id: id });
+
+export const deleteExam = (id) => call("delete_exam", { p_id: id });
+
+export const addQuestion = (examId, type, prompt, points) => call("add_question", { p_exam_id: examId, p_type: type, p_prompt: prompt, p_points: points });
+
+export const updateQuestion = (id, prompt, points) => call("update_question", { p_id: id, p_prompt: prompt, p_points: points });
+
+export const deleteQuestion = (id) => call("delete_question", { p_id: id });
+
+export const addQuestionOption = (questionId, label, isCorrect) => call("add_question_option", { p_question_id: questionId, p_label: label, p_is_correct: isCorrect });
+
+export const updateQuestionOption = (id, label, isCorrect) => call("update_question_option", { p_id: id, p_label: label, p_is_correct: isCorrect });
+
+export const deleteQuestionOption = (id) => call("delete_question_option", { p_id: id });
+
+// ---------- member: take-exam flow (0118) ----------
+export const startExamAttempt = (publicToken) => call("start_exam_attempt", { p_public_token: publicToken });
+
+export const submitExamAttempt = (attemptId, answers) => call("submit_exam_attempt", { p_attempt_id: attemptId, p_answers: answers });

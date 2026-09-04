@@ -34,11 +34,13 @@ export default function AdminLayout() {
     {
       // HQ360 restructure: a "Learning Center" grouping for Exams /
       // Assignments / Training (LEARNING_CENTER_TRAINING_STRUCTURE.md §2).
-      // Only Training exists so far (Onboarding + Personal Development
-      // live; the other 3 stages are next-phase) -- Exams/Assignments
-      // managers land here once their editors are built.
+      // Assignments (the coursework review/approve manager) is still
+      // next-phase work -- lands here once built.
       label: "Learning Center",
-      items: [{ to: "/admin/training", label: "Training", icon: "layers", end: true }],
+      items: [
+        { to: "/admin/exams", label: "Exams", icon: "check-square" },
+        { to: "/admin/training", label: "Training", icon: "layers", end: true },
+      ],
     },
     {
       items: [{ to: "/admin/submissions", label: "Reports", icon: "check-square", end: true, badge: pendingCount || 0 }],
