@@ -6,7 +6,6 @@ import SkillDevelopmentAdmin from "./SkillDevelopmentAdmin.jsx";
 import IncomeDevelopmentAdmin from "./IncomeDevelopmentAdmin.jsx";
 import NetworkMarketingAdmin from "./NetworkMarketingAdmin.jsx";
 import TaskFlowAdmin from "./TaskFlowAdmin.jsx";
-import EmptyState from "../../../components/state/EmptyState.jsx";
 
 // Renamed "Training" -> "Onboarding" for members (AdminLayout.jsx's nav
 // label; route/component here stay Training/TrainingAdmin, matching Rank
@@ -14,16 +13,14 @@ import EmptyState from "../../../components/state/EmptyState.jsx";
 // ever see this when PROSPECT-ranked (App.jsx's RankGate) -- admin access
 // itself isn't rank-gated, so this page stays reachable regardless.
 //
-// Levels are the primary frame (Level 1 - Prospect built out in full;
-// Level 2/3 are placeholders until described the same way). The 4
-// remaining stages from the prior HQ360 pass stay reachable after them --
-// real, live functionality, not yet known which future level(s) they'll
-// belong under.
-const LEVELS = [{ key: "level1", label: "Level 1 · Prospect", icon: "target" }];
-const LEVEL_PLACEHOLDERS = [
-  { key: "level2", label: "Level 2", icon: "lock" },
-  { key: "level3", label: "Level 3", icon: "lock" },
-];
+// Used to step through "Level 1"/"Level 2"/"Level 3" tabs; the onboarding
+// qualification redesign (0132-0134) made Level1ProspectAdmin author both
+// real levels unified on one screen, so that's now a single "Onboarding"
+// tab. The 4 Learning Hub stages stay reachable after it -- unlike the
+// member-facing Training.jsx, this page isn't rank-gated (admin authors
+// Learning Hub content here regardless of who can currently see it at
+// /learning), so nothing to remove on that side.
+const ONBOARDING_TAB = { key: "onboarding", label: "Onboarding", icon: "target" };
 const STAGES = [
   { key: "personal_development", label: "Personal Development", icon: "activity" },
   { key: "skill_development", label: "Skill Development", icon: "layers" },
@@ -32,31 +29,21 @@ const STAGES = [
 ];
 const TASK_FLOW_TAB = { key: "task_flow", label: "Daily Curriculum", icon: "clock" };
 
-function LevelComingSoon({ label }) {
-  return (
-    <div className="card">
-      <EmptyState icon={<Icon name="lock" size={26} />} title={`${label} is coming soon`} description="Describe this level the same way Level 1 was, and I'll build it out." />
-    </div>
-  );
-}
-
 export default function TrainingAdmin() {
-  const [stage, setStage] = useState("level1");
+  const [stage, setStage] = useState("onboarding");
 
   return (
     <div>
       <h1>Onboarding</h1>
       <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "22px" }}>
-        Author the Level-based growth journey PROSPECT-rank members see, plus the Tasks daily-unlock sequence.
+        Author the Prospect → Newbie qualification journey, the Learning Hub stages, and the Tasks daily-unlock sequence.
       </p>
 
       <div className="page-tabs training-stepper">
-        {[...LEVELS, ...LEVEL_PLACEHOLDERS].map((s) => (
-          <button key={s.key} type="button" className={`page-tab${stage === s.key ? " active" : ""}`} onClick={() => setStage(s.key)}>
-            <Icon name={s.icon} size={15} />
-            {s.label}
-          </button>
-        ))}
+        <button type="button" className={`page-tab${stage === ONBOARDING_TAB.key ? " active" : ""}`} onClick={() => setStage(ONBOARDING_TAB.key)}>
+          <Icon name={ONBOARDING_TAB.icon} size={15} />
+          {ONBOARDING_TAB.label}
+        </button>
         <span style={{ width: "1px", background: "var(--line)", margin: "6px 4px" }} />
         {STAGES.map((s) => (
           <button key={s.key} type="button" className={`page-tab${stage === s.key ? " active" : ""}`} onClick={() => setStage(s.key)}>
@@ -71,9 +58,7 @@ export default function TrainingAdmin() {
         </button>
       </div>
 
-      {stage === "level1" && <Level1ProspectAdmin />}
-      {stage === "level2" && <LevelComingSoon label="Level 2" />}
-      {stage === "level3" && <LevelComingSoon label="Level 3" />}
+      {stage === "onboarding" && <Level1ProspectAdmin />}
       {stage === "personal_development" && <PersonalDevelopmentAdmin />}
       {stage === "skill_development" && <SkillDevelopmentAdmin />}
       {stage === "income_development" && <IncomeDevelopmentAdmin />}

@@ -5,6 +5,8 @@ const PATHS = {
   book: <><path d="M4 5c2-1 5-1 8 1 3-2 6-2 8-1v13c-2-1-5-1-8 1-3-2-6-2-8-1V5z" /><path d="M12 6v13" /></>,
   clipboard: <><rect x="6" y="4" width="12" height="17" rx="2" /><rect x="9" y="2.5" width="6" height="3" rx="1" /><path d="M9 11h6M9 15h6" /></>,
   "check-square": <><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M8 12l3 3 5-6" /></>,
+  "check-circle": <><circle cx="12" cy="12" r="9" /><path d="M8 12l3 3 5-6" /></>,
+  circle: <circle cx="12" cy="12" r="9" />,
   bell: <><path d="M6 10a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6z" /><path d="M10 20a2 2 0 0 0 4 0" /></>,
   user: <><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" /></>,
   users: <><circle cx="9" cy="8" r="3.3" /><path d="M2.5 19c0-3.3 3-5 6.5-5s6.5 1.7 6.5 5" /><path d="M16 8.2a3 3 0 0 1 0 5.9" /><path d="M15.5 14c2.8.3 5 1.8 5 5" /></>,

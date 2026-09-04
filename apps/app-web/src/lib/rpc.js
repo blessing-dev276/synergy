@@ -550,28 +550,39 @@ export const adminMoveTaskStep = (id, direction) => call("admin_move_task_step",
 export const adminSaveEvaluation = (uid, status, note, category, notify) =>
   call("admin_save_evaluation", { p_uid: uid, p_status: status, p_note: note, p_category: category ?? null, p_notify: !!notify });
 
-// ---------- Training: Levels (0125/0126) ----------
-// get_my_level_progress / get_admin_level_overview are read RPCs, called
-// directly via supabase.rpc(...) inside useSupabaseQuery -- same reasoning
-// as every other read RPC noted in this file.
-export const adminAddLevelLearnItem = (levelKey, type, title, filePath, linkUrl) =>
-  call("admin_add_level_learn_item", { p_level_key: levelKey, p_type: type, p_title: title, p_file_path: filePath, p_link_url: linkUrl });
+// ---------- Onboarding: the Prospect -> Newbie qualification (0132/0133) ----------
+// get_onboarding_status is a read RPC, called directly via
+// supabase.rpc(...) inside useSupabaseQuery -- same reasoning as every
+// other read RPC noted in this file.
+export const adminAddLevelLearnItem = (
+  levelKey, kind, title, description, textBody, videoUrl, pdfFilePath, examId, agreementBody, agreementVersion, externalLink, confirmationLabel,
+) =>
+  call("admin_add_level_learn_item", {
+    p_level_key: levelKey, p_kind: kind, p_title: title, p_description: description,
+    p_text_body: textBody, p_video_url: videoUrl, p_pdf_file_path: pdfFilePath, p_exam_id: examId,
+    p_agreement_body: agreementBody, p_agreement_version: agreementVersion,
+    p_external_link: externalLink, p_confirmation_label: confirmationLabel,
+  });
 
 export const adminRemoveLevelLearnItem = (id) => call("admin_remove_level_learn_item", { p_id: id });
 
-export const adminAddLevelChecklistItem = (levelKey, section, title, signal) =>
-  call("admin_add_level_checklist_item", { p_level_key: levelKey, p_section: section, p_title: title, p_signal: signal });
+export const adminAddLevelChecklistItem = (levelKey, title, description, signal, classId) =>
+  call("admin_add_level_checklist_item", { p_level_key: levelKey, p_title: title, p_description: description, p_signal: signal, p_class_id: classId });
 
 export const adminRemoveLevelChecklistItem = (id) => call("admin_remove_level_checklist_item", { p_id: id });
 
-export const adminSetLevelRegistrationLink = (levelKey, link) => call("admin_set_level_registration_link", { p_level_key: levelKey, p_link: link });
+export const completeLevelLessonItem = (itemId) => call("complete_level_lesson_item", { p_item_id: itemId });
 
-export const completeLevelLearnItem = (itemId) => call("complete_level_learn_item", { p_item_id: itemId });
+export const confirmLevelItem = (itemId) => call("confirm_level_item", { p_item_id: itemId });
+
+export const signLevelAgreement = (itemId, signatureName) => call("sign_level_agreement", { p_item_id: itemId, p_signature_name: signatureName });
 
 export const toggleLevelChecklistItem = (itemId, done) => call("toggle_level_checklist_item", { p_item_id: itemId, p_done: done });
 
-export const submitLevelRegistrationDocument = (levelKey, documentPath) =>
-  call("submit_level_registration_document", { p_level_key: levelKey, p_document_path: documentPath });
+export const adminSetLevelMeeting = (userId, meetingType, meetingLink, counterpartName) =>
+  call("admin_set_level_meeting", { p_user_id: userId, p_meeting_type: meetingType, p_meeting_link: meetingLink, p_counterpart_name: counterpartName });
 
-export const reviewLevelRegistration = (id, decision, reviewNote) =>
-  call("review_level_registration", { p_id: id, p_decision: decision, p_review_note: reviewNote });
+export const confirmLevelMeeting = (userId, meetingType) => call("confirm_level_meeting", { p_user_id: userId, p_meeting_type: meetingType });
+
+export const submitNewbieRankupRequest = (reflectionText, preparedness, questionsText, confirmed) =>
+  call("submit_newbie_rankup_request", { p_reflection_text: reflectionText, p_preparedness: preparedness, p_questions_text: questionsText, p_confirmed: confirmed });

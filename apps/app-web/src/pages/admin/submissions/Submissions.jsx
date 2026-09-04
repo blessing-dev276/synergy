@@ -11,7 +11,6 @@ import {
   reviewWithdrawalRequest,
   reviewDailyReport,
   reviewCourseworkSubmission,
-  reviewLevelRegistration,
 } from "../../../lib/rpc.js";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
@@ -189,10 +188,102 @@ function RankTaskSubmissionsSection() {
   );
 }
 
-// Auto-filed the moment every learning path attached to a member's rank is
-// 100% complete (evaluate_rank_advancement, 0082) -- no member action to
-// wait on, just an admin decision. Same shape as RankTaskSubmissionsSection
-// above, one query with two embedded ranks (from/to) instead of one task.
+// Two very different kinds of request share this one table. Most are
+// auto-filed the moment every learning path attached to a member's rank is
+// 100% complete (evaluate_rank_advancement, 0082) -- plain Approve/Decline,
+// same shape as RankTaskSubmissionsSection above. A Prospect -> Newbie
+// request (submit_newbie_rankup_request, 0133) is always member-submitted
+// and carries a reflection plus a real 13-item onboarding checklist -- for
+// those, expand the card into the full evaluation view instead: checklist +
+// reflection exactly as submitted + Approve Newbie Rank / Request Further
+// Action (a softer "needs_more_work" status, not a hard reject -- the
+// member resubmits from the same onboarding page, get_onboarding_status
+// re-checks everything server-side so nothing here can be faked).
+const REFLECTION_PREPAREDNESS_LABEL = {
+  not_ready: "Not yet ready", somewhat_ready: "Somewhat ready", ready: "Ready", very_ready: "Very ready",
+};
+
+function OnboardingChecklist({ uid }) {
+  const { loading, error, data: status } = useSupabaseQuery(() => supabase.rpc("get_onboarding_status", { p_uid: uid }), [uid]);
+
+  if (loading) return <Skeleton variant="card" height="120px" />;
+  if (error || !status) return <p style={{ fontSize: "13px", color: "var(--danger)" }}>Couldn't load this member's onboarding checklist.</p>;
+
+  const Row = ({ item }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 0", borderBottom: "1px solid var(--line)" }}>
+      <Icon name={item.done ? "check-circle" : "circle"} size={15} style={{ color: item.done ? "var(--success)" : "var(--slate)", flexShrink: 0 }} />
+      <span style={{ fontSize: "13.5px", opacity: item.done ? 1 : 0.75 }}>{item.title}</span>
+    </div>
+  );
+
+  return (
+    <div style={{ marginBottom: "14px" }}>
+      <div style={{ display: "flex", gap: "16px", marginBottom: "10px", flexWrap: "wrap" }}>
+        <span className="badge badge-info">Level 1 · {status.level1Done}/{status.level1Total}</span>
+        <span className="badge badge-info">Level 2 · {status.level2Done}/{status.level2Total}</span>
+        <span className={`badge ${status.allComplete ? "badge-success" : "badge-neutral"}`}>
+          {status.level1Done + status.level2Done}/{status.level1Total + status.level2Total} requirements
+        </span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 24px" }}>
+        <div>
+          <div style={{ fontSize: "12px", color: "var(--slate)", fontWeight: 600, marginBottom: "4px" }}>LEVEL 1 — FOUNDATION</div>
+          {status.level1.map((item) => (
+            <Row key={item.id} item={item} />
+          ))}
+        </div>
+        <div>
+          <div style={{ fontSize: "12px", color: "var(--slate)", fontWeight: 600, marginBottom: "4px" }}>LEVEL 2 — GET TO WORK</div>
+          {status.level2.map((item) => (
+            <Row key={item.id} item={item} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewbieEvaluationCard({ request, decide, busy, note, setNote }) {
+  return (
+    <>
+      <OnboardingChecklist uid={request.uid} />
+
+      <div className="card" style={{ background: "var(--surface)", marginBottom: "14px" }}>
+        <div className="card-title" style={{ fontSize: "13.5px", marginBottom: "8px" }}>
+          Member reflection
+        </div>
+        <p style={{ fontSize: "13.5px", whiteSpace: "pre-wrap", marginBottom: "10px" }}>{request.reflection_text}</p>
+        <p style={{ fontSize: "13px", color: "var(--slate)", marginBottom: request.questions_text ? "8px" : 0 }}>
+          Preparedness: <strong>{REFLECTION_PREPAREDNESS_LABEL[request.preparedness] ?? request.preparedness}</strong>
+        </p>
+        {request.questions_text && (
+          <p style={{ fontSize: "13.5px", color: "var(--slate)", whiteSpace: "pre-wrap" }}>
+            <em>Still unsure about:</em> {request.questions_text}
+          </p>
+        )}
+      </div>
+
+      <div className="field" style={{ marginBottom: "8px" }}>
+        <label>Admin notes</label>
+        <textarea
+          rows={2}
+          placeholder='Required if requesting further action, e.g. "Please complete your Upline Director meeting and resubmit your request."'
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </div>
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => decide(request, "approved")}>
+          Approve Newbie Rank
+        </button>
+        <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => decide(request, "needs_more_work")}>
+          Request Further Action
+        </button>
+      </div>
+    </>
+  );
+}
+
 function RankAdvancementRequestsSection() {
   const toast = useToast();
   const { loading, data: requests, refetch } = useSupabaseQuery(
@@ -210,15 +301,22 @@ function RankAdvancementRequestsSection() {
   const [notes, setNotes] = useState({});
 
   const decide = async (request, decision) => {
+    const isNewbie = request.toRank?.title === "NEWBIE";
+    const note = (notes[request.id] ?? "").trim();
+    if (isNewbie && decision === "needs_more_work" && !note) {
+      toast.error("Add a note so the member knows what to do next.");
+      return;
+    }
     if (
+      !isNewbie &&
       decision === "rejected" &&
       !window.confirm(`Decline ${request.member?.display_name || request.member?.email}'s advancement to ${request.toRank?.title}?`)
     )
       return;
     setBusyId(request.id);
     try {
-      await reviewRankAdvancementRequest(request.id, decision, (notes[request.id] ?? "").trim());
-      toast.success(decision === "approved" ? "Advanced to the next rank." : "Request declined.");
+      await reviewRankAdvancementRequest(request.id, decision, note);
+      toast.success(decision === "approved" ? "Advanced to the next rank." : decision === "needs_more_work" ? "Sent back for further action." : "Request declined.");
       refetch();
     } catch (err) {
       toast.error(err.message ?? "Couldn't review that request.");
@@ -233,35 +331,52 @@ function RankAdvancementRequestsSection() {
       {!loading && (!requests || requests.length === 0) && (
         <EmptyState icon={<Icon name="trophy" size={26} />} title="Nothing pending review" />
       )}
-      {requests?.map((r) => (
-        <div key={r.id} className="card" style={{ marginBottom: "14px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
-            <Link to={`/admin/members/${r.uid}`} style={{ fontWeight: 600 }}>
-              {r.member?.display_name || r.member?.email}
-            </Link>
-            <span style={{ fontSize: "12px", color: "var(--slate)" }}>{new Date(r.requested_at).toLocaleString()}</span>
+      {requests?.map((r) => {
+        const isNewbie = r.toRank?.title === "NEWBIE";
+        return (
+          <div key={r.id} className="card" style={{ marginBottom: "14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
+              <Link to={`/admin/members/${r.uid}`} style={{ fontWeight: 600 }}>
+                {r.member?.display_name || r.member?.email}
+              </Link>
+              <span style={{ fontSize: "12px", color: "var(--slate)" }}>{new Date(r.requested_at).toLocaleString()}</span>
+            </div>
+            <p style={{ fontSize: "13.5px", marginBottom: "10px" }}>
+              {isNewbie ? "Completed onboarding" : `Finished every learning path for ${r.fromRank?.title}`} — requesting{" "}
+              <strong>{r.toRank?.title}</strong>
+            </p>
+
+            {isNewbie ? (
+              <NewbieEvaluationCard
+                request={r}
+                decide={decide}
+                busy={busyId === r.id}
+                note={notes[r.id] ?? ""}
+                setNote={(v) => setNotes((prev) => ({ ...prev, [r.id]: v }))}
+              />
+            ) : (
+              <>
+                <div className="field" style={{ marginBottom: "8px" }}>
+                  <input
+                    type="text"
+                    placeholder="Note (optional, shown to the member if declined)"
+                    value={notes[r.id] ?? ""}
+                    onChange={(e) => setNotes((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button type="button" className="btn btn-primary" disabled={busyId === r.id} onClick={() => decide(r, "approved")}>
+                    Approve
+                  </button>
+                  <button type="button" className="btn btn-danger" disabled={busyId === r.id} onClick={() => decide(r, "rejected")}>
+                    Decline
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-          <p style={{ fontSize: "13.5px", marginBottom: "8px" }}>
-            Finished every learning path for <strong>{r.fromRank?.title}</strong> — ready for <strong>{r.toRank?.title}</strong>
-          </p>
-          <div className="field" style={{ marginBottom: "8px" }}>
-            <input
-              type="text"
-              placeholder="Note (optional, shown to the member if declined)"
-              value={notes[r.id] ?? ""}
-              onChange={(e) => setNotes((prev) => ({ ...prev, [r.id]: e.target.value }))}
-            />
-          </div>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button type="button" className="btn btn-primary" disabled={busyId === r.id} onClick={() => decide(r, "approved")}>
-              Approve
-            </button>
-            <button type="button" className="btn btn-danger" disabled={busyId === r.id} onClick={() => decide(r, "rejected")}>
-              Decline
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -412,77 +527,6 @@ function CourseworkSection() {
             </button>
             <button type="button" className="btn btn-secondary" disabled={busyId === s.id} onClick={() => decide(s, "changes_requested")}>
               Request Changes
-            </button>
-            <button type="button" className="btn btn-danger" disabled={busyId === s.id} onClick={() => decide(s, "rejected")}>
-              Reject
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// A member's signed registration document for a Training level (Level 1 -
-// Prospect's Registration step, 0125/0126) -- approve/reject like every
-// other document review here; approving is one of the four conditions
-// get_my_level_progress checks before it'll call the level's Milestone hit.
-function LevelRegistrationSection() {
-  const toast = useToast();
-  const [reviewNote, setReviewNote] = useState({});
-  const [busyId, setBusyId] = useState(null);
-
-  const { loading, data: submissions, refetch } = useSupabaseQuery(
-    () =>
-      supabase
-        .from("level_registration_submissions")
-        .select("*, member:profiles!level_registration_submissions_user_id_fkey(display_name), training_levels(title)")
-        .eq("status", "submitted")
-        .order("submitted_at", { ascending: true }),
-    [],
-  );
-
-  const openDocument = async (path) => {
-    const { data, error } = await supabase.storage.from("onboarding").createSignedUrl(path, 60);
-    if (error || !data) {
-      toast.error("Couldn't open that document.");
-      return;
-    }
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
-  };
-
-  const decide = async (submission, decision) => {
-    setBusyId(submission.id);
-    try {
-      await reviewLevelRegistration(submission.id, decision, (reviewNote[submission.id] ?? "").trim());
-      toast.success(decision === "approved" ? "Approved." : "Marked not approved.");
-      refetch();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't submit that review.");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  return (
-    <div>
-      {loading && <Skeleton variant="card" height="140px" />}
-      {!loading && (!submissions || submissions.length === 0) && <EmptyState icon={<Icon name="folder" size={26} />} title="Nothing pending review" />}
-      {submissions?.map((s) => (
-        <div key={s.id} className="card" style={{ marginBottom: "14px" }}>
-          <div className="card-title">
-            {s.training_levels?.title ?? "Level"} registration — {s.member?.display_name || "Member"}
-          </div>
-          <button type="button" className="btn btn-secondary" style={{ margin: "8px 0" }} onClick={() => openDocument(s.document_path)}>
-            View document
-          </button>
-          <div className="field" style={{ marginTop: "8px" }}>
-            <label>Review note (optional)</label>
-            <textarea rows={2} value={reviewNote[s.id] ?? ""} onChange={(e) => setReviewNote((prev) => ({ ...prev, [s.id]: e.target.value }))} />
-          </div>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button type="button" className="btn btn-primary" disabled={busyId === s.id} onClick={() => decide(s, "approved")}>
-              Approve
             </button>
             <button type="button" className="btn btn-danger" disabled={busyId === s.id} onClick={() => decide(s, "rejected")}>
               Reject
@@ -713,7 +757,6 @@ const SECTIONS = [
   { id: "withdrawals", label: "Withdrawal Requests", icon: "dollar-sign", Component: WithdrawalRequestsSection },
   { id: "assignments", label: "Course Assignments", icon: "folder", Component: AssignmentGradingSection },
   { id: "coursework", label: "Training Coursework", icon: "layers", Component: CourseworkSection },
-  { id: "level-registration", label: "Level Registration", icon: "check-square", Component: LevelRegistrationSection },
   { id: "evidence", label: "Task Evidence", icon: "check-square", Component: TaskEvidenceSection },
 ];
 const SECTION_IDS = new Set(SECTIONS.map((s) => s.id));

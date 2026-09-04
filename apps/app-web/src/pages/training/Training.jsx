@@ -1,11 +1,4 @@
-import { useState } from "react";
-import Icon from "../../components/Icon.jsx";
 import Level1Prospect from "./Level1Prospect.jsx";
-import PersonalDevelopmentMember from "./PersonalDevelopmentMember.jsx";
-import SkillDevelopmentMember from "./SkillDevelopmentMember.jsx";
-import IncomeDevelopmentMember from "./IncomeDevelopmentMember.jsx";
-import NetworkMarketingMember from "./NetworkMarketingMember.jsx";
-import EmptyState from "../../components/state/EmptyState.jsx";
 
 // Renamed "Training" -> "Onboarding" for members (label only -- route
 // still /training, component/file still Training.jsx, same "UI text
@@ -14,63 +7,25 @@ import EmptyState from "../../components/state/EmptyState.jsx";
 // members (App.jsx's RankGate) -- everyone promoted past Prospect sees the
 // classic Learning Hub instead.
 //
-// Its primary frame is Levels (Level 1 - Prospect built out in full;
-// Level 2/3 are placeholders until described the same way Level 1 was).
-// The 5 stages built in the prior HQ360 pass are real, live, tested
-// functionality -- kept reachable rather than deleted, positioned after
-// the Levels rather than folded into one since it isn't yet known which
-// level(s) they'll eventually belong under.
-const LEVELS = [
-  { key: "level1", label: "Level 1 · Prospect", icon: "target" },
-  { key: "level2", label: "Level 2", icon: "lock" },
-  { key: "level3", label: "Level 3", icon: "lock" },
-];
-const STAGES = [
-  { key: "personal_development", label: "Personal Development", icon: "activity" },
-  { key: "skill_development", label: "Skill Development", icon: "layers" },
-  { key: "income_development", label: "Income Development", icon: "dollar-sign" },
-  { key: "network_marketing", label: "Network Marketing", icon: "network" },
-];
-
-function LevelComingSoon({ label }) {
-  return (
-    <div className="card">
-      <EmptyState icon={<Icon name="lock" size={26} />} title={`${label} is coming soon`} description="This level hasn't been defined yet — check back soon." />
-    </div>
-  );
-}
-
+// Used to also step through "Level 2"/"Level 3" placeholder tabs and the
+// four Learning Hub stages (Personal Development/Skill Development/Income
+// Development/Network Marketing) reachable early. Removed: the onboarding
+// qualification redesign (Level1Prospect.jsx, 0132-0134) is now the whole
+// story for a Prospect, and it renders Level 1 + Level 2 unified on one
+// page already -- keeping those stage tabs reachable here would let a
+// Prospect into real Learning Hub content before Admin approval, exactly
+// what "Do not unlock the full Learning Hub simply because someone created
+// an account" rules out. That content isn't gone: every stage still lives
+// at /learning for Newbie+ members, reached the moment this same onboarding
+// flow is approved (RankGate swaps this page for the real Learning Hub).
 export default function Training() {
-  const [stage, setStage] = useState("level1");
-
   return (
     <div>
       <h1>Onboarding</h1>
-      <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "22px" }}>Your growth journey, one level at a time.</p>
-
-      <div className="page-tabs training-stepper">
-        {LEVELS.map((s) => (
-          <button key={s.key} type="button" className={`page-tab${stage === s.key ? " active" : ""}`} onClick={() => setStage(s.key)}>
-            <Icon name={s.icon} size={15} />
-            {s.label}
-          </button>
-        ))}
-        <span style={{ width: "1px", background: "var(--line)", margin: "6px 4px" }} />
-        {STAGES.map((s) => (
-          <button key={s.key} type="button" className={`page-tab${stage === s.key ? " active" : ""}`} onClick={() => setStage(s.key)}>
-            <Icon name={s.icon} size={15} />
-            {s.label}
-          </button>
-        ))}
-      </div>
-
-      {stage === "level1" && <Level1Prospect />}
-      {stage === "level2" && <LevelComingSoon label="Level 2" />}
-      {stage === "level3" && <LevelComingSoon label="Level 3" />}
-      {stage === "personal_development" && <PersonalDevelopmentMember />}
-      {stage === "skill_development" && <SkillDevelopmentMember />}
-      {stage === "income_development" && <IncomeDevelopmentMember />}
-      {stage === "network_marketing" && <NetworkMarketingMember />}
+      <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "22px" }}>
+        Your qualification journey from Prospect to Newbie.
+      </p>
+      <Level1Prospect />
     </div>
   );
 }
