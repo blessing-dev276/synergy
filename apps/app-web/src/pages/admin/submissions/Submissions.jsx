@@ -16,6 +16,7 @@ import {
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
 import EmptyState from "../../../components/state/EmptyState.jsx";
+import BackLink from "../../../components/BackLink.jsx";
 
 // One home for every kind of member report an admin has to act on --
 // previously split across an always-open card at the top of RankBuilder.jsx
@@ -766,9 +767,14 @@ export default function Submissions() {
 
   return (
     <div>
-      <div className="hero-banner">
+      <BackLink to="/admin/evaluation">Back to Evaluation Center</BackLink>
+      <div className="hero-banner" style={{ marginTop: "16px" }}>
         <h1>Reports</h1>
-        <p>Every kind of member report waiting on a decision — daily reports, rank advancement, rank tasks, course assignments, Training coursework, and task evidence — in one place.</p>
+        <p>
+          Every kind of member report waiting on a decision — daily reports, rank advancement, rank tasks, course
+          assignments, Training coursework, and task evidence — in one place. This is the evidence Evaluation draws
+          on; decisions made here show up there automatically.
+        </p>
       </div>
 
       <p style={{ color: "var(--slate)", margin: "20px 0 12px" }}>

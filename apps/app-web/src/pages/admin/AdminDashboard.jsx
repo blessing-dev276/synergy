@@ -138,7 +138,7 @@ function TeamComposition({ counts }) {
 const QUICK_LINKS = [
   { to: "/admin/content", icon: "layers", label: "Learning Hub" },
   { to: "/admin/business-path", icon: "compass", label: "Business Path" },
-  { to: "/admin/submissions", icon: "check-square", label: "Reports" },
+  { to: "/admin/evaluation", icon: "clipboard", label: "Evaluation" },
   { to: "/admin/settings/team", icon: "users", label: "Team" },
   { to: "/admin/network", icon: "network", label: "Network" },
   { to: "/admin/leaderboard", icon: "dollar-sign", label: "Leaderboard" },
@@ -262,7 +262,7 @@ export default function AdminDashboard() {
           ) : (
             <>
               {stats.pendingReviews > 0 && (
-                <AttentionRow icon="folder" count={stats.pendingReviews} label="Reports awaiting review" to="/admin/submissions" />
+                <AttentionRow icon="folder" count={stats.pendingReviews} label="Items needing review" to="/admin/evaluation" />
               )}
             </>
           )}

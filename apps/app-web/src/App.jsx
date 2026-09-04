@@ -1,8 +1,17 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import RoleGuard from "./components/RoleGuard.jsx";
 import OnboardingGate from "./components/OnboardingGate.jsx";
 import StatusGate from "./components/StatusGate.jsx";
+
+// /admin/submissions renamed to /admin/evaluation/reports (Evaluation
+// Center) -- this keeps old bookmarks and admin-notification deep links
+// (?section=evidence, etc., see Submissions.jsx) working by forwarding the
+// query string along with the redirect.
+function SubmissionsRedirect() {
+  const location = useLocation();
+  return <Navigate to={{ pathname: "/admin/evaluation/reports", search: location.search }} replace />;
+}
 
 import LandingPage from "./pages/marketing/LandingPage.jsx";
 import LegalPage from "./pages/marketing/LegalPage.jsx";
@@ -53,6 +62,8 @@ import ExamEditor from "./pages/admin/exams/ExamEditor.jsx";
 import MemberDetail from "./pages/admin/members/MemberDetail.jsx";
 import NetworkOverview from "./pages/admin/network/NetworkOverview.jsx";
 import Submissions from "./pages/admin/submissions/Submissions.jsx";
+import EvaluationCenter from "./pages/admin/evaluation/EvaluationCenter.jsx";
+import MemberEvaluation from "./pages/admin/evaluation/MemberEvaluation.jsx";
 import SettingsGeneral from "./pages/admin/settings/SettingsGeneral.jsx";
 import SettingsNotifications from "./pages/admin/settings/SettingsNotifications.jsx";
 import SettingsTeam from "./pages/admin/settings/SettingsTeam.jsx";
@@ -156,7 +167,10 @@ function App() {
               <Route path="/admin/exams" element={<ExamList />} />
               <Route path="/admin/exams/:examId" element={<ExamEditor />} />
               <Route path="/admin/members/:uid" element={<MemberDetail />} />
-              <Route path="/admin/submissions" element={<Submissions />} />
+              <Route path="/admin/evaluation" element={<EvaluationCenter />} />
+              <Route path="/admin/evaluation/reports" element={<Submissions />} />
+              <Route path="/admin/evaluation/:uid" element={<MemberEvaluation />} />
+              <Route path="/admin/submissions" element={<SubmissionsRedirect />} />
               <Route path="/admin/leaderboard" element={<Leaderboard />} />
               <Route path="/admin/earnings" element={<Navigate to="/admin/leaderboard" replace />} />
               <Route path="/admin/network" element={<NetworkOverview />} />

@@ -9,12 +9,14 @@ const bottomItems = [
 ];
 
 export default function AdminLayout() {
-  // Red badge on "Reports" when anything's waiting on a decision -- same
-  // pending count Submissions.jsx's own sections already sum up
+  // Red badge on "Evaluation" when a report is waiting on a decision --
+  // same pending count Submissions.jsx's own sections already sum up
   // (admin_count_pending_submissions, 0088), just surfaced one level
-  // higher so an admin doesn't have to click in to find out. Page/route
-  // internally still called Submissions -- only the visible label changed
-  // (Part 1, Submission -> Report terminology sweep).
+  // higher so an admin doesn't have to click in to find out. Route/component
+  // internally still called Submissions, now mounted at
+  // /admin/evaluation/reports -- the Evaluation Center (0128) is the new
+  // primary destination, reports are evidence inside it, not a separate
+  // top-level concern any more.
   const { data: pendingCount } = useSupabaseQuery(() => supabase.rpc("admin_count_pending_submissions", {}), []);
 
   const sections = [
@@ -44,7 +46,7 @@ export default function AdminLayout() {
       ],
     },
     {
-      items: [{ to: "/admin/submissions", label: "Reports", icon: "check-square", end: true, badge: pendingCount || 0 }],
+      items: [{ to: "/admin/evaluation", label: "Evaluation", icon: "clipboard", end: true, badge: pendingCount || 0 }],
     },
     {
       items: [{ to: "/admin/network", label: "Network", icon: "network", end: true }],

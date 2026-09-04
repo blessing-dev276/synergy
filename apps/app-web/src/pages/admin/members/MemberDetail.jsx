@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "../../../supabaseClient.js";
 import { useAuth } from "../../../lib/AuthContext.jsx";
@@ -964,9 +964,14 @@ export default function MemberDetail() {
   return (
     <div>
       <BackLink to="/admin/settings/team">Back to Team</BackLink>
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "16px", marginBottom: "22px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "16px", marginBottom: "22px", flexWrap: "wrap" }}>
         <h1 style={{ marginBottom: 0 }}>{member.display_name || member.email}</h1>
         <span className="badge badge-neutral">{member.role}</span>
+        {member.role === "member" && (
+          <Link to={`/admin/evaluation/${member.id}`} className="btn btn-secondary" style={{ padding: "6px 14px", fontSize: "12.5px", marginLeft: "auto" }}>
+            Open Evaluation
+          </Link>
+        )}
       </div>
 
       <ProfilePanel member={member} />

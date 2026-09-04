@@ -38,6 +38,9 @@ const NOTIFICATION_ICON = {
   earning_reviewed: "💰",
   official_rank_set: "🏆",
   rank_changed: "🏆",
+
+  // ---------- Evaluation Center (0128) ----------
+  evaluation_followup: "🚩",
 };
 
 export function notificationIcon(type) {

@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import Icon from "../../../../components/Icon.jsx";
 import Avatar from "../../../../components/Avatar.jsx";
-import EmptyState from "../../../../components/state/EmptyState.jsx";
 import { relativeDays } from "../lib/attention.js";
 
 // The admin's action queue -- every member with at least one real,
