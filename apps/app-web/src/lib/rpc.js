@@ -520,3 +520,20 @@ export const deleteQuestionOption = (id) => call("delete_question_option", { p_i
 export const startExamAttempt = (publicToken) => call("start_exam_attempt", { p_public_token: publicToken });
 
 export const submitExamAttempt = (attemptId, answers) => call("submit_exam_attempt", { p_attempt_id: attemptId, p_answers: answers });
+
+// ---------- Tasks: daily-unlock flow (0114/0121) ----------
+// get_my_task_flow is a read RPC, called directly via supabase.rpc(...)
+// inside useSupabaseQuery wherever it's used -- these are the write actions.
+export const adminAddTaskStep = (title, description, type, classId, examId, courseworkAssignmentId) =>
+  call("admin_add_task_step", {
+    p_title: title,
+    p_description: description,
+    p_type: type,
+    p_class_id: classId,
+    p_exam_id: examId,
+    p_coursework_assignment_id: courseworkAssignmentId,
+  });
+
+export const adminRemoveTaskStep = (id) => call("admin_remove_task_step", { p_id: id });
+
+export const adminMoveTaskStep = (id, direction) => call("admin_move_task_step", { p_id: id, p_direction: direction });

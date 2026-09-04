@@ -5,6 +5,7 @@ import PersonalDevelopmentAdmin from "./PersonalDevelopmentAdmin.jsx";
 import SkillDevelopmentAdmin from "./SkillDevelopmentAdmin.jsx";
 import IncomeDevelopmentAdmin from "./IncomeDevelopmentAdmin.jsx";
 import NetworkMarketingAdmin from "./NetworkMarketingAdmin.jsx";
+import TaskFlowAdmin from "./TaskFlowAdmin.jsx";
 
 const STAGES = [
   { key: "onboarding", label: "Onboarding", icon: "check-square" },
@@ -13,6 +14,11 @@ const STAGES = [
   { key: "income_development", label: "Income Development", icon: "dollar-sign" },
   { key: "network_marketing", label: "Network Marketing", icon: "network" },
 ];
+// Daily Curriculum isn't a 6th growth stage -- it's the Tasks daily-unlock
+// sequence (§10), sequencing content the 5 stages above already own. It
+// lives here rather than its own nav item because authoring it means
+// picking from the same classes/exams/assignments those stages manage.
+const TASK_FLOW_TAB = { key: "task_flow", label: "Daily Curriculum", icon: "clock" };
 
 export default function TrainingAdmin() {
   const [stage, setStage] = useState("onboarding");
@@ -20,7 +26,9 @@ export default function TrainingAdmin() {
   return (
     <div>
       <h1>Training</h1>
-      <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "22px" }}>Author and track the 5-stage member growth journey.</p>
+      <p style={{ color: "var(--slate)", marginTop: "6px", marginBottom: "22px" }}>
+        Author and track the 5-stage member growth journey, plus the Tasks daily-unlock sequence.
+      </p>
 
       <div className="page-tabs training-stepper">
         {STAGES.map((s) => (
@@ -29,6 +37,15 @@ export default function TrainingAdmin() {
             {s.label}
           </button>
         ))}
+        <span style={{ width: "1px", background: "var(--line)", margin: "6px 4px" }} />
+        <button
+          type="button"
+          className={`page-tab${stage === TASK_FLOW_TAB.key ? " active" : ""}`}
+          onClick={() => setStage(TASK_FLOW_TAB.key)}
+        >
+          <Icon name={TASK_FLOW_TAB.icon} size={15} />
+          {TASK_FLOW_TAB.label}
+        </button>
       </div>
 
       {stage === "onboarding" && <OnboardingAdmin />}
@@ -36,6 +53,7 @@ export default function TrainingAdmin() {
       {stage === "skill_development" && <SkillDevelopmentAdmin />}
       {stage === "income_development" && <IncomeDevelopmentAdmin />}
       {stage === "network_marketing" && <NetworkMarketingAdmin />}
+      {stage === "task_flow" && <TaskFlowAdmin />}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import Skeleton from "../../components/state/Skeleton.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
 import EmptyState from "../../components/state/EmptyState.jsx";
 import Modal from "../../components/Modal.jsx";
+import SubmitAssignmentModal from "../../components/coursework/SubmitAssignmentModal.jsx";
 
 // The member's daily digital work desk -- LEARN -> WORK -> BUILD -> EARN
 // made practical. Reuses useTodayTasks.js (shared with Dashboard.jsx's
@@ -319,6 +320,122 @@ function DailyReportCard({ uid, today }) {
   );
 }
 
+const STEP_TYPE_ICON = { class: "layers", exam: "check-square", assignment: "clipboard" };
+const STEP_TYPE_LABEL = { class: "Class", exam: "Exam", assignment: "Assignment" };
+const SUBMISSION_LABEL = { submitted: "Submitted — awaiting review", approved: "Approved", rejected: "Rejected", changes_requested: "Changes requested" };
+const SUBMISSION_BADGE = { submitted: "badge-info", approved: "badge-success", rejected: "badge-danger", changes_requested: "badge-warning" };
+
+function formatUnlockTime(iso) {
+  const d = new Date(iso);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  return sameDay ? `today at ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function TaskFlowStepRow({ step, index, onChanged }) {
+  const [submitOpen, setSubmitOpen] = useState(false);
+
+  const statusBadge = step.isComplete ? (
+    <span className="badge badge-success">
+      <Icon name="check" size={11} /> Done
+    </span>
+  ) : !step.available ? (
+    <span className="badge badge-neutral">
+      <Icon name="lock" size={11} /> {step.unlocksAt ? `Unlocks ${formatUnlockTime(step.unlocksAt)}` : "Locked"}
+    </span>
+  ) : step.type === "assignment" && step.mySubmission ? (
+    <span className={`badge ${SUBMISSION_BADGE[step.mySubmission.status] ?? "badge-neutral"}`}>{SUBMISSION_LABEL[step.mySubmission.status] ?? step.mySubmission.status}</span>
+  ) : null;
+
+  let cta = null;
+  if (step.available && !step.isComplete) {
+    if (step.type === "class") {
+      cta = (
+        <Link to={`/training/classes/${step.classId}`} className="btn btn-secondary">
+          Go to class →
+        </Link>
+      );
+    } else if (step.type === "exam") {
+      cta = step.examToken ? (
+        <a href={`/take/${step.examToken}`} className="btn btn-secondary">
+          Take exam →
+        </a>
+      ) : (
+        <span className="btn btn-secondary" style={{ opacity: 0.5, pointerEvents: "none" }}>
+          Not open yet
+        </span>
+      );
+    } else if (step.type === "assignment") {
+      cta = (
+        <button type="button" className="btn btn-secondary" onClick={() => setSubmitOpen(true)}>
+          {step.mySubmission ? "View / Resubmit →" : "Submit →"}
+        </button>
+      );
+    }
+  }
+
+  return (
+    <li
+      className={`today-task-row${step.isComplete ? " is-done" : ""}`}
+      style={step.isCurrent ? { borderLeft: "3px solid var(--blue-bright)", paddingLeft: "9px" } : undefined}
+    >
+      <StatusCircle status={step.isComplete ? "completed" : "not-started"} />
+      <div className="today-task-body">
+        <div className="today-task-title">
+          Day {index + 1} · {step.title}
+        </div>
+        {step.description && <div className="today-task-desc">{step.description}</div>}
+      </div>
+      <div className="today-task-meta">
+        <span className="badge badge-neutral">
+          <Icon name={STEP_TYPE_ICON[step.type]} size={11} /> {STEP_TYPE_LABEL[step.type]}
+        </span>
+        {statusBadge}
+        {cta}
+      </div>
+
+      {step.type === "assignment" && (
+        <SubmitAssignmentModal open={submitOpen} onClose={() => setSubmitOpen(false)} assignment={step.assignment} existing={step.mySubmission} onSubmitted={onChanged} />
+      )}
+    </li>
+  );
+}
+
+// The HQ360 restructure's Tasks daily-unlock flow (§10) -- one office-wide
+// ordered sequence, one step unlocking every 24h, folded into this existing
+// page rather than a second top-level "Tasks" nav item (Synergy already had
+// one, for something else -- see TaskFlowAdmin.jsx). Hidden entirely when
+// the office hasn't configured any steps, so it never shows an empty
+// section on every member's page by default.
+function DailyCurriculumSection() {
+  const { loading, error, data: steps, refetch } = useSupabaseQuery(() => supabase.rpc("get_my_task_flow", {}), []);
+
+  if (loading || error || !steps || steps.length === 0) return null;
+
+  const doneCount = steps.filter((s) => s.isComplete).length;
+
+  return (
+    <div style={{ marginTop: "28px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+        <div className="card-title" style={{ marginBottom: 0 }}>
+          Daily Curriculum
+        </div>
+        <span className="badge badge-info">
+          {doneCount} of {steps.length}
+        </span>
+      </div>
+      <p className="card-subtitle" style={{ marginBottom: "12px" }}>A new step unlocks every 24 hours.</p>
+      <div className="card">
+        <ul className="today-task-list">
+          {steps.map((step, i) => (
+            <TaskFlowStepRow key={step.id} step={step} index={i} onChanged={refetch} />
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 export default function TaskList() {
   const { user } = useAuth();
   const toast = useToast();
@@ -465,6 +582,8 @@ export default function TaskList() {
               )}
             </>
           )}
+
+          <DailyCurriculumSection />
 
           <DailyReportCard uid={user?.id} today={today} />
         </>

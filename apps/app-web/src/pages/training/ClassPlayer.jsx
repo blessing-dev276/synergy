@@ -4,12 +4,13 @@ import { supabase } from "../../supabaseClient.js";
 import { useAuth } from "../../lib/AuthContext.jsx";
 import { useSupabaseQuery } from "../../lib/useSupabaseQuery.js";
 import { useToast } from "../../components/state/Toast.jsx";
-import { toggleClassItemProgress, askClassTrainerQuestion, submitCoursework } from "../../lib/rpc.js";
+import { toggleClassItemProgress, askClassTrainerQuestion } from "../../lib/rpc.js";
 import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
 import Modal from "../../components/Modal.jsx";
 import BackLink from "../../components/BackLink.jsx";
+import SubmitAssignmentModal from "../../components/coursework/SubmitAssignmentModal.jsx";
 
 const ITEM_TYPE_ICON = { video: "video", pdf: "clipboard", article: "link", test: "check-square", quiz: "check-square", assignment: "clipboard" };
 const SUBMISSION_BADGE = { submitted: "badge-info", approved: "badge-success", rejected: "badge-danger", changes_requested: "badge-warning" };
@@ -88,59 +89,13 @@ function AskTrainerModal({ open, onClose, classId, trainer }) {
   );
 }
 
-function SubmitAssignmentModal({ open, onClose, assignment, existing, onSubmitted }) {
-  const toast = useToast();
-  const [note, setNote] = useState(existing?.note ?? "");
-  const [link, setLink] = useState(existing?.link ?? "");
-  const [saving, setSaving] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await submitCoursework(assignment.id, note, link);
-      toast.success("Submitted for review.");
-      onSubmitted();
-      onClose();
-    } catch (err) {
-      toast.error(err.message ?? "Couldn't submit that.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal open={open} onClose={onClose} title={assignment?.title} size="sm">
-      <form onSubmit={submit}>
-        {assignment?.instructions && <p style={{ color: "var(--slate)", fontSize: "13.5px" }}>{assignment.instructions}</p>}
-        {assignment?.reference_link && (
-          <a href={assignment.reference_link} target="_blank" rel="noopener noreferrer" style={{ fontSize: "13.5px" }}>
-            Reference link ↗
-          </a>
-        )}
-        {assignment?.require_note && (
-          <div className="field" style={{ marginTop: "12px" }}>
-            <label htmlFor="asg-note">Note</label>
-            <textarea id="asg-note" rows={4} value={note} onChange={(e) => setNote(e.target.value)} />
-          </div>
-        )}
-        {assignment?.require_link && (
-          <div className="field">
-            <label htmlFor="asg-submit-link">Link</label>
-            <input id="asg-submit-link" placeholder="https://…" value={link} onChange={(e) => setLink(e.target.value)} />
-          </div>
-        )}
-        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "4px" }}>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? "Submitting…" : existing ? "Resubmit" : "Submit"}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
+// normalizeAssignment: the raw nested-select row (coursework_assignments,
+// snake_case) into the camelCase shape SubmitAssignmentModal expects --
+// same shape get_my_task_flow already returns natively for the Tasks page's
+// use of this same modal.
+function normalizeAssignment(a) {
+  if (!a) return null;
+  return { id: a.id, title: a.title, instructions: a.instructions, referenceLink: a.reference_link, requireNote: a.require_note, requireLink: a.require_link };
 }
 
 function ItemRow({ item, done, mySubmission, onToggle, onSubmitted }) {
@@ -218,7 +173,7 @@ function ItemRow({ item, done, mySubmission, onToggle, onSubmitted }) {
       <SubmitAssignmentModal
         open={submitOpen}
         onClose={() => setSubmitOpen(false)}
-        assignment={item.coursework_assignments}
+        assignment={normalizeAssignment(item.coursework_assignments)}
         existing={mySubmission}
         onSubmitted={onSubmitted}
       />
