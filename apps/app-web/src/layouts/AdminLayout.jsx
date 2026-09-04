@@ -4,7 +4,7 @@ import { supabase } from "../supabaseClient.js";
 
 const bottomItems = [
   { to: "/admin", label: "Overview", icon: "bar-chart", end: true },
-  { to: "/admin/content", label: "Learning Hub", icon: "layers" },
+  { to: "/admin/content", label: "Mind Training", icon: "brain" },
   { to: "/admin/network", label: "Network", icon: "network" },
 ];
 
@@ -22,11 +22,12 @@ export default function AdminLayout() {
       items: [{ to: "/admin", label: "Overview", icon: "bar-chart", end: true }],
     },
     {
-      // Business Basics, Freelancing, Mind Training and Personal Development
-      // all live as tabs inside this one page now (ContentBuilder.jsx) --
-      // no separate top-level entry for Mind Training/Personal Development
-      // any more.
-      items: [{ to: "/admin/content", label: "Learning Hub", icon: "layers", end: true }],
+      // HQ360 restructure v2: Business Basics/Freelancing/Personal Development
+      // retired from this page -- their real content migrated into Training
+      // (0128; pd_resources migration script). Only Mind Training remains
+      // here (ContentBuilder.jsx), too large/real to migrate into Training's
+      // classes shape -- see that migration's notes.
+      items: [{ to: "/admin/content", label: "Mind Training", icon: "brain", end: true }],
     },
     {
       items: [{ to: "/admin/business-path", label: "Business Path", icon: "compass", end: true }],

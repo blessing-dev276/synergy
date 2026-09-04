@@ -247,6 +247,17 @@
    let every grid item shrink to its track, so the overflow:hidden/ellipsis
    already set on individual bits of text can actually engage. */
 .grid > *{ min-width:0; }
+.grid-4{ grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); }
+
+/* Dashboard "My Day" row: the task workspace gets the lion's share, Next
+   Best Action + Needs Attention stack in a narrower side column -- not an
+   even 50/50 split, those two are meant to stay compact next to a card
+   that can genuinely run long (a full task list). */
+.dash-primary-row{ display:grid; grid-template-columns:minmax(0,1.7fr) minmax(260px,1fr); gap:20px; align-items:start; margin-bottom:20px; }
+.dash-side-col{ display:flex; flex-direction:column; gap:20px; }
+@media (max-width: 900px){
+  .dash-primary-row{ grid-template-columns:1fr; }
+}
 
 .btn{
   display:inline-flex; align-items:center; justify-content:center; gap:8px;
@@ -915,43 +926,14 @@ button.today-task-check:disabled{ cursor:not-allowed; opacity:0.6; }
   .today-task-row, .today-task-check.done, .today-tasks-empty-badge{ animation:none !important; opacity:1 !important; }
 }
 
-/* ---------- dashboard: rank journey stepper ---------- */
-.rank-journey-next-chip{
-  display:inline-block; padding:2px 10px; border-radius:100px; margin-left:2px;
-  background:var(--gradient-gold); color:#fff; font-weight:700; font-size:12.5px;
-  letter-spacing:0.02em; box-shadow:0 2px 8px rgba(227,169,74,0.35);
-}
-.rank-journey-track{ display:flex; align-items:flex-start; overflow-x:auto; padding:18px 4px 4px; }
-.rank-journey-step{
-  position:relative; display:flex; flex-direction:column; align-items:center; gap:9px;
-  flex:1 0 92px; padding:0 6px;
-}
-.rank-journey-step:not(:first-child)::before{
-  content:""; position:absolute; top:20px; left:-50%; width:100%; height:3px; background:var(--line); z-index:0; border-radius:2px;
-}
-.rank-journey-step.done:not(:first-child)::before{ background:var(--gradient-gold); }
-.rank-journey-step .stepper-step{ width:40px; height:40px; font-size:15px; }
-.rank-journey-step.done .stepper-step{
-  background:var(--gradient-gold); color:#fff; border-color:transparent;
-  box-shadow:0 4px 14px rgba(227,169,74,0.4);
-}
-.rank-journey-step.current .stepper-step{
-  width:54px; height:54px; font-size:20px; margin-top:-7px;
-  background:var(--gradient-navy); color:#fff; border-color:transparent;
-  animation:rank-journey-pulse 2.2s ease-in-out infinite;
-}
-.rank-journey-step-label{
-  font-size:11.5px; font-weight:600; color:var(--slate); text-align:center;
-  max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-}
-.rank-journey-step.current .rank-journey-step-label{ color:var(--blue-bright); font-weight:800; font-size:13px; }
-.rank-journey-step.done .rank-journey-step-label{ color:var(--navy-soft); }
+/* Dashboard's rank journey widget went compact (current -> next -> progress
+   bar -- see RankJourneyCard) and no longer renders the full stepper this
+   used to style; that full roadmap still lives on /rank-journey itself
+   under .rank-roadmap-step (further down), which keeps its own copy of
+   this pulse animation and its own reduced-motion guard. */
 @keyframes rank-journey-pulse{
   0%, 100%{ box-shadow:0 0 0 4px rgba(76,141,255,0.22), 0 4px 16px rgba(76,141,255,0.4); }
   50%{ box-shadow:0 0 0 8px rgba(76,141,255,0.12), 0 4px 30px rgba(76,141,255,0.65); }
-}
-@media (prefers-reduced-motion: reduce){
-  .rank-journey-step.current .stepper-step{ animation:none !important; }
 }
 
 /* ---------- boot loader: full-screen branded loading state ---------- */
@@ -1113,25 +1095,13 @@ button.today-task-check:disabled{ cursor:not-allowed; opacity:0.6; }
 
 /* ================= member dashboard: digital-office cards ================= */
 
-/* ---------- daily progress (X/Y + category checklist + streak) ---------- */
-.daily-progress-header{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+/* streak-badge is still used standalone (PersonalDevelopmentMember.jsx,
+   Leaderboard.jsx) -- Dashboard's own streak now lives in the Quick Stats
+   strip's plain MiniStat tile instead of a dedicated pill. */
 .streak-badge{
   display:flex; align-items:center; gap:6px; flex-shrink:0;
   padding:6px 12px; border-radius:100px; background:var(--gold-soft); color:var(--gold);
   font-size:13px; font-weight:700; white-space:nowrap;
-}
-.progress-category-list{ list-style:none; display:flex; flex-direction:column; gap:8px; }
-.progress-category-row{
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
-  padding:8px 2px; font-size:13.5px;
-}
-.progress-category-row + .progress-category-row{ border-top:1px solid var(--line); }
-.progress-category-label{ display:flex; align-items:center; gap:8px; font-weight:600; color:var(--navy); }
-.progress-category-status{ font-family:'JetBrains Mono', monospace; font-size:12.5px; font-weight:600; color:var(--navy-soft); }
-.progress-category-status.muted{ font-family:inherit; font-weight:500; color:var(--slate); }
-.progress-category-status.done{
-  display:flex; align-items:center; justify-content:center; width:20px; height:20px;
-  border-radius:50%; background:var(--success-soft); color:var(--success);
 }
 
 /* ---------- monthly goals: per-category progress ---------- */
@@ -1159,11 +1129,6 @@ button.today-task-check:disabled{ cursor:not-allowed; opacity:0.6; }
 .network-stat-list li{ display:flex; align-items:center; justify-content:space-between; padding:7px 0; font-size:13.5px; color:var(--navy-soft); }
 .network-stat-list li + li{ border-top:1px solid var(--line); }
 .network-stat-list strong{ font-family:'JetBrains Mono', monospace; color:var(--navy); font-size:14px; }
-
-/* ---------- today's submissions (accountability) ---------- */
-.accountability-list{ list-style:none; display:flex; flex-direction:column; gap:2px; }
-.accountability-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; font-size:13.5px; }
-.accountability-row + .accountability-row{ border-top:1px solid var(--line); }
 
 /* ---------- announcements ---------- */
 .announcement-list{ list-style:none; display:flex; flex-direction:column; gap:14px; }

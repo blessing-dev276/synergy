@@ -11,7 +11,7 @@ import Icon from "../../components/Icon.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import Skeleton from "../../components/state/Skeleton.jsx";
 import ErrorState from "../../components/state/ErrorState.jsx";
-import ProgressRing from "../../components/ProgressRing.jsx";
+import DailyReportCard from "../../components/DailyReportCard.jsx";
 
 function greeting() {
   const hour = new Date().getHours();
@@ -129,6 +129,7 @@ function TodayTaskRow({ item, busy, onComplete, index }) {
   );
 }
 
+// ================= My Day: the primary workspace =================
 function TodayTasksCard({ today }) {
   const toast = useToast();
   const { loading, error, items, doneCount, total, refetch } = today;
@@ -152,7 +153,7 @@ function TodayTasksCard({ today }) {
     }
   };
 
-  const visible = items.slice(0, 2);
+  const visible = items.slice(0, 5);
   const remaining = items.length - visible.length;
   const percent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
@@ -162,7 +163,7 @@ function TodayTasksCard({ today }) {
         <div>
           <div className="card-title" style={{ marginBottom: "2px" }}>
             <Icon name="check-square" size={17} style={{ verticalAlign: "-3px", marginRight: "7px" }} />
-            Today's Work
+            My Day
           </div>
           <p className="card-subtitle" style={{ marginBottom: 0 }}>
             {loading ? "Checking what's due…" : total === 0 ? "Nothing on your plate today." : `${doneCount} of ${total} done`}
@@ -193,11 +194,16 @@ function TodayTasksCard({ today }) {
           <div className="today-tasks-empty-badge">
             <Icon name="check" size={22} />
           </div>
-          <div className="state-title">You're all caught up</div>
-          <p className="state-desc">Nothing needs your attention today. Check back tomorrow, or get ahead in the Learning Hub.</p>
-          <Link to="/learning" className="btn btn-secondary">
-            Browse Learning Hub
-          </Link>
+          <div className="state-title">You're all caught up 🎉</div>
+          <p className="state-desc">No urgent tasks right now.</p>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "center", marginTop: "4px" }}>
+            <Link to="/learning" className="btn btn-secondary">
+              Continue Learning
+            </Link>
+            <Link to="/network" className="btn btn-secondary">
+              Build Your Network
+            </Link>
+          </div>
         </div>
       )}
 
@@ -221,117 +227,218 @@ function TodayTasksCard({ today }) {
   );
 }
 
-// ================= Daily progress: totals + per-category breakdown + streak =================
-// Same `today` data Today's Work already fetched -- no extra queries beyond
-// the streak, which is genuinely new (get_my_streak, 0090): consecutive
-// days with at least one real submission (content_evidence_submissions /
-// assignment_submissions / rank_task_submissions), not a fabricated counter.
-function ProgressCategoryRow({ label, icon, done, total }) {
-  const complete = total > 0 && done === total;
-  return (
-    <li className="progress-category-row">
-      <span className="progress-category-label">
-        <Icon name={icon} size={14} />
-        {label}
-      </span>
-      {total === 0 ? (
-        <span className="progress-category-status muted">Nothing today</span>
-      ) : complete ? (
-        <span className="progress-category-status done">
-          <Icon name="check" size={12} />
-        </span>
-      ) : (
-        <span className="progress-category-status">
-          {done} / {total}
-        </span>
-      )}
-    </li>
-  );
+// ================= Next Best Action + Needs Attention: one shared, real-data priority list =================
+// One rule-based ranking, two views onto it: NextBestActionCard shows only
+// item[0] as a single non-competing CTA (spec: never show more than one),
+// AttentionCard lists all of them. Every signal here is something another
+// card on this dashboard already computes for its own purpose (overdue
+// tasks/useTodayTasks, follow-ups due/BusinessWorkCard's old query, goals
+// set/MonthlyGoalsCard, profile health) -- this just re-ranks the same real
+// facts instead of inventing a new ones.
+function buildAttentionItems({ today, dueCount, hasReport, hasMonthlyGoals, health, monthLabel }) {
+  const items = [];
+  const overdueCount = today.items.filter((i) => i.overdue && !i.done).length;
+  if (overdueCount > 0) {
+    items.push({ key: "overdue", icon: "clock", label: "Overdue tasks", count: overdueCount, to: "/tasks", action: "Review Tasks" });
+  }
+  if (dueCount > 0) {
+    items.push({ key: "prospects", icon: "network", label: "Prospects need follow-up", count: dueCount, to: "/network", action: "View Prospects" });
+  }
+  const evidenceCount = today.items.filter((i) => i.kind === "assignment" && i.needsEvidence && !i.done && i.evidenceStatus !== "submitted").length;
+  if (evidenceCount > 0) {
+    items.push({ key: "evidence", icon: "clipboard", label: "Assignments need a submission", count: evidenceCount, to: "/tasks", action: "Submit" });
+  }
+  if (!hasReport) {
+    items.push({ key: "report", icon: "clipboard", label: "Daily report not submitted", count: null, to: "/tasks", action: "Submit Report" });
+  }
+  if (!hasMonthlyGoals) {
+    items.push({ key: "goals", icon: "target", label: `${monthLabel} goals not set`, count: null, to: "/goals", action: "Set Goals" });
+  }
+  if (!health.complete) {
+    const next = health.items.find((i) => !i.done);
+    items.push({ key: "profile", icon: "user", label: next?.label ?? "Finish your profile", count: null, to: "/profile", action: "Finish Setup" });
+  }
+  return items;
 }
 
-function DailyProgressCard({ today, streak }) {
-  const { loading, items, doneCount, total } = today;
-  if (loading || total === 0) return null;
+function nextBestAction(attentionItems, monthLabel) {
+  const top = attentionItems[0];
+  if (!top) {
+    return { message: "You're all caught up. Continue developing your skills.", cta: "Browse Learning Hub", to: "/learning" };
+  }
+  const phrase = {
+    overdue: `You have ${top.count} overdue task${top.count === 1 ? "" : "s"}.`,
+    prospects: `You have ${top.count} prospect${top.count === 1 ? "" : "s"} waiting for follow-up.`,
+    evidence: `${top.count} assignment${top.count === 1 ? "" : "s"} need${top.count === 1 ? "s" : ""} a submission.`,
+    report: "Complete your daily report.",
+    goals: `Set your ${monthLabel} goals.`,
+    profile: top.label + ".",
+  }[top.key];
+  return { message: phrase, cta: top.action, to: top.to };
+}
 
-  const percent = Math.round((doneCount / total) * 100);
-  const learning = items.filter((i) => i.kind === "assignment");
-  const networkMarketing = items.filter((i) => i.kind === "rank");
-
+function NextBestActionCard({ loading, action }) {
   return (
-    <div className="card-elevated rise-in" style={{ animationDelay: "0.04s" }}>
-      <div className="daily-progress-header">
-        <div>
-          <div className="card-title" style={{ marginBottom: "2px" }}>
-            Today's Progress
-          </div>
-          <p className="card-subtitle" style={{ marginBottom: 0 }}>
-            {doneCount} / {total} tasks completed
-          </p>
-        </div>
-        {streak > 0 && (
-          <div className="streak-badge" title={`${streak}-day streak — keep it going`}>
-            <span aria-hidden="true">🔥</span> {streak} day{streak === 1 ? "" : "s"}
-          </div>
-        )}
+    <div className="card-elevated rise-in" style={{ animationDelay: "0.03s" }}>
+      <div className="card-title" style={{ marginBottom: "6px" }}>
+        <Icon name="compass" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
+        Your Next Step
       </div>
-
-      <div className="progress-bar" style={{ margin: "14px 0" }}>
-        <div className="progress-bar-fill" style={{ width: `${percent}%` }} />
-      </div>
-
-      <ul className="progress-category-list">
-        <ProgressCategoryRow label="Learning" icon="book" done={learning.filter((i) => i.done).length} total={learning.length} />
-        <ProgressCategoryRow
-          label="Network Marketing"
-          icon="network"
-          done={networkMarketing.filter((i) => i.done).length}
-          total={networkMarketing.length}
-        />
-      </ul>
+      {loading ? (
+        <Skeleton variant="text" height="18px" />
+      ) : (
+        <>
+          <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--navy)", marginBottom: "14px" }}>{action.message}</p>
+          <Link to={action.to} className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }}>
+            {action.cta}
+          </Link>
+        </>
+      )}
     </div>
   );
 }
 
-// ================= Progress: profile setup =================
-function ProfileProgressCard({ health }) {
+function AttentionRow({ icon, count, label, to }) {
+  return (
+    <Link to={to} className="attention-row">
+      <span className="icon-badge tone-warning">
+        <Icon name={icon} size={16} />
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: "13.5px" }}>{label}</div>
+      </div>
+      {count != null && (
+        <span className="attention-count" style={{ color: "var(--gold)", fontSize: "16px" }}>
+          {count}
+        </span>
+      )}
+      <Icon name="chevron-right" size={15} style={{ color: "var(--slate)", flexShrink: 0 }} />
+    </Link>
+  );
+}
+
+function AttentionCard({ loading, items }) {
   return (
     <div className="card-elevated rise-in" style={{ animationDelay: "0.06s" }}>
-      <div className="card-title" style={{ marginBottom: "4px" }}>
-        Profile setup
+      <div className="card-title" style={{ marginBottom: "10px" }}>
+        Needs Your Attention
       </div>
-      <p className="card-subtitle">{health.complete ? "You're fully set up." : "A few things left to unlock the full experience."}</p>
-      <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
-        <ProgressRing percent={health.percent} size={72} strokeWidth={7} fillColor={health.complete ? "var(--success)" : "var(--blue)"} />
-        <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px", flex: 1, minWidth: 0 }}>
-          {health.items.map((item) => (
-            <li key={item.key} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px" }}>
-              <Icon
-                name={item.done ? "check-square" : "clipboard"}
-                size={14}
-                style={{ color: item.done ? "var(--success)" : "var(--slate)", flexShrink: 0 }}
-              />
-              <span style={{ color: item.done ? "var(--slate)" : "var(--navy)", textDecoration: item.done ? "line-through" : "none" }}>
-                {item.label}
-              </span>
-            </li>
+      {loading ? (
+        <Skeleton variant="table-row" />
+      ) : items.length === 0 ? (
+        <div className={`attention-card all-clear`} style={{ padding: "6px" }}>
+          <div className="attention-row" style={{ cursor: "default" }}>
+            <span className="icon-badge tone-success">
+              <Icon name="check" size={16} />
+            </span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: "13.5px" }}>You're on track</div>
+              <div style={{ fontSize: "12px", color: "var(--slate)" }}>Nothing urgent needs your attention right now.</div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="attention-card" style={{ padding: "6px" }}>
+          {items.map((item) => (
+            <AttentionRow key={item.key} {...item} />
           ))}
-        </ul>
-      </div>
-      {!health.complete && (
-        <Link to="/profile" className="btn btn-primary" style={{ marginTop: "16px" }}>
-          Finish setup
-        </Link>
+        </div>
       )}
     </div>
   );
 }
 
-// ================= Progress: rank journey =================
+// ================= Compact workday header =================
+function Hero({ firstName, today }) {
+  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  const outstanding = today.total - today.doneCount;
+  const subtitle = today.loading
+    ? "Here's what needs your attention today."
+    : today.total === 0
+      ? "You're all caught up — here's what needs your attention today."
+      : outstanding === 0
+        ? "You've finished everything on your plate today. Nice work."
+        : `${outstanding} thing${outstanding === 1 ? "" : "s"} left on your plate today.`;
+
+  const percent = !today.loading && today.total > 0 ? Math.round((today.doneCount / today.total) * 100) : null;
+
+  return (
+    <div className="hero-banner rise-in">
+      <div className="hero-banner-main">
+        <div className="hero-date">{dateLabel}</div>
+        <h1>
+          {greeting()}, {firstName} 👋
+        </h1>
+        <p>{subtitle}</p>
+      </div>
+      {percent !== null && (
+        <div className="hero-stat">
+          <div className="hero-stat-value">
+            {percent}
+            <span>%</span>
+          </div>
+          <div className="hero-stat-label">
+            {today.doneCount}/{today.total} tasks
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ================= Quick stats strip =================
+function MiniStat({ icon, label, value, tone, loading, animationDelay }) {
+  return (
+    <div className="card-elevated rise-in" style={{ animationDelay }}>
+      <div className="stat-tile">
+        <span className={`icon-badge${tone ? ` tone-${tone}` : ""}`}>
+          <Icon name={icon} size={18} />
+        </span>
+        <div>
+          <div className="stat-tile-label">{label}</div>
+          <div className="stat-tile-value" style={{ fontSize: "20px" }}>
+            {loading ? "—" : value}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ================= Compact profile-setup nudge (banner, not a card) =================
+// Self-removes the instant health.complete flips true -- no permanent
+// dashboard real estate spent on a finished checklist.
+function ProfileBanner({ health }) {
+  if (health.complete) return null;
+  const next = health.items.find((i) => !i.done);
+  return (
+    <div className="card-elevated rise-in" style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "14px" }}>
+      <span className="icon-badge tone-warning" style={{ flexShrink: 0 }}>
+        <Icon name="clipboard" size={17} />
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: "13.5px" }}>Complete your profile</div>
+        <div style={{ fontSize: "12.5px", color: "var(--slate)" }}>
+          {health.percent}% complete{next ? ` — ${next.label}` : ""}
+        </div>
+      </div>
+      <Link to="/profile" className="btn btn-secondary" style={{ flexShrink: 0 }}>
+        Finish Setup
+      </Link>
+    </div>
+  );
+}
+
+// ================= Compact rank journey: current -> next -> progress -> action =================
 // Business Path v2: no fixed ladder, an admin can create any ranks they
 // want (supabase/migrations/0059_business_path_v2_schema.sql) -- this reads
 // the whole ordered list and highlights wherever profiles.rank_id currently
-// sits in it, which is the closest thing to a "career path" a member has.
-function RankJourneyCard({ profile }) {
+// sits in it. Deliberately doesn't render the full roadmap here (that's
+// what /rank-journey is for) -- "requirements complete" reuses
+// useTodayTasks' real activitiesDone/activitiesTotal split (this rank's
+// tasks) rather than inventing a separate "progress to next rank" number
+// nothing in the schema actually tracks.
+function RankJourneyCard({ profile, today }) {
   const { loading, data: ranks } = useSupabaseQuery(
     () => supabase.from("ranks").select("id, title, order_index").order("order_index"),
     [],
@@ -341,7 +448,7 @@ function RankJourneyCard({ profile }) {
     return (
       <div className="card-elevated rise-in" style={{ animationDelay: "0.1s" }}>
         <Skeleton variant="text" width="140px" height="16px" style={{ marginBottom: "12px" }} />
-        <Skeleton variant="card" height="90px" />
+        <Skeleton variant="card" height="60px" />
       </div>
     );
   }
@@ -351,43 +458,51 @@ function RankJourneyCard({ profile }) {
   const currentIndex = ranks.findIndex((r) => r.id === profile?.rank_id);
   const currentRank = currentIndex >= 0 ? ranks[currentIndex] : null;
   const nextRank = currentIndex >= 0 ? ranks[currentIndex + 1] : ranks[0];
+  const reqTotal = today.activitiesTotal;
+  const reqDone = today.activitiesDone;
+  const reqPercent = reqTotal > 0 ? Math.round((reqDone / reqTotal) * 100) : 0;
 
   return (
     <div className="card-elevated rise-in" style={{ animationDelay: "0.1s" }}>
-      <div className="card-title" style={{ marginBottom: "4px" }}>
+      <div className="card-title" style={{ marginBottom: "10px" }}>
         <Icon name="compass" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        Your rank journey
+        Rank Journey
       </div>
-      <p className="card-subtitle">
-        {currentRank ? (
-          nextRank ? (
-            <>
-              You're at <strong style={{ color: "var(--navy)" }}>{currentRank.title}</strong> — next up:{" "}
-              <span className="rank-journey-next-chip">{nextRank.title}</span>
-            </>
-          ) : (
-            <>
-              You've reached the top rank: <strong style={{ color: "var(--navy)" }}>{currentRank.title}</strong> 🏆
-            </>
-          )
-        ) : (
-          "An admin hasn't assigned your rank yet — it'll show up here once they do."
-        )}
-      </p>
 
-      <div className="rank-journey-track">
-        {ranks.map((r, i) => (
-          <div key={r.id} className={`rank-journey-step${i < currentIndex ? " done" : ""}${i === currentIndex ? " current" : ""}`}>
-            <div className={`stepper-step${i < currentIndex ? " done" : ""}${i === currentIndex ? " current" : ""}`} title={r.title}>
-              {i < currentIndex ? <Icon name="check" size={16} /> : i === currentIndex ? <Icon name="trophy" size={19} /> : i + 1}
-            </div>
-            <div className="rank-journey-step-label">{r.title}</div>
+      {!currentRank ? (
+        <p className="card-subtitle">An admin hasn't assigned your rank yet — it'll show up here once they do.</p>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div>
+            <div className="row-meta">Current</div>
+            <div style={{ fontWeight: 700, fontSize: "16px" }}>{currentRank.title}</div>
           </div>
-        ))}
-      </div>
+          {nextRank && (
+            <>
+              <Icon name="chevron-right" size={16} style={{ color: "var(--slate)", flexShrink: 0 }} />
+              <div>
+                <div className="row-meta">Next</div>
+                <div style={{ fontWeight: 700, fontSize: "16px", color: "var(--blue-bright)" }}>{nextRank.title}</div>
+              </div>
+            </>
+          )}
+          {!nextRank && <span style={{ fontSize: "20px" }}>🏆</span>}
+        </div>
+      )}
 
-      <Link to="/rank-journey" className="btn btn-secondary" style={{ marginTop: "20px" }}>
-        View Rank Journey
+      {reqTotal > 0 && (
+        <>
+          <div className="progress-bar" style={{ margin: "14px 0 6px" }}>
+            <div className="progress-bar-fill" style={{ width: `${reqPercent}%` }} />
+          </div>
+          <p className="card-subtitle" style={{ marginBottom: 0 }}>
+            {reqDone} / {reqTotal} requirements complete
+          </p>
+        </>
+      )}
+
+      <Link to="/rank-journey" className="btn btn-secondary" style={{ marginTop: "16px" }}>
+        Continue Journey
       </Link>
     </div>
   );
@@ -399,7 +514,9 @@ function RankJourneyCard({ profile }) {
 // -- distinct from the always-editable income/team-size targets on Profile.
 // Per-category done/total below is real: each category is a jsonb array of
 // {text, target, progress, done} items the member maintains on /goals, not
-// a computed aggregate the DB provides -- summed here client-side.
+// a computed aggregate the DB provides -- summed here client-side. `row` is
+// lifted to Dashboard() (needed there for the attention/next-step signal
+// too) rather than fetched a second time here.
 const GOAL_CATEGORIES = [
   { key: "skill", label: "Skill" },
   { key: "freelancing", label: "Freelancing" },
@@ -407,14 +524,7 @@ const GOAL_CATEGORIES = [
   { key: "personal", label: "Personal" },
 ];
 
-function MonthlyGoalsCard({ uid }) {
-  const period = currentPeriod();
-  const { loading, data: row } = useSupabaseQuery(
-    () => uid && supabase.from("monthly_goals").select("status, goals").eq("uid", uid).eq("period", period).maybeSingle(),
-    [uid, period],
-  );
-  const monthLabel = new Date(`${period}-01T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
-
+function MonthlyGoalsCard({ row, loading, monthLabel }) {
   if (loading) {
     return (
       <div className="card-elevated rise-in" style={{ animationDelay: "0.14s" }}>
@@ -482,16 +592,16 @@ function MonthlyGoalsCard({ uid }) {
 // progress (get_my_mind_training_paths returns completedItems/totalItems --
 // nothing else does) over a Learning Hub path, which only has a static
 // courseCount, not a lesson counter -- shown honestly as "N courses"
-// instead of a fabricated "lesson X of Y".
+// instead of a fabricated "lesson X of Y". lpPaths is lifted to Dashboard()
+// and shared with BusinessWorkCard rather than each fetching it separately.
 const LEARNING_SECTION_LABEL = {
   skill_set: "Freelancing",
   nm_business: "Network Marketing",
   mind_training: "Mind Training",
 };
 
-function ContinueLearningCard() {
+function ContinueLearningCard({ lpPaths, loadingLP }) {
   const { loading: loadingMT, data: mtPaths } = useSupabaseQuery(() => supabase.rpc("get_my_mind_training_paths", {}), []);
-  const { loading: loadingLP, data: lpPaths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths", {}), []);
   const loading = loadingMT || loadingLP;
 
   if (loading) {
@@ -552,29 +662,14 @@ function ContinueLearningCard() {
   );
 }
 
-// ================= Your business: NM + Freelancing, learning -> work -> income =================
+// ================= My business: NM + Freelancing, learning -> work -> income =================
 // No portfolio/client-work/Fiverr-Upwork tracking exists anywhere in the
 // schema -- rather than invent numbers for it, Freelancing links straight
-// into the real skill_set learning content. Network Marketing's follow-up
-// count is the same live prospects query My Network's own Follow-ups Due
-// section (NetworkDashboard.jsx) is built from.
-function BusinessWorkCard({ uid }) {
-  const today = todayISO();
-  const { data: dueProspects } = useSupabaseQuery(
-    () =>
-      uid &&
-      supabase
-        .from("prospects")
-        .select("id")
-        .eq("owner_uid", uid)
-        .not("status", "in", "(joined,not_interested)")
-        .not("next_follow_up_at", "is", null)
-        .lte("next_follow_up_at", today),
-    [uid],
-  );
-  const { data: lpPaths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths", {}), []);
-
-  const dueCount = dueProspects?.length ?? 0;
+// into the real skill_set learning content. dueCount/lpPaths are both
+// lifted to Dashboard() -- this used to fetch both itself, duplicating
+// Dashboard's own attention-signal query and ContinueLearningCard's
+// get_learning_paths call.
+function BusinessWorkCard({ dueCount, lpPaths }) {
   const freelancingPaths = (lpPaths ?? []).filter((p) => p.section === "skill_set");
   const freelancingDone = freelancingPaths.filter((p) => p.completed).length;
 
@@ -582,7 +677,7 @@ function BusinessWorkCard({ uid }) {
     <div className="card-elevated rise-in" style={{ animationDelay: "0.2s" }}>
       <div className="card-title" style={{ marginBottom: "4px" }}>
         <Icon name="briefcase" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        Your Business
+        My Business
       </div>
       <p className="card-subtitle">Where learning turns into real work.</p>
 
@@ -684,58 +779,6 @@ function NetworkTeamCard({ uid }) {
   );
 }
 
-// ================= Today's reports (accountability) =================
-// Narrower than the Daily Report on /tasks (daily_reports, 0094, one
-// free-form wrap-up per day covering all of today's work): this card is
-// specifically about content_assignments that need admin-reviewed written
-// evidence, whose real status (not submitted / pending / done) already
-// flows through get_my_content_assignments -- a different, more specific
-// kind of reporting, not a duplicate of the Daily Report.
-function AccountabilityCard({ today }) {
-  const { loading, items } = today;
-  if (loading) return null;
-
-  const evidenceItems = items.filter((i) => i.kind === "assignment" && i.needsEvidence);
-
-  return (
-    <div className="card-elevated rise-in" style={{ animationDelay: "0.26s" }}>
-      <div className="card-title" style={{ marginBottom: "4px" }}>
-        <Icon name="clipboard" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
-        Today's Reports
-      </div>
-
-      {evidenceItems.length === 0 ? (
-        <p className="card-subtitle" style={{ marginBottom: 0 }}>
-          Nothing needs a report today.
-        </p>
-      ) : (
-        <>
-          <p className="card-subtitle">
-            {evidenceItems.every((i) => i.done)
-              ? "All of today's reports are in."
-              : `${evidenceItems.filter((i) => i.done).length} of ${evidenceItems.length} submitted`}
-          </p>
-          <ul className="accountability-list">
-            {evidenceItems.map((i) => (
-              <li key={i.id} className="accountability-row">
-                <span>{i.title}</span>
-                <span className={`badge ${i.done ? "badge-success" : i.evidenceStatus === "submitted" ? "badge-info" : "badge-neutral"}`}>
-                  {i.done ? "Approved" : i.evidenceStatus === "submitted" ? "Pending review" : "Not submitted"}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {!evidenceItems.every((i) => i.done) && (
-            <Link to="/tasks" className="btn btn-primary" style={{ marginTop: "14px" }}>
-              Submit Evidence
-            </Link>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
 // ================= Announcements =================
 // get_active_announcements (0090) -- the one broadcast-to-everyone
 // notification concept the platform has; admin-authored on
@@ -746,7 +789,7 @@ function AnnouncementsCard() {
   if (!loading && (!data || data.length === 0)) return null;
 
   return (
-    <div className="card-elevated rise-in" style={{ animationDelay: "0.28s" }}>
+    <div className="card-elevated rise-in" style={{ marginBottom: "20px" }}>
       <div className="card-title" style={{ marginBottom: "4px" }}>
         <Icon name="bell" size={16} style={{ verticalAlign: "-3px", marginRight: "6px" }} />
         Announcements
@@ -781,16 +824,17 @@ const LEADER_CATEGORY = {
 
 function TopLeadersCard({ uid }) {
   const { loading, data } = useSupabaseQuery(() => uid && supabase.rpc("get_leaderboards", {}), [uid]);
+  const anyLeaders = data && Object.keys(LEADER_CATEGORY).some((key) => data[key]?.[0]);
 
   return (
-    <div className="card-elevated leaders-card rise-in" style={{ animationDelay: "0.3s" }}>
+    <div className="card-elevated leaders-card rise-in" style={{ marginBottom: "20px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
         <span className="icon-badge tone-warning" style={{ width: "46px", height: "46px", borderRadius: "13px" }}>
           <Icon name="trophy" size={22} />
         </span>
         <div>
           <div className="card-title" style={{ marginBottom: "2px" }}>
-            This Week's Leaders
+            This Week
           </div>
           <p className="card-subtitle" style={{ marginBottom: 0 }}>
             Who's #1 on each board right now.
@@ -806,7 +850,13 @@ function TopLeadersCard({ uid }) {
         </div>
       )}
 
-      {!loading && (
+      {!loading && !anyLeaders && (
+        <p className="card-subtitle" style={{ marginTop: "16px", marginBottom: 0 }}>
+          Leaderboard results will appear here once activity is recorded.
+        </p>
+      )}
+
+      {!loading && anyLeaders && (
         <div className="leader-board-grid">
           {Object.entries(LEADER_CATEGORY).map(([key, meta], i) => {
             const leader = data?.[key]?.[0];
@@ -850,52 +900,20 @@ function TopLeadersCard({ uid }) {
 }
 
 const QUICK_ACTIONS = [
-  { to: "/learning", icon: "book", label: "Browse Learning" },
-  { to: "/assignments", icon: "clipboard", label: "Assignments" },
-  { to: "/tasks", icon: "check-square", label: "Tasks" },
-  { to: "/goals", icon: "target", label: "Monthly Goals" },
-  { to: "/network", icon: "network", label: "Prospects" },
+  { to: "/network", icon: "network", label: "Add Prospect" },
+  { to: "/tasks", icon: "clipboard", label: "Submit Report" },
+  { to: "/learning", icon: "book", label: "Continue Learning" },
+  { to: "/goals", icon: "target", label: "Set Goals" },
+  { to: "/rank-journey", icon: "compass", label: "Rank Journey" },
   { to: "/leaderboard", icon: "trophy", label: "Leaderboard" },
   { to: "/notifications", icon: "bell", label: "Notifications" },
 ];
 
-function Hero({ firstName, today }) {
-  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
-  const outstanding = today.total - today.doneCount;
-  const subtitle = today.loading
-    ? "Here's what you need to get done today."
-    : today.total === 0
-      ? "Here's what you need to get done today — you're all caught up already."
-      : outstanding === 0
-        ? "Here's what you need to get done today — and you've already finished it. Nice work."
-        : `Here's what you need to get done today — ${outstanding} thing${outstanding === 1 ? "" : "s"} left.`;
-
-  const percent = !today.loading && today.total > 0 ? Math.round((today.doneCount / today.total) * 100) : null;
-
-  return (
-    <div className="hero-banner rise-in">
-      <div className="hero-banner-main">
-        <div className="hero-date">{dateLabel}</div>
-        <h1>
-          {greeting()}, {firstName} 👋
-        </h1>
-        <p>{subtitle}</p>
-      </div>
-      {percent !== null && (
-        <div className="hero-stat">
-          <div className="hero-stat-value">
-            {percent}
-            <span>%</span>
-          </div>
-          <div className="hero-stat-label">today's progress</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function Dashboard() {
   const { user, profile } = useAuth();
+  const period = currentPeriod();
+  const today = useTodayTasks(user?.id);
+  const todayStr = todayISO();
 
   const { data: whys } = useSupabaseQuery(
     () => user && supabase.from("member_whys").select("id").eq("uid", user.id),
@@ -907,46 +925,106 @@ export default function Dashboard() {
   );
   const { data: streak } = useSupabaseQuery(() => supabase.rpc("get_my_streak", {}), []);
   const health = computeProfileHealth({ profile, whysCount: whys?.length, goals: goalsRow });
-  const today = useTodayTasks(user?.id);
+
+  const { data: monthlyGoalsRow, loading: loadingMonthlyGoals } = useSupabaseQuery(
+    () => user && supabase.from("monthly_goals").select("status, goals").eq("uid", user.id).eq("period", period).maybeSingle(),
+    [user?.id, period],
+  );
+
+  // Same "follow-up due" definition My Network's own Follow-ups Due section
+  // (NetworkDashboard.jsx) is built from -- lifted here once so the Quick
+  // Stats strip, Needs Attention, Next Best Action, and My Business all
+  // read the same number instead of four separate queries for it.
+  const { data: dueProspects, loading: loadingProspects } = useSupabaseQuery(
+    () =>
+      user &&
+      supabase
+        .from("prospects")
+        .select("id")
+        .eq("owner_uid", user.id)
+        .not("status", "in", "(joined,not_interested)")
+        .not("next_follow_up_at", "is", null)
+        .lte("next_follow_up_at", todayStr),
+    [user?.id],
+  );
+  const dueCount = dueProspects?.length ?? 0;
+
+  const { data: reportToday, loading: loadingReport } = useSupabaseQuery(
+    () => user && supabase.from("daily_reports").select("id").eq("uid", user.id).eq("report_date", todayStr).maybeSingle(),
+    [user?.id],
+  );
+
+  // Shared by ContinueLearningCard and BusinessWorkCard -- both used to call
+  // get_learning_paths independently on the same page load.
+  const { loading: loadingLP, data: lpPaths } = useSupabaseQuery(() => supabase.rpc("get_learning_paths", {}), []);
 
   const firstName = profile?.display_name?.split(" ")[0] ?? "there";
+  const monthLabel = new Date(`${period}-01T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+  const attentionLoading = today.loading || loadingMonthlyGoals || loadingReport;
+  const attentionItems = buildAttentionItems({
+    today,
+    dueCount,
+    hasReport: !!reportToday,
+    hasMonthlyGoals: !!monthlyGoalsRow,
+    health,
+    monthLabel,
+  });
+  const action = nextBestAction(attentionItems, monthLabel);
 
   return (
     <div>
       <Hero firstName={firstName} today={today} />
 
-      <TodayTasksCard today={today} />
-
-      <div style={{ marginBottom: "24px" }}>
-        <DailyProgressCard today={today} streak={streak ?? 0} />
+      <div className="dash-primary-row">
+        <TodayTasksCard today={today} />
+        <div className="dash-side-col">
+          <NextBestActionCard loading={attentionLoading} action={action} />
+          <AttentionCard loading={attentionLoading} items={attentionItems} />
+        </div>
       </div>
 
-      <div className="grid grid-2" style={{ marginBottom: "24px" }}>
-        <MonthlyGoalsCard uid={user?.id} />
-        <ContinueLearningCard />
+      <ProfileBanner health={health} />
+
+      <div className="grid grid-4" style={{ marginBottom: "20px" }}>
+        <MiniStat icon="check-square" label="Tasks today" value={`${today.doneCount}/${today.total}`} loading={today.loading} animationDelay="0s" />
+        <MiniStat
+          icon="clipboard"
+          label="Today's report"
+          value={reportToday ? "Submitted" : "Not yet"}
+          tone={reportToday ? "success" : "warning"}
+          loading={loadingReport}
+          animationDelay="0.03s"
+        />
+        <MiniStat
+          icon="network"
+          label="Follow-ups due"
+          value={dueCount}
+          tone={dueCount > 0 ? "warning" : undefined}
+          loading={loadingProspects}
+          animationDelay="0.06s"
+        />
+        <MiniStat icon="activity" label="Streak" value={streak ? `🔥 ${streak} day${streak === 1 ? "" : "s"}` : "No streak yet"} animationDelay="0.09s" />
       </div>
 
-      <div style={{ marginBottom: "24px" }}>
-        <BusinessWorkCard uid={user?.id} />
+      <div className="grid grid-2" style={{ marginBottom: "20px" }}>
+        <MonthlyGoalsCard row={monthlyGoalsRow} loading={loadingMonthlyGoals} monthLabel={monthLabel} />
+        <ContinueLearningCard lpPaths={lpPaths} loadingLP={loadingLP} />
       </div>
 
-      <div className="grid grid-2" style={{ marginBottom: "24px" }}>
+      <div className="grid grid-2" style={{ marginBottom: "20px" }}>
+        <BusinessWorkCard dueCount={dueCount} lpPaths={lpPaths} />
+        <RankJourneyCard profile={profile} today={today} />
+      </div>
+
+      <div className="grid grid-2" style={{ marginBottom: "20px" }}>
         <NetworkTeamCard uid={user?.id} />
-        <AccountabilityCard today={today} />
+        <DailyReportCard uid={user?.id} today={today} />
       </div>
 
-      <div style={{ marginBottom: "24px" }}>
-        <AnnouncementsCard />
-      </div>
+      <AnnouncementsCard />
 
-      <div className="grid grid-2" style={{ marginBottom: "24px" }}>
-        <ProfileProgressCard health={health} />
-        <RankJourneyCard profile={profile} />
-      </div>
-
-      <div style={{ marginBottom: "24px" }}>
-        <TopLeadersCard uid={user?.id} />
-      </div>
+      <TopLeadersCard uid={user?.id} />
 
       <div className="quick-actions">
         {QUICK_ACTIONS.map((qa, i) => (

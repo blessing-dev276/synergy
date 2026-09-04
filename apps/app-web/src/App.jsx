@@ -19,15 +19,10 @@ import AdminLayout from "./layouts/AdminLayout.jsx";
 
 import Dashboard from "./pages/member/Dashboard.jsx";
 import PathList from "./pages/learning/PathList.jsx";
-import PathDetail from "./pages/learning/PathDetail.jsx";
-import CourseDetail from "./pages/learning/CourseDetail.jsx";
-import LessonViewer from "./pages/learning/LessonViewer.jsx";
-import QuizTaker from "./pages/learning/QuizTaker.jsx";
 import MindTrainingPathDetail from "./pages/learning/MindTrainingPathDetail.jsx";
 import MindTrainingLessonViewer from "./pages/learning/MindTrainingLessonViewer.jsx";
 import MindTrainingActivityViewer from "./pages/learning/MindTrainingActivityViewer.jsx";
 import MindTrainingAssessmentTaker from "./pages/learning/MindTrainingAssessmentTaker.jsx";
-import PersonalDevelopmentResourceDetail from "./pages/learning/PersonalDevelopmentResourceDetail.jsx";
 import AssignmentList from "./pages/assignments/AssignmentList.jsx";
 import AssignmentDetail from "./pages/assignments/AssignmentDetail.jsx";
 import TaskList from "./pages/tasks/TaskList.jsx";
@@ -92,13 +87,17 @@ function App() {
           <Route element={<RoleGuard allow={["member"]} />}>
             <Route element={<MemberLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/learning" element={<PathList />} />
-              {/* Mind Training and Personal Development are separate, fixed
-                  path segments (not :pathId-shaped) -- react-router ranks a
-                  static segment above a dynamic one at the same position
-                  regardless of declaration order, so these never collide
-                  with a skill_set/nm_business learning_paths id matched by
-                  /learning/:pathId below. */}
+              {/* HQ360 restructure v2: Learning Hub retired -- its real
+                  Freelancing courses and Personal Development library
+                  migrated into Training with progress preserved (0128 +
+                  the pd_resources migration). /learning and the generic
+                  skill_set/nm_business/personal-development viewers all
+                  redirect there now; old links and bookmarks still resolve
+                  instead of 404ing. Mind Training is real, substantial,
+                  untouched content that doesn't fit Training's shape --
+                  its routes are deliberately NOT redirected, still reachable
+                  directly (MemberLayout.jsx). */}
+              <Route path="/learning" element={<Navigate to="/training" replace />} />
               <Route path="/learning/mind-training" element={<PathList />} />
               <Route path="/learning/mind-training/:pathId" element={<MindTrainingPathDetail />} />
               <Route
@@ -113,18 +112,12 @@ function App() {
                 path="/learning/mind-training/:pathId/:levelId/:moduleId/assessment"
                 element={<MindTrainingAssessmentTaker />}
               />
-              <Route path="/learning/personal-development" element={<PathList />} />
-              <Route path="/learning/personal-development/:resourceId" element={<PersonalDevelopmentResourceDetail />} />
-              <Route path="/learning/:pathId" element={<PathDetail />} />
-              <Route path="/learning/:pathId/:courseId" element={<CourseDetail />} />
-              <Route
-                path="/learning/:pathId/:courseId/:moduleId/:lessonId"
-                element={<LessonViewer />}
-              />
-              <Route
-                path="/learning/:pathId/:courseId/:moduleId/:lessonId/quiz"
-                element={<QuizTaker />}
-              />
+              <Route path="/learning/personal-development" element={<Navigate to="/training" replace />} />
+              <Route path="/learning/personal-development/:resourceId" element={<Navigate to="/training" replace />} />
+              <Route path="/learning/:pathId" element={<Navigate to="/training" replace />} />
+              <Route path="/learning/:pathId/:courseId" element={<Navigate to="/training" replace />} />
+              <Route path="/learning/:pathId/:courseId/:moduleId/:lessonId" element={<Navigate to="/training" replace />} />
+              <Route path="/learning/:pathId/:courseId/:moduleId/:lessonId/quiz" element={<Navigate to="/training" replace />} />
               <Route path="/assignments" element={<AssignmentList />} />
               <Route path="/assignments/:assignmentId" element={<AssignmentDetail />} />
               <Route path="/tasks" element={<TaskList />} />

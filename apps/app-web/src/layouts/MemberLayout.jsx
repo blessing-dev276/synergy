@@ -19,14 +19,17 @@ const sections = [
     ],
   },
   {
+    // Learning Hub retired as its own nav item -- Training now dominates:
+    // its real Freelancing courses and Personal Development library
+    // migrated in (0128 + the pd_resources migration script), progress
+    // preserved. /learning itself redirects to /training (App.jsx). Mind
+    // Training is real, substantial, untouched content that doesn't fit
+    // Training's shape (see 0128's migration notes) -- kept directly
+    // reachable here instead of disappearing.
     label: "Learn",
     items: [
-      { to: "/learning", label: "Learning Hub", icon: "book" },
-      // New HQ360-shaped journey (Onboarding/Personal Development live now,
-      // Skill/Income/Network Marketing stages coming) -- a separate page
-      // from Learning Hub, not a replacement; nothing here touches
-      // learning_paths/courses.
       { to: "/training", label: "Training", icon: "layers" },
+      { to: "/learning/mind-training", label: "Mind Training", icon: "brain" },
     ],
   },
   {
@@ -52,7 +55,7 @@ const sections = [
 
 const bottomItems = [
   { to: "/dashboard", label: "Home", icon: "home", end: true },
-  { to: "/learning", label: "Learning", icon: "book" },
+  { to: "/training", label: "Training", icon: "layers" },
   { to: "/tasks", label: "Tasks", icon: "check-square" },
   { to: "/network", label: "Network", icon: "network" },
   { to: "/profile", label: "Profile", icon: "user" },

@@ -21,26 +21,20 @@ function pathHue(id) {
   return PATH_HUES[Math.abs(hash) % PATH_HUES.length];
 }
 
-// One admin entry point for the whole member-facing Learning Hub (mirrors
-// PathList.jsx's own four tabs exactly, same order: Business Basics first,
-// then Freelancing, Mind Training, Personal Development). Business Basics
-// (section key unchanged: nm_business) and Freelancing (section key
-// unchanged: skill_set) share this page's courses/modules/lessons editor
-// below, same as always -- Mind Training and Personal Development instead
-// render their own dedicated, purpose-built managers (MindTrainingManager.jsx
-// / PersonalDevelopmentManager.jsx) inline for their tab, unchanged
-// themselves, just no longer needing a separate top-level sidebar entry
-// each (AdminLayout.jsx) to be reached.
-const SECTIONS = [
-  { key: "nm_business", label: "Business Basics", icon: "briefcase" },
-  { key: "skill_set", label: "Freelancing", icon: "layers" },
-  { key: "mind_training", label: "Mind Training", icon: "brain" },
-  { key: "personal_development", label: "Personal Development", icon: "book" },
-];
-// These two render their own dedicated manager component instead of the
-// courses/paths editor below (same split PathList.jsx's isCustomTab makes
-// on the member side).
-const CUSTOM_TABS = new Set(["mind_training", "personal_development"]);
+// HQ360 restructure v2: Business Basics (nm_business -- confirmed empty,
+// zero real courses/lessons) and Freelancing (skill_set -- 4 real courses,
+// migrated into Training > Skill Development classes with progress
+// preserved) and Personal Development (pd_resources -- 8 real books,
+// migrated into Training > Personal Development) are retired from this
+// page; that content is now authored in Training's own admin tabs instead
+// of a second, disconnected surface. Mind Training stays exactly as it
+// was (its own bespoke schema, too large/real to migrate into the new
+// classes shape -- see 0128's migration notes) -- still reachable here,
+// still rendering its own dedicated manager.
+const SECTIONS = [{ key: "mind_training", label: "Mind Training", icon: "brain" }];
+// Renders its own dedicated manager component instead of the courses/paths
+// editor below (same split PathList.jsx's isCustomTab makes on the member side).
+const CUSTOM_TABS = new Set(["mind_training"]);
 
 // A class holds a mix of structured courses (build out modules/lessons in
 // CourseEditor, unchanged) and lightweight standalone resources (a single
@@ -487,7 +481,7 @@ function PathBlock({ path, isOpen, onToggle, isFirst, isLast, onReorder, onChang
 }
 
 export default function ContentBuilder() {
-  const [section, setSection] = useState("nm_business");
+  const [section, setSection] = useState("mind_training");
   const [openPathId, setOpenPathId] = useState(null);
   const [pathModal, setPathModal] = useState(null); // null closed | {} add | path edit
 

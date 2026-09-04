@@ -538,6 +538,18 @@ export const adminRemoveTaskStep = (id) => call("admin_remove_task_step", { p_id
 
 export const adminMoveTaskStep = (id, direction) => call("admin_move_task_step", { p_id: id, p_direction: direction });
 
+// ---------- Evaluation Center (0128) ----------
+// get_member_evaluation_history/get_admin_members_evaluation are reads,
+// called directly via supabase.rpc(...) inside useSupabaseQuery wherever
+// they're used -- same convention as every other read RPC in this file
+// (see the note above deleteAnnouncement). Only the one write needs a
+// wrapper. category is one of 'tasks'|'learning'|'network'|'freelancing'|
+// 'personal_development'|'rank'|'reports'|'team', or null for an overall
+// evaluation. notify inserts a generic (never the raw note) notification
+// for the member.
+export const adminSaveEvaluation = (uid, status, note, category, notify) =>
+  call("admin_save_evaluation", { p_uid: uid, p_status: status, p_note: note, p_category: category ?? null, p_notify: !!notify });
+
 // ---------- Training: Levels (0125/0126) ----------
 // get_my_level_progress / get_admin_level_overview are read RPCs, called
 // directly via supabase.rpc(...) inside useSupabaseQuery -- same reasoning

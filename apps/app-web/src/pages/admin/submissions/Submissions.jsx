@@ -11,6 +11,7 @@ import {
   reviewWithdrawalRequest,
   reviewDailyReport,
   reviewCourseworkSubmission,
+  reviewLevelRegistration,
 } from "../../../lib/rpc.js";
 import Icon from "../../../components/Icon.jsx";
 import Skeleton from "../../../components/state/Skeleton.jsx";
@@ -421,6 +422,77 @@ function CourseworkSection() {
   );
 }
 
+// A member's signed registration document for a Training level (Level 1 -
+// Prospect's Registration step, 0125/0126) -- approve/reject like every
+// other document review here; approving is one of the four conditions
+// get_my_level_progress checks before it'll call the level's Milestone hit.
+function LevelRegistrationSection() {
+  const toast = useToast();
+  const [reviewNote, setReviewNote] = useState({});
+  const [busyId, setBusyId] = useState(null);
+
+  const { loading, data: submissions, refetch } = useSupabaseQuery(
+    () =>
+      supabase
+        .from("level_registration_submissions")
+        .select("*, member:profiles!level_registration_submissions_user_id_fkey(display_name), training_levels(title)")
+        .eq("status", "submitted")
+        .order("submitted_at", { ascending: true }),
+    [],
+  );
+
+  const openDocument = async (path) => {
+    const { data, error } = await supabase.storage.from("onboarding").createSignedUrl(path, 60);
+    if (error || !data) {
+      toast.error("Couldn't open that document.");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const decide = async (submission, decision) => {
+    setBusyId(submission.id);
+    try {
+      await reviewLevelRegistration(submission.id, decision, (reviewNote[submission.id] ?? "").trim());
+      toast.success(decision === "approved" ? "Approved." : "Marked not approved.");
+      refetch();
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't submit that review.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      {loading && <Skeleton variant="card" height="140px" />}
+      {!loading && (!submissions || submissions.length === 0) && <EmptyState icon={<Icon name="folder" size={26} />} title="Nothing pending review" />}
+      {submissions?.map((s) => (
+        <div key={s.id} className="card" style={{ marginBottom: "14px" }}>
+          <div className="card-title">
+            {s.training_levels?.title ?? "Level"} registration — {s.member?.display_name || "Member"}
+          </div>
+          <button type="button" className="btn btn-secondary" style={{ margin: "8px 0" }} onClick={() => openDocument(s.document_path)}>
+            View document
+          </button>
+          <div className="field" style={{ marginTop: "8px" }}>
+            <label>Review note (optional)</label>
+            <textarea rows={2} value={reviewNote[s.id] ?? ""} onChange={(e) => setReviewNote((prev) => ({ ...prev, [s.id]: e.target.value }))} />
+          </div>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button type="button" className="btn btn-primary" disabled={busyId === s.id} onClick={() => decide(s, "approved")}>
+              Approve
+            </button>
+            <button type="button" className="btn btn-danger" disabled={busyId === s.id} onClick={() => decide(s, "rejected")}>
+              Reject
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Evidence submitted for a bare content_assignment flagged
 // requires_admin_approval (see supabase/migrations/0033_milestones_and_
 // evidence_review.sql) — a sibling queue to course-assignment grading
@@ -640,6 +712,7 @@ const SECTIONS = [
   { id: "withdrawals", label: "Withdrawal Requests", icon: "dollar-sign", Component: WithdrawalRequestsSection },
   { id: "assignments", label: "Course Assignments", icon: "folder", Component: AssignmentGradingSection },
   { id: "coursework", label: "Training Coursework", icon: "layers", Component: CourseworkSection },
+  { id: "level-registration", label: "Level Registration", icon: "check-square", Component: LevelRegistrationSection },
   { id: "evidence", label: "Task Evidence", icon: "check-square", Component: TaskEvidenceSection },
 ];
 const SECTION_IDS = new Set(SECTIONS.map((s) => s.id));
